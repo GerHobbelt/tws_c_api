@@ -1,0 +1,5 @@
+twsapi.h     - TWS client API
+twsapi.c     - TWS client API implementation
+callbacks.c  - stubs to be implemented by user
+example.c    - example only, do not use in real projects
+README       - instructions, etc.
