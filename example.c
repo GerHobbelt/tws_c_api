@@ -8,28 +8,28 @@
 #include <pthread.h>
 #else
 #include <windows.h>
+#include <process.h>
 #endif
 
 int mythread_starter(tws_func_t func, void *arg)
 {
 #ifdef unix
     pthread_t thr;
-#else
-    unsigned thr;
 #endif
     int err;
 
 #ifdef unix
     err = pthread_create(&thr, 0, (void *(*)(void *)) func, arg);
 #else
-    /* beware of stack leak if func expected to use Pascal calling convention
-     * but declaration of func in another unit conveys C calling convention.
-     * wrap pascal func in C func if this is the case.
+    /* if using _beginthreadex: beware of stack leak if func expected to
+     * use Pascal calling convention but declaration of func in another 
+     * unit conveys C calling convention, wrap pascal func in C func if 
+     * this is the case. Also cleanup is more complex for _beginthreadex.
      */
-    err = _beginthreadex(0, 2*8192, func, arg, 0, (unsigned *)&thr);
+    err = _beginthread(func, 2*8192, arg);
 #endif
 
-    return err;
+    return err; /* 0 success, -1 error */
 }
 
 
@@ -39,7 +39,7 @@ int main()
     void *ti;
     tr_contract_t c;
 
-    ti = tws_create(mythread_starter, 0x12345);
+    ti = tws_create(mythread_starter, (void *) 0x12345);
     err = tws_connect(ti, 0, 7496, 1);
     if(err) {
         printf("tws connect returned %d\n", err); exit(1);

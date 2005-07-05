@@ -474,6 +474,7 @@ static void receive_contract_data(tws_instance_t *ti)
     lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_right, &lval);
     lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_exchange, &lval);
     lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_currency, &lval);
+    lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_local_symbol, &lval);
     lval = sizeof(tws_string_t), read_line(ti, cdetails.d_market_name, &lval);
     lval = sizeof(tws_string_t), read_line(ti, cdetails.d_trading_class, &lval);
     read_int(ti, &cdetails.d_conid);
@@ -932,7 +933,12 @@ int tws_connect(void *tws, const char host[], unsigned short port, int clientid)
 #endif
     
     ti->fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
-    if(ti->fd < 0) {
+#ifdef WINDOWS
+    err = ti->fd == INVALID_SOCKET;
+#else
+    err = ti->fd < 0;
+#endif
+    if(err) {
     connect_fail:
         err = CONNECT_FAIL; goto out;
     }
@@ -960,7 +966,7 @@ int tws_connect(void *tws, const char host[], unsigned short port, int clientid)
         err = NO_VALID_ID; goto out;
     }
 
-    ti->server_version = (unsigned char) val;
+    ti->server_version = val;
     if(ti->server_version >= 3)
         if(send_int(ti, clientid))
             goto connect_fail;

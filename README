@@ -1,8 +1,10 @@
 
-		C language API for TWS workstation clients (released under GPL license)
+		C language API for TWS workstation clients (released under GPL and Artistic license)
 
 1)  Introduction
 
+    The C API tracks Unix/Mac releases even though they are updated less frequently
+    because the newest beta releases are sometimes unreliable.
     This API implements client functionality version 17.
     It has been tested with TWS server version 15.
     It is realeased as is without warranty of any kind.
@@ -58,7 +60,7 @@
 
     Theoretically strings that are exchanged between the TWS client and server may
     have unlimited size, however, by using sufficiently large char arrays in the
-    twsapi.c implementation (1024 bytes for each string), the possibility of a decoding
+    twsapi.c implementation (1024 bytes for each string), the possibility of decoding
     errors is practically obviated (for IB bulletin messages only the size is set to 64K).
     Currently characters are read inefficiently 1 at a time for simplicity.
     The better way is to buffer incoming chars in large buffers and refill buffers
