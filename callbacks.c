@@ -1,20 +1,21 @@
 /* API users must implement some or all of these functions */
 #include "twsapi.h"
 
+#include <stdio.h>
+
 void event_tick_price(void *opaque_user_defined, long ticker_id, long field, double price,
                       int can_auto_execute)
 {
     /*implement me*/
-    printf("tick_price: opaque=%x, ticker_id=%ld, type=%ld, price=%.2f, can_auto=%d\n",
+    printf("tick_price: opaque=%p, ticker_id=%ld, type=%ld, price=%.2f, can_auto=%d\n",
            opaque_user_defined, ticker_id, field, price, can_auto_execute);
 }
 
 void event_tick_size(void *opaque_user_defined, long ticker_id, long field, int size)
 {
     /*implement me*/
-    printf("tick_size: opaque=%x, ticker_id=%ld, type=%ld, size=%d\n",
+    printf("tick_size: opaque=%p, ticker_id=%ld, type=%ld, size=%d\n",
            opaque_user_defined, ticker_id, field, size);
-
 }
 
 void event_order_status(void *opaque_user_defined, long order_id, const char status[],
@@ -28,7 +29,7 @@ void event_open_order(void *opaque_user_defined, long order_id, const tr_contrac
                       const tr_order_t *order)
 {
     /*implement me*/
-    printf("open_order: order_id=%d\n", order_id);
+    printf("open_order: order_id=%ld\n", order_id);
 }
 
 void event_win_error(void *opaque_user_defined, const char str[], int last_error)

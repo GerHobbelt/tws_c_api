@@ -53,7 +53,7 @@ static char *alloc_string(tws_instance_t *ti)
     for(j = 0; j < MAX_TWS_STRINGS; j++) {
         index = j / WORD_SIZE_IN_BITS;
         if(ti->bitmask[index] == ~0UL)
-	    continue;
+            continue;
 
         bits = 1 << (j & (WORD_SIZE_IN_BITS - 1));
         if(!(ti->bitmask[index] & bits)) {
@@ -62,7 +62,9 @@ static char *alloc_string(tws_instance_t *ti)
             return ti->mempool[j].str;
         }
     }
+#ifdef DEBUG
     printf("alloc_string: ran out of strings, will crash shortly\n");
+#endif
     return 0;
 }
 
@@ -635,68 +637,72 @@ static void event_loop(void *tws)
         read_int(ti, &msgid);
         
         if(msgid < 1 || msgid >= no_more_messages) {
-            printf("read_int: invalid msgid received %d\n", msgid); break;
+#ifdef DEBUG
+            printf("read_int: invalid msgid received %d\n", msgid);
+#endif
+            break;
         }
         
 #ifdef DEBUG
-	printf("\nreceived %s\n", tws_incoming_msg_names[msgid-1]);
+        printf("\nreceived %s\n", tws_incoming_msg_names[msgid-1]);
 #endif
       
-	switch(msgid) {
-	    case TICK_PRICE:
-		receive_tick_price(ti); break;
+        switch(msgid) {
+            case TICK_PRICE:
+                receive_tick_price(ti); break;
         
-	    case TICK_SIZE:
-		receive_tick_size(ti); break;
-		break;
+            case TICK_SIZE:
+                receive_tick_size(ti); break;
         
-	    case ORDER_STATUS:
-		receive_order_status(ti); break;
+            case ORDER_STATUS:
+                receive_order_status(ti); break;
         
-	    case ACCT_VALUE:
-		receive_acct_value(ti); break;
+            case ACCT_VALUE:
+                receive_acct_value(ti); break;
         
-	    case PORTFOLIO_VALUE:
-		receive_portfolio_value(ti); break;
+            case PORTFOLIO_VALUE:
+                receive_portfolio_value(ti); break;
         
-	    case ACCT_UPDATE_TIME:
-		receive_acct_update_time(ti); break;
+            case ACCT_UPDATE_TIME:
+                receive_acct_update_time(ti); break;
         
-	    case ERR_MSG:
-		receive_err_msg(ti); break;
+            case ERR_MSG:
+                receive_err_msg(ti); break;
         
-	    case OPEN_ORDER:
-		receive_open_order(ti); break;
+            case OPEN_ORDER:
+                receive_open_order(ti); break;
         
-	    case NEXT_VALID_ID:
-		receive_next_valid_id(ti); break;
+            case NEXT_VALID_ID:
+                receive_next_valid_id(ti); break;
         
-	    case CONTRACT_DATA:
-		receive_contract_data(ti); break;
+            case CONTRACT_DATA:
+                receive_contract_data(ti); break;
         
-	    case EXECUTION_DATA:
-		receive_execution_data(ti); break;
+            case EXECUTION_DATA:
+                receive_execution_data(ti); break;
         
-	    case MARKET_DEPTH:
-		receive_market_depth(ti); break;
+            case MARKET_DEPTH:
+                receive_market_depth(ti); break;
         
-	    case MARKET_DEPTH_L2:
-		receive_market_depth_l2(ti); break;
+            case MARKET_DEPTH_L2:
+                receive_market_depth_l2(ti); break;
         
-	    case NEWS_BULLETINS:
-		receive_news_bulletins(ti); break;
+            case NEWS_BULLETINS:
+                receive_news_bulletins(ti); break;
         
-	    case MANAGED_ACCTS:
-		receive_managed_accts(ti); break;
+            case MANAGED_ACCTS:
+                receive_managed_accts(ti); break;
         
-	    case RECEIVE_FA:     
-		receive_receive_fa(ti); break;
+            case RECEIVE_FA:     
+                receive_receive_fa(ti); break;
         
-	    default: ; /*provably can't happen */
-	}
+            default: ; /*provably can't happen */
+        }
     } while(ti->connected);
 
+#ifdef DEBUG
     printf("reader thread exiting\n");
+#endif
 }
 
 /* caller supplies start_thread method */
@@ -789,7 +795,7 @@ static int send_double(tws_instance_t *ti, double *val)
     long len;
     int err = 1;
 
-    len = sprintf(buf, "%.2f", *val);
+    len = sprintf(buf, "%.4lf", *val);
     if(len++ < 0)
         goto out;
 
@@ -874,9 +880,8 @@ static int read_double(tws_instance_t *ti, double *val)
 {
     char line[5*(sizeof *val)/2 + 2];
     long len = sizeof line;
-    int err;
+    int err = read_line(ti, line, &len);
 
-    err = read_line(ti, line, &len);
     if(err < 0) {
         *val = *dNAN;
         return err;
@@ -891,9 +896,8 @@ static int read_int(tws_instance_t *ti, int *val)
 {
     char line[5*(sizeof *val)/2 + 2];
     long len = sizeof line;
-    int err;
+    int err = read_line(ti, line, &len);
 
-    err = read_line(ti, line, &len);
     if(err < 0) {
         *val = -1000;
         return err;

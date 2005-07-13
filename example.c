@@ -6,10 +6,15 @@
 
 #ifdef unix
 #include <pthread.h>
+#include <sys/select.h>
 #else
 #include <windows.h>
 #include <process.h>
 #endif
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 int mythread_starter(tws_func_t func, void *arg)
 {

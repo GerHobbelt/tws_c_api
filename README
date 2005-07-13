@@ -49,6 +49,8 @@
 
        Example: link twsapi.o and callbacks.o with example.c and run it.
 
+     f) If there are any problems recompile code with -DDEBUG to see the output of more printfs.
+
 3)  Motivation
     The currently available APIs from Interactive Brokers do not offer a light weight,
     high performance library to link with. The Java runtime is a veritable performance hog
