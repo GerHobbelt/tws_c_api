@@ -795,7 +795,7 @@ static int send_double(tws_instance_t *ti, double *val)
     long len;
     int err = 1;
 
-    len = sprintf(buf, "%.4lf", *val);
+    len = sprintf(buf, "%.7lf", *val);
     if(len++ < 0)
         goto out;
 
