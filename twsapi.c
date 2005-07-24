@@ -32,6 +32,8 @@ typedef struct tws_instance {
     void *opaque_user_defined;
     start_thread_t start_thread;
     socket_t fd;
+    unsigned char buf[200]; /* buffer up to 200 chars at a time */
+    unsigned int buf_next, buf_last; /* index of next, last chars in buf */
     unsigned int server_version;
     volatile unsigned int connected:1;
     tws_string_t mempool[MAX_TWS_STRINGS];
@@ -831,6 +833,27 @@ out:
     return err;
 }
 
+/* returns 1 char at a time, kernel not entered most of the time 
+ * return -1 on error or EOF
+ */
+static int read_char(tws_instance_t *ti)
+{
+    int nread;    
+
+    if(ti->buf_next == ti->buf_last) {
+	nread = recv(ti->fd, ti->buf, sizeof ti->buf, 0);
+	if(nread <= 0) {
+	    nread = -1;
+	    goto out;
+	}
+	ti->buf_last = nread;
+	ti->buf_next = 0;
+    }
+
+    nread = ti->buf[ti->buf_next++];
+out: return nread;
+}
+
 /* return -1 on error, 0 if successful */
 static int read_line(tws_instance_t *ti, char *line, long *len)
 {
@@ -838,14 +861,14 @@ static int read_line(tws_instance_t *ti, char *line, long *len)
     int nread = -1, err = -1;
 
     for(j = 0; j < *len; j++) {
-        nread = recv(ti->fd, &line[j], 1, 0);
-        if(nread <= 0) {
+	nread = read_char(ti);
+        if(nread < 0) {
 #ifdef DEBUG
             printf("read_line: going out 1, nread=%d\n", nread);
 #endif
             goto out;
         }
-
+	line[j] = (char) nread;
         if(line[j] == '\0')
             break;
     }
