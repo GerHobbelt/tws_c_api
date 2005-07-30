@@ -29,7 +29,7 @@ typedef struct {
 } tws_string_t;
 
 typedef struct tws_instance {
-    void *opaque_user_defined;
+    void *opaque;
     start_thread_t start_thread;
     socket_t fd;
     unsigned char buf[200]; /* buffer up to 200 chars at a time */
@@ -217,19 +217,19 @@ static void receive_tick_price(tws_instance_t *ti)
     
     connected = ti->connected;
     if(connected)
-        event_tick_price(ti->opaque_user_defined, tickerid, tick_type, price, can_auto_execute);
+        event_tick_price(ti->opaque, tickerid, tick_type, price, can_auto_execute);
     
     if(version >= 2) {
         switch (tick_type) {
-            case 1: /* BID */  size_tick_type = 0; break; /* BID_SIZE */
-            case 2: /* ASK */  size_tick_type = 3; break; /* ASK_SIZE */
-            case 4: /* LAST */ size_tick_type = 5; break; /* LAST_SIZE */
-            default: size_tick_type = -1; /* not a tick */
+	case 1: /* BID */  size_tick_type = 0; break; /* BID_SIZE */
+	case 2: /* ASK */  size_tick_type = 3; break; /* ASK_SIZE */
+	case 4: /* LAST */ size_tick_type = 5; break; /* LAST_SIZE */
+	default: size_tick_type = -1; /* not a tick */
         }
         
         if(size_tick_type != -1)
             if(connected)
-                event_tick_size(ti->opaque_user_defined, tickerid, size_tick_type, size);
+                event_tick_size(ti->opaque, tickerid, size_tick_type, size);
     }
 }
 
@@ -244,7 +244,7 @@ static void receive_tick_size(tws_instance_t *ti)
     read_int(ti, &ival), size = ival;
     
     if(ti->connected)
-        event_tick_size(ti->opaque_user_defined, tickerid, tick_type, size);
+        event_tick_size(ti->opaque, tickerid, tick_type, size);
 }
 
 static void receive_order_status(tws_instance_t *ti)
@@ -274,7 +274,7 @@ static void receive_order_status(tws_instance_t *ti)
         read_int(ti, &ival), clientid = ival;
     
     if(ti->connected)
-        event_order_status(ti->opaque_user_defined, id, status, filled, remaining,
+        event_order_status(ti->opaque, id, status, filled, remaining,
                            avg_fill_price, permid, parentid, last_fill_price, clientid);
 
     free_string(ti, status);
@@ -297,7 +297,7 @@ static void receive_acct_value(tws_instance_t *ti)
         lval = sizeof(tws_string_t), read_line(ti, account_name, &lval);
     
     if(ti->connected)
-        event_update_account_value(ti->opaque_user_defined, key, val, cur, account_name);
+        event_update_account_value(ti->opaque, key, val, cur, account_name);
 
     free_string(ti, account_name);
     free_string(ti, cur);
@@ -342,7 +342,7 @@ static void receive_portfolio_value(tws_instance_t *ti)
         lval = sizeof(tws_string_t), read_line(ti, account_name, &lval);
     
     if(ti->connected)
-        event_update_portfolio(ti->opaque_user_defined, &contract, position,
+        event_update_portfolio(ti->opaque, &contract, position,
                                market_price, market_value, average_cost,
                                unrealized_pnl, realized_pnl, account_name);
 
@@ -360,7 +360,7 @@ static void receive_acct_update_time(tws_instance_t *ti)
     lval = sizeof(tws_string_t), read_line(ti, timestamp, &lval);
     
     if(ti->connected)
-        event_update_account_time(ti->opaque_user_defined, timestamp);
+        event_update_account_time(ti->opaque, timestamp);
     
     free_string(ti, timestamp);
 }
@@ -381,7 +381,7 @@ static void receive_err_msg(tws_instance_t *ti)
     lval = sizeof(tws_instance_t), read_line(ti, msg, &lval);
     
     if(ti->connected)
-        event_error(ti->opaque_user_defined, id, error_code, msg);
+        event_error(ti->opaque, id, error_code, msg);
 
     free_string(ti, msg);
 }
@@ -446,7 +446,7 @@ static void receive_open_order(tws_instance_t *ti)
     }
   
     if(ti->connected)
-        event_open_order(ti->opaque_user_defined, order.o_orderid, &contract, &order);
+        event_open_order(ti->opaque, order.o_orderid, &contract, &order);
 
     destroy_order(ti, &order);
     destroy_contract(ti, &contract);
@@ -459,7 +459,7 @@ static void receive_next_valid_id(tws_instance_t *ti)
     read_int(ti, &ival); /* version */
     read_int(ti, &ival); /* orderid */
     if(ti->connected)
-        event_next_valid_id(ti->opaque_user_defined, /*orderid*/ ival);
+        event_next_valid_id(ti->opaque, /*orderid*/ ival);
 }
 
 static void receive_contract_data(tws_instance_t *ti)
@@ -488,7 +488,7 @@ static void receive_contract_data(tws_instance_t *ti)
     lval = sizeof(tws_string_t), read_line(ti, cdetails.d_valid_exchanges, &lval);
 
     if(ti->connected)
-        event_contract_details(ti->opaque_user_defined, &cdetails);
+        event_contract_details(ti->opaque, &cdetails);
 
     destroy_contract_details(ti, &cdetails);
 }
@@ -519,7 +519,7 @@ static void receive_execution_data(tws_instance_t *ti)
     lval = sizeof(tws_string_t), read_line(ti, exec.e_time, &lval);
     lval = sizeof(tws_string_t), read_line(ti, exec.e_acct_number, &lval);
     lval = sizeof(tws_string_t), read_line(ti, exec.e_exchange, &lval);
-    lval = sizeof exec.e_side, read_line(ti, exec.e_side, &lval);
+    lval = sizeof(tws_string_t), read_line(ti, exec.e_side, &lval);
     read_int(ti, &exec.e_shares);
     read_double(ti, &exec.e_price);
     if(version >= 2)
@@ -532,7 +532,7 @@ static void receive_execution_data(tws_instance_t *ti)
         read_int(ti, &exec.e_liquidation);
     
     if(ti->connected)
-        event_exec_details(ti->opaque_user_defined, orderid, &contract, &exec);
+        event_exec_details(ti->opaque, orderid, &contract, &exec);
 
     destroy_contract(ti, &contract);
     destroy_execution(ti, &exec);
@@ -552,7 +552,7 @@ static void receive_market_depth(tws_instance_t *ti)
     read_int(ti, &ival), size = ival;
 
     if(ti->connected)
-        event_update_mkt_depth(ti->opaque_user_defined, id, position, operation,
+        event_update_mkt_depth(ti->opaque, id, position, operation,
                                side, price, size);
 }
 
@@ -574,7 +574,7 @@ static void receive_market_depth_l2(tws_instance_t *ti)
     read_int(ti, &ival), size = ival;
     
     if(ti->connected)
-        event_update_mkt_depth_l2(ti->opaque_user_defined, id, position, mkt_maker,
+        event_update_mkt_depth_l2(ti->opaque, id, position, mkt_maker,
                                   operation, side, price, size);
 
     free_string(ti, mkt_maker);
@@ -597,7 +597,7 @@ static void receive_news_bulletins(tws_instance_t *ti)
     lval = sizeof originating_exch, read_line(ti, originating_exch, &lval);
     
     if(ti->connected)
-        event_update_news_bulletin(ti->opaque_user_defined, newsmsgid, newsmsgtype,
+        event_update_news_bulletin(ti->opaque, newsmsgid, newsmsgtype,
                                    msg, originating_exch);
 }
 
@@ -611,7 +611,7 @@ static void receive_managed_accts(tws_instance_t *ti)
     lval = sizeof(tws_string_t), read_line(ti, acct_list, &lval); /* accounts list */
     
     if(ti->connected)
-        event_managed_accounts(ti->opaque_user_defined, acct_list);
+        event_managed_accounts(ti->opaque, acct_list);
 
     free_string(ti, acct_list);
 }
@@ -627,7 +627,7 @@ static void receive_receive_fa(tws_instance_t *ti)
     read_int(ti, &ival), fadata_type = ival;
     read_line(ti, xml, &lval); /* xml */
     if(ti->connected)
-        event_receive_fa(ti->opaque_user_defined, fadata_type, xml);    
+        event_receive_fa(ti->opaque, fadata_type, xml);    
 }
 
 static void event_loop(void *tws)
@@ -650,55 +650,55 @@ static void event_loop(void *tws)
 #endif
       
         switch(msgid) {
-            case TICK_PRICE:
-                receive_tick_price(ti); break;
+	case TICK_PRICE:
+	    receive_tick_price(ti); break;
         
-            case TICK_SIZE:
-                receive_tick_size(ti); break;
+	case TICK_SIZE:
+	    receive_tick_size(ti); break;
         
-            case ORDER_STATUS:
-                receive_order_status(ti); break;
+	case ORDER_STATUS:
+	    receive_order_status(ti); break;
         
-            case ACCT_VALUE:
-                receive_acct_value(ti); break;
+	case ACCT_VALUE:
+	    receive_acct_value(ti); break;
         
-            case PORTFOLIO_VALUE:
-                receive_portfolio_value(ti); break;
+	case PORTFOLIO_VALUE:
+	    receive_portfolio_value(ti); break;
         
-            case ACCT_UPDATE_TIME:
-                receive_acct_update_time(ti); break;
+	case ACCT_UPDATE_TIME:
+	    receive_acct_update_time(ti); break;
         
-            case ERR_MSG:
-                receive_err_msg(ti); break;
+	case ERR_MSG:
+	    receive_err_msg(ti); break;
         
-            case OPEN_ORDER:
-                receive_open_order(ti); break;
+	case OPEN_ORDER:
+	    receive_open_order(ti); break;
         
-            case NEXT_VALID_ID:
-                receive_next_valid_id(ti); break;
+	case NEXT_VALID_ID:
+	    receive_next_valid_id(ti); break;
         
-            case CONTRACT_DATA:
-                receive_contract_data(ti); break;
+	case CONTRACT_DATA:
+	    receive_contract_data(ti); break;
         
-            case EXECUTION_DATA:
-                receive_execution_data(ti); break;
+	case EXECUTION_DATA:
+	    receive_execution_data(ti); break;
         
-            case MARKET_DEPTH:
-                receive_market_depth(ti); break;
+	case MARKET_DEPTH:
+	    receive_market_depth(ti); break;
         
-            case MARKET_DEPTH_L2:
-                receive_market_depth_l2(ti); break;
+	case MARKET_DEPTH_L2:
+	    receive_market_depth_l2(ti); break;
         
-            case NEWS_BULLETINS:
-                receive_news_bulletins(ti); break;
+	case NEWS_BULLETINS:
+	    receive_news_bulletins(ti); break;
         
-            case MANAGED_ACCTS:
-                receive_managed_accts(ti); break;
+	case MANAGED_ACCTS:
+	    receive_managed_accts(ti); break;
         
-            case RECEIVE_FA:     
-                receive_receive_fa(ti); break;
+	case RECEIVE_FA:     
+	    receive_receive_fa(ti); break;
         
-            default: ; /*provably can't happen */
+	default: ; /*provably can't happen */
         }
     } while(ti->connected);
 
@@ -708,13 +708,13 @@ static void event_loop(void *tws)
 }
 
 /* caller supplies start_thread method */
-void *tws_create(start_thread_t start_thread, void *opaque_user_defined)
+void *tws_create(start_thread_t start_thread, void *opaque)
 {
     tws_instance_t *ti = calloc(1, sizeof *ti);
     if(ti) {
         ti->fd = (socket_t) ~0;
         ti->start_thread = start_thread;
-        ti->opaque_user_defined = opaque_user_defined;
+        ti->opaque = opaque;
     }
 
     return ti;
@@ -727,62 +727,13 @@ void tws_destroy(void *tws_instance)
     free(tws_instance);
 }
 
-#if 0
-/*
- * returns -1 on fatal error, 0 if socket not readable/writeable
- * 1 if socket is readable
- * 2 if socket is writeable
- * 3 if it is both readable and writeable
- * if block_forever is true then tws_poll sleeps, otherwise returns immediately
- */
-static int tws_poll(void *tws_instance, long block_forever)
-{
-    fd_set rd, wr;
-    struct timeval tmout;
-    tws_instance_t *ti = (tws_instance_t *) tws_instance;
-    int err;
-
-    while(1) {
-        if(!block_forever) {
-            tmout.tv_sec = 0;
-            tmout.tv_usec = 0;
-        }
-        FD_ZERO(&rd); FD_ZERO(&wr);
-        FD_SET(ti->fd, &rd); FD_SET(ti->fd, &wr);
-        
-        err = select(1 + ti->fd, &rd, &wr, 0, block_forever ? 0 : &tmout);
-        if(err == -1) {
-#ifdef WINDOWS
-            if(WSAGetLastError() == WSAEINTR)
-#else /* unix */
-                if(errno == EINTR)          
-#endif
-                    continue;
-
-            return err;
-        }
-
-        break;
-    }
-
-    if(err > 0) {
-        err = 0;
-        err |= FD_ISSET(ti->fd, &rd) ? TWS_CAN_READ : 0;
-        err |= FD_ISSET(ti->fd, &wr) ? TWS_CAN_WRITE : 0;
-    }
-
-    return err;
-}
-#endif
-
 /* return 1 on error, 0 if successful, it's all right to block
  * str must be null terminated
  */
 static int send_str(tws_instance_t *ti, const char str[])
 {
     long len = (long) strlen(str) + 1;
-    int err;
-    err = len != send(ti->fd, str, len, 0);
+    int err = len != send(ti->fd, str, len, 0);
 
     if(err) {
         close(ti->fd);
@@ -841,13 +792,13 @@ static int read_char(tws_instance_t *ti)
     int nread;    
 
     if(ti->buf_next == ti->buf_last) {
-	nread = recv(ti->fd, ti->buf, sizeof ti->buf, 0);
-	if(nread <= 0) {
-	    nread = -1;
-	    goto out;
-	}
-	ti->buf_last = nread;
-	ti->buf_next = 0;
+        nread = recv(ti->fd, ti->buf, sizeof ti->buf, 0);
+        if(nread <= 0) {
+            nread = -1;
+            goto out;
+        }
+        ti->buf_last = nread;
+        ti->buf_next = 0;
     }
 
     nread = ti->buf[ti->buf_next++];
@@ -861,14 +812,14 @@ static int read_line(tws_instance_t *ti, char *line, long *len)
     int nread = -1, err = -1;
 
     for(j = 0; j < *len; j++) {
-	nread = read_char(ti);
+        nread = read_char(ti);
         if(nread < 0) {
 #ifdef DEBUG
             printf("read_line: going out 1, nread=%d\n", nread);
 #endif
             goto out;
         }
-	line[j] = (char) nread;
+        line[j] = (char) nread;
         if(line[j] == '\0')
             break;
     }
@@ -905,13 +856,8 @@ static int read_double(tws_instance_t *ti, double *val)
     long len = sizeof line;
     int err = read_line(ti, line, &len);
 
-    if(err < 0) {
-        *val = *dNAN;
-        return err;
-    }
-
-    *val = atof(line);
-    return 0;
+    *val = err < 0 ? *dNAN : atof(line);
+    return err;
 }
 
 /* return -1 on error, 0 if successful */
@@ -921,13 +867,9 @@ static int read_int(tws_instance_t *ti, int *val)
     long len = sizeof line;
     int err = read_line(ti, line, &len);
 
-    if(err < 0) {
-        *val = -1000;
-        return err;
-    }
-
-    *val = atoi(line);
-    return 0;
+    /* return an impossibly large negative number on error to fail careless callers*/
+    *val = err < 0 ? ~(1 << 30) : atoi(line);
+    return err;
 }
 
 #ifdef WINDOWS
@@ -946,9 +888,8 @@ int tws_connect(void *tws, const char host[], unsigned short port, int clientid)
     tws_instance_t *ti = tws;
     const char *hostname;
     struct hostent *h;
-    int val;
     struct sockaddr_in addr;
-    int err;
+    int val, err;
     
     if(ti->connected) {
         err = ALREADY_CONNECTED; goto out;
@@ -1053,7 +994,7 @@ int tws_req_mkt_data(void *tws, long ticker_id, tr_contract_t *contract)
     return ti->connected ? 0 : FAIL_SEND_REQMKT;
 }
 
-int req_contract_details(void *tws, tr_contract_t *contract)
+int tws_req_contract_details(void *tws, tr_contract_t *contract)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 

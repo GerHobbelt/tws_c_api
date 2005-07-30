@@ -1,12 +1,13 @@
 
-		C language API for TWS workstation clients (released under GPL and Artistic license)
+		C language API for TWS workstation clients
+	         (released under GPL and Artistic license)
 
 1)  Introduction
 
     The C API tracks Unix/Mac releases even though they are updated less frequently
     because the newest beta releases are sometimes unreliable.
     This API implements client functionality version 17.
-    It has been tested with TWS server version 15.
+    It has been tested against TWS server version 15.
     It is realeased as is without warranty of any kind.
     Be advised that it may contain bugs and I can't be held responsible
     for any trading losses you incur as a result of them.
@@ -16,18 +17,17 @@
 2)  How to use
     This API has been tested on linux, solaris and windows and is trivial to port
     to other unix OS's if it doesn't compile error free.
+    Generally speaking any POSIX compliant OS ought to be able to compile and
+    run this API.
+
     a) include "twsapi.h"
-
     b) implement callbacks of interest in callbacks.c
-
     c) write a thread starter routine according to the documentation of your thread
        library which will be used to start the event loop that drives the callbacks.
        See mythread_starter() example routine in example.c.
-
     d) create 1 or more tws client instances and match callbacks to
-       instances by setting the unique variable opaque_user_defined in tws_create().
+       instances by setting the unique variable "opaque" in tws_create().
        That variable will be echoed in every callback.
-
     e) Link in your code
        On windows one might do:
 
@@ -55,8 +55,9 @@
     The currently available APIs from Interactive Brokers do not offer a light weight,
     high performance library to link with. The Java runtime is a veritable performance hog
     and the C++ API doesn't care about performance either by gratuitously making use of
-    exceptions and windowisms like MFC Cstring classes.
-    Either way the total memory footprint of the IB APis is unnecessarily large.
+    exceptions and windowisms like MFC CString classes.
+    Either way the total memory footprint of the IB APIs is unnecessarily large.
+    Additionally if someone wants to do interprocedural optimizations he needs the source code.
 
 4)  Rationale for this implementation and some programming notes
 
@@ -64,19 +65,14 @@
     have unlimited size, however, by using sufficiently large char arrays in the
     twsapi.c implementation (1024 bytes for each string), the possibility of decoding
     errors is practically obviated (for IB bulletin messages only the size is set to 64K).
-    Currently characters are read inefficiently 1 at a time for simplicity.
-    The better way is to buffer incoming chars in large buffers and refill buffers
-    rarely as needed. The complexity of implementing a bug free buffered reader in C is 
-    such that it is not included in this implementation.
     Large switch statements are used instead of jump tables to give the compiler
     discretion how to optimize best.
-    String allocation & deallocation happen via fixed size bitmaps and as a result
+    String allocation and deallocation happen via fixed size bitmaps and as a result
     they are fast and can never lead to memory fragmentation.
     Take note that all functions in the API use the standard C calling convention,
-    which might be a problem if a thread has to be started that uses Pascal calling
+    which might be a problem if a thread has to be started that uses the Pascal calling
     convention. Wrap calls to Pascal routines in C routines to avoid stack leaks.
     Style notes: lowercase literals, optionally separated by _ are used throughout
     to conform to BSD/linux kernel coding conventions.
 
-
-Please direct bug reports to snikolov@tanika.net
+Please direct bug reports to snikolov@tanika.net or file them on sourceforge.net.
