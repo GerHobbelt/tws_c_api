@@ -45,23 +45,30 @@ int main()
     tr_contract_t c;
 
     ti = tws_create(mythread_starter, (void *) 0x12345);
-    err = tws_connect(ti, 0, 7496, 1);
+    err = tws_connect(ti, 0 , 7496, 1);
     if(err) {
         printf("tws connect returned %d\n", err); exit(1);
     }
 
+    /* let's get some historical intraday data first */
     memset(&c, 0, sizeof c);
-    c.c_symbol = "msft";
-    c.c_sectype = "stk";
-    c.c_currency = "usd";
-    c.c_exchange = "smart";
-    c.c_primary_exch = "";
+    c.c_symbol = "MSFT";
+    c.c_sectype = "STK";
     c.c_expiry = "";
     c.c_right = "";
-    c.c_local_symbol = "";
     c.c_multiplier = "";
-    
-    tws_req_mkt_data(ti, 1, &c);
+    c.c_exchange = "SUPERSOES";
+    c.c_primary_exch = "";
+    c.c_currency = "USD";
+    c.c_local_symbol = "";
+    /* it seems that if parameter 6 is less than 9 (=30 min) data is never received */
+    tws_req_historical_data(ti, 1, &c, /* MAKE date current or retrieval will fail */ "20051001 13:26:44",
+                            "4 D", 9, "TRADES", 0, 1); 
+
+    /* now request live data for msft */
+    c.c_exchange = "SMART";
+    tws_req_mkt_data(ti, 2, &c);
+
 #ifdef unix
     while(1) select(1,0,0,0,0);
 #else

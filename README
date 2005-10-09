@@ -1,4 +1,3 @@
-
 		C language API for TWS workstation clients
 	         (released under GPL and Artistic license)
 
@@ -6,9 +5,9 @@
 
     The C API tracks Unix/Mac releases even though they are updated less frequently
     because the newest beta releases are sometimes unreliable.
-    This API implements client functionality version 17.
-    It has been tested against TWS server version 15.
-    It is realeased as is without warranty of any kind.
+    This API implements client functionality version 22.
+    It has been tested against TWS server version 22.
+    It is released as is, without warranty of any kind.
     Be advised that it may contain bugs and I can't be held responsible
     for any trading losses you incur as a result of them.
     It is my hope that by releasing this implementation to the public we'll
@@ -52,7 +51,7 @@
      f) If there are any problems recompile code with -DDEBUG to see the output of more printfs.
 
 3)  Motivation
-    The currently available APIs from Interactive Brokers do not offer a light weight,
+    The currently available APIs from Interactive Brokers do not offer a lightweight,
     high performance library to link with. The Java runtime is a veritable performance hog
     and the C++ API doesn't care about performance either by gratuitously making use of
     exceptions and windowisms like MFC CString classes.
@@ -63,8 +62,8 @@
 
     Theoretically strings that are exchanged between the TWS client and server may
     have unlimited size, however, by using sufficiently large char arrays in the
-    twsapi.c implementation (1024 bytes for each string), the possibility of decoding
-    errors is practically obviated (for IB bulletin messages only the size is set to 64K).
+    twsapi.c implementation (512 bytes for each string), the possibility of decoding
+    errors is practically obviated (for IB bulletin messages only the size is set to 127*512 bytes).
     Large switch statements are used instead of jump tables to give the compiler
     discretion how to optimize best.
     String allocation and deallocation happen via fixed size bitmaps and as a result

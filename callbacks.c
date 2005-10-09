@@ -34,7 +34,7 @@ void event_open_order(void *opaque, long order_id, const tr_contract_t *contract
 
 void event_win_error(void *opaque, const char str[], int last_error)
 {
-
+    printf("win_error: %p, str=%s, last_error=%d\n", opaque, str, last_error);
 }
 
 void event_connection_closed(void *opaque)
@@ -68,6 +68,11 @@ void event_contract_details(void *opaque, const tr_contract_details_t *contract_
 
 }
 
+void event_bond_contract_details(void *opaque, const tr_contract_details_t *contract_details)
+{
+
+}
+
 void event_exec_details(void *opaque, long order_id, const tr_contract_t *contract,
                         const tr_execution_t *execution)
 {
@@ -76,6 +81,7 @@ void event_exec_details(void *opaque, long order_id, const tr_contract_t *contra
 
 void event_error(void *opaque, int id, int error_code, const char error_string[])
 {
+    printf("error: opaque=%p, error_code=%d, msg=%s\n", opaque, error_code, error_string);
 }
 
 void event_update_mkt_depth(void *opaque, long ticker_id, int position, int operation, int side, double price, int size)
@@ -102,4 +108,9 @@ void event_managed_accounts(void *opaque, const char accounts_list[])
 void event_receive_fa(void *opaque, long fa_data_type, const char cxml[])
 {
 
+}
+
+void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, double wap, int has_gaps)
+{
+    printf("historical: opaque=%p, reqid=%d, date=%s, %.3lf, %.3lf, %.3lf, %.3f, %d, wap=%.3lf, has_gaps=%d\n", opaque, reqid, date, open, high, low, close, volume, wap, has_gaps);
 }
