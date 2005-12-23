@@ -5,8 +5,8 @@
 
     The C API tracks Unix/Mac releases even though they are updated less frequently
     because the newest beta releases are sometimes unreliable.
-    This API implements client functionality version 22.
-    It has been tested against TWS server version 22.
+    This API implements client functionality version 23.
+    It has been tested against TWS server version 23.
     It is released as is, without warranty of any kind.
     Be advised that it may contain bugs and I can't be held responsible
     for any trading losses you incur as a result of them.
@@ -20,17 +20,24 @@
     run this API.
 
     a) include "twsapi.h"
+
     b) implement callbacks of interest in callbacks.c
+
     c) write a thread starter routine according to the documentation of your thread
        library which will be used to start the event loop that drives the callbacks.
        See mythread_starter() example routine in example.c.
+
     d) create 1 or more tws client instances and match callbacks to
        instances by setting the unique variable "opaque" in tws_create().
        That variable will be echoed in every callback.
+       Note: in response to several queries I should point out that "opaque" can be used
+       to disambiguate several instances of tws or to share state between requestor and
+       callback routine.
+
     e) Link in your code
        On windows one might do:
 
-       cl -MDd -DWINVER=0x400 -DWINDOWS -nologo -W3 -G7 -Yd -Zi -c twsapi.c callbacks.c
+       cl -MDd -DWINVER=0x400 -DWINDOWS -nologo -W3 -Yd -Zi -c twsapi.c callbacks.c
        cl -MDd twsapi.o callbacks.o $(YOUR_OBJECTS) -FeEXECYUTABLE_NAME.exe ws2_32.lib
 
        if using visual studio, or if you prefer the mingw compiler then
@@ -73,5 +80,11 @@
     convention. Wrap calls to Pascal routines in C routines to avoid stack leaks.
     Style notes: lowercase literals, optionally separated by _ are used throughout
     to conform to BSD/linux kernel coding conventions.
+
+5) C++ users
+   To use this API with C++ rename callbacks.c to callbacks.cpp and bracket entire set of functions 
+   with extern "C" { at the top and } at the bottom of the file. The callbacks may be implemented with
+   C++ objects freely. Be sure to compile C files with a C compiler and C++ files with a C++ compiler because
+   modern C++ compilers are unforgiving when it comes to certain valid C constructs.
 
 Please direct bug reports to snikolov@tanika.net or file them on sourceforge.net.

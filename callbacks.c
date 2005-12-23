@@ -3,19 +3,19 @@
 
 #include <stdio.h>
 
-void event_tick_price(void *opaque, long ticker_id, long field, double price,
+void event_tick_price(void *opaque, int ticker_id, long field, double price,
                       int can_auto_execute)
 {
     /*implement me*/
-    printf("tick_price: opaque=%p, ticker_id=%ld, type=%ld, price=%.2f, can_auto=%d\n",
+    printf("tick_price: opaque=%p, ticker_id=%d, type=%ld, price=%.2lf, can_auto=%d\n",
            opaque, ticker_id, field, price, can_auto_execute);
 }
 
-void event_tick_size(void *opaque, long ticker_id, long field, int size)
+void event_tick_size(void *opaque, int ticker_id, long type, int size)
 {
     /*implement me*/
-    printf("tick_size: opaque=%p, ticker_id=%ld, type=%ld, size=%d\n",
-           opaque, ticker_id, field, size);
+    printf("tick_size: opaque=%p, ticker_id=%d, type=%ld, size=%d\n",
+           opaque, ticker_id, type, size);
 }
 
 void event_order_status(void *opaque, long order_id, const char status[],
@@ -84,12 +84,12 @@ void event_error(void *opaque, int id, int error_code, const char error_string[]
     printf("error: opaque=%p, error_code=%d, msg=%s\n", opaque, error_code, error_string);
 }
 
-void event_update_mkt_depth(void *opaque, long ticker_id, int position, int operation, int side, double price, int size)
+void event_update_mkt_depth(void *opaque, int ticker_id, int position, int operation, int side, double price, int size)
 {
 
 }
 
-void event_update_mkt_depth_l2(void *opaque, long ticker_id, int position,
+void event_update_mkt_depth_l2(void *opaque, int ticker_id, int position,
                                char *market_maker, int operation, int side, double price, int size)
 {
 
@@ -112,5 +112,19 @@ void event_receive_fa(void *opaque, long fa_data_type, const char cxml[])
 
 void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, double wap, int has_gaps)
 {
-    printf("historical: opaque=%p, reqid=%d, date=%s, %.3lf, %.3lf, %.3lf, %.3f, %d, wap=%.3lf, has_gaps=%d\n", opaque, reqid, date, open, high, low, close, volume, wap, has_gaps);
+    printf("historical: opaque=%p, reqid=%d, date=%s, %.3lf, %.3lf, %.3lf, %.3lf, %d, wap=%.3lf, has_gaps=%d\n", opaque, reqid, date, open, high, low, close, volume, wap, has_gaps);
+}
+
+void event_scanner_parameters(void *opaque, const char xml[])
+{
+    printf("scanner_parameters: opaque=%p, xml=%s\n", opaque, xml);
+}
+
+void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[])
+{
+    printf("scanner_data: opaque=%p, ticker_id=%d, rank=%d, distance=%s, benchmark=%s, projection=%s\n",
+	   opaque, ticker_id, rank, distance, benchmark, projection);
+    printf("scanner_data details: sym=%s, sectype=%s, expiry=%s, strike=%.3lf, right=%s, exch=%s, currency=%s, local_sym=%s, market_name=%s, trading_class=%s\n", cd->d_summary.s_symbol, cd->d_summary.s_sectype, cd->d_summary.s_expiry, cd->d_summary.s_strike, cd->d_summary.s_right, cd->d_summary.s_exchange, cd->d_summary.s_currency, cd->d_summary.s_local_symbol, cd->d_market_name, cd->d_trading_class);
+
+    /* it seems that NYSE traded stocks have different market_name and trading_class from NASDAQ */
 }

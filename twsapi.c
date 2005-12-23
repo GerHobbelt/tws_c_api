@@ -36,7 +36,7 @@ typedef struct tws_instance {
     void *opaque;
     start_thread_t start_thread;
     socket_t fd;
-    unsigned char connect_time[60]; /* server reported time */
+    char connect_time[60]; /* server reported time */
     unsigned char buf[240]; /* buffer up to 240 chars at a time */
     unsigned int buf_next, buf_last; /* index of next, last chars in buf */
     unsigned int server_version;
@@ -65,7 +65,6 @@ static char *alloc_string(tws_instance_t *ti)
         bits = 1 << (j & (WORD_SIZE_IN_BITS - 1));
         if(!(ti->bitmask[index] & bits)) {
             ti->bitmask[index] |= bits;
-            ti->mempool[j].str[0] = '\0';
             return ti->mempool[j].str;
         }
     }
@@ -231,10 +230,10 @@ static void destroy_execution(tws_instance_t *ti, tr_execution_t *exec)
 static void receive_tick_price(tws_instance_t *ti)
 {
     double price;
-    int ival, version, tickerid, tick_type, size = 0, can_auto_execute = 0, size_tick_type, connected;
+    int ival, version, ticker_id, tick_type, size = 0, can_auto_execute = 0, size_tick_type, connected;
 
     read_int(ti, &ival), version = ival;
-    read_int(ti, &ival), tickerid = ival;
+    read_int(ti, &ival), ticker_id = ival;
     read_int(ti, &ival), tick_type = ival;
     read_double(ti, &price);
 
@@ -246,7 +245,7 @@ static void receive_tick_price(tws_instance_t *ti)
     
     connected = ti->connected;
     if(connected)
-        event_tick_price(ti->opaque, tickerid, tick_type, price, can_auto_execute);
+        event_tick_price(ti->opaque, ticker_id, tick_type, price, can_auto_execute);
     
     if(version >= 2) {
         switch (tick_type) {
@@ -258,22 +257,22 @@ static void receive_tick_price(tws_instance_t *ti)
         
         if(size_tick_type != -1)
             if(connected)
-                event_tick_size(ti->opaque, tickerid, size_tick_type, size);
+                event_tick_size(ti->opaque, ticker_id, size_tick_type, size);
     }
 }
 
 
 static void receive_tick_size(tws_instance_t *ti)
 {
-    int ival, tickerid, tick_type, size;
+    int ival, ticker_id, tick_type, size;
     
     read_int(ti, &ival); /* version unused */
-    read_int(ti, &ival), tickerid = ival;
+    read_int(ti, &ival), ticker_id = ival;
     read_int(ti, &ival), tick_type = ival;
     read_int(ti, &ival), size = ival;
     
     if(ti->connected)
-        event_tick_size(ti->opaque, tickerid, tick_type, size);
+        event_tick_size(ti->opaque, ticker_id, tick_type, size);
 }
 
 static void receive_order_status(tws_instance_t *ti)
@@ -365,7 +364,6 @@ static void receive_portfolio_value(tws_instance_t *ti)
         read_double(ti, &dval), realized_pnl = dval;
     }
     
-    account_name[0] = '\0';
     if(version >= 4)
         lval = sizeof(tws_string_t), read_line(ti, account_name, &lval);
     
@@ -689,7 +687,7 @@ static void receive_news_bulletins(tws_instance_t *ti)
     read_int(ti, &ival), newsmsgtype = ival;
     
     lval = sizeof ti->mempool;
-    msg = (char *) &ti->mempool[0]; msg[0] = '\0';
+    msg = (char *) &ti->mempool[0];
     
     read_line(ti, msg, &lval); /* news message */
     lval = sizeof originating_exch, read_line(ti, originating_exch, &lval);
@@ -720,7 +718,6 @@ static void receive_fa(tws_instance_t *ti)
     char *xml = (char *) &ti->mempool[0];
     int ival, fadata_type;
 
-    xml[0] = '\0';
     read_int(ti, &ival); /*version*/
     read_int(ti, &ival), fadata_type = ival;
     read_line(ti, xml, &lval); /* xml */
@@ -760,6 +757,59 @@ static void receive_historical_data(void *tws)
         event_historical_data(ti->opaque, reqid, "finished", 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0);    
 }
 
+static void receive_scanner_parameters(void *tws)
+{
+    tws_instance_t *ti = (tws_instance_t *) tws;
+    long lval = sizeof ti->mempool;
+    char *xml = (char *) &ti->mempool[0];
+    int ival;
+
+    read_int(ti, &ival); /*version*/
+    read_line(ti, xml, &lval);
+    if(ti->connected)
+	event_scanner_parameters(ti->opaque, xml);
+}
+
+static void receive_scanner_data(void *tws)
+{
+   tr_contract_details_t cdetails;
+   tws_instance_t *ti = (tws_instance_t *) tws;
+   char *distance = alloc_string(ti), *benchmark = alloc_string(ti), *projection = alloc_string(ti);
+   long lval, j;
+   int ival, rank, ticker_id, num_elements;
+
+   init_contract_details(ti, &cdetails);
+
+   read_int(ti, &ival); /* version unused */
+   read_int(ti, &ival), ticker_id = ival;
+   read_int(ti, &ival), num_elements = ival;
+
+   for(j = 0; j < num_elements; j++) {
+       read_int(ti, &ival), rank = ival;
+       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_symbol, &lval);
+       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_sectype, &lval);
+       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_expiry, &lval);
+       read_double(ti, &cdetails.d_summary.s_strike);
+       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_right, &lval);
+       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_exchange, &lval);
+       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_currency, &lval);
+       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_local_symbol, &lval);
+       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_market_name, &lval);
+       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_trading_class, &lval);
+       lval = sizeof(tws_string_t), read_line(ti, distance, &lval);
+       lval = sizeof(tws_string_t), read_line(ti, benchmark, &lval);
+       lval = sizeof(tws_string_t), read_line(ti, projection, &lval);
+
+       if(ti->connected)
+	   event_scanner_data(ti->opaque, ticker_id, rank, &cdetails, distance, benchmark, projection);
+   }
+
+   destroy_contract_details(ti, &cdetails);
+   free_string(ti, distance);
+   free_string(ti, benchmark);
+   free_string(ti, projection);
+}
+
 static void event_loop(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
@@ -780,25 +830,27 @@ static void event_loop(void *tws)
 #endif
       
         switch(msgid) {
-        case TICK_PRICE: receive_tick_price(ti); break;
-        case TICK_SIZE: receive_tick_size(ti); break;
-        case ORDER_STATUS: receive_order_status(ti); break;
-        case ACCT_VALUE: receive_acct_value(ti); break;
-        case PORTFOLIO_VALUE: receive_portfolio_value(ti); break;
-        case ACCT_UPDATE_TIME: receive_acct_update_time(ti); break;
-        case ERR_MSG: receive_err_msg(ti); break;
-        case OPEN_ORDER: receive_open_order(ti); break;
-        case NEXT_VALID_ID: receive_next_valid_id(ti); break;
-        case CONTRACT_DATA: receive_contract_data(ti); break;
-        case BOND_CONTRACT_DATA: receive_bond_contract_data(ti); break;
-        case EXECUTION_DATA: receive_execution_data(ti); break;
-        case MARKET_DEPTH: receive_market_depth(ti); break;
-        case MARKET_DEPTH_L2: receive_market_depth_l2(ti); break;
-        case NEWS_BULLETINS: receive_news_bulletins(ti); break;
-        case MANAGED_ACCTS: receive_managed_accts(ti); break;
-        case RECEIVE_FA: receive_fa(ti); break;
-        case HISTORICAL_DATA: receive_historical_data(ti); break;
-        default: ; /*provably can't happen */
+	    case TICK_PRICE: receive_tick_price(ti); break;
+	    case TICK_SIZE: receive_tick_size(ti); break;
+	    case ORDER_STATUS: receive_order_status(ti); break;
+	    case ACCT_VALUE: receive_acct_value(ti); break;
+	    case PORTFOLIO_VALUE: receive_portfolio_value(ti); break;
+	    case ACCT_UPDATE_TIME: receive_acct_update_time(ti); break;
+	    case ERR_MSG: receive_err_msg(ti); break;
+	    case OPEN_ORDER: receive_open_order(ti); break;
+	    case NEXT_VALID_ID: receive_next_valid_id(ti); break;
+	    case CONTRACT_DATA: receive_contract_data(ti); break;
+	    case BOND_CONTRACT_DATA: receive_bond_contract_data(ti); break;
+	    case EXECUTION_DATA: receive_execution_data(ti); break;
+	    case MARKET_DEPTH: receive_market_depth(ti); break;
+	    case MARKET_DEPTH_L2: receive_market_depth_l2(ti); break;
+	    case NEWS_BULLETINS: receive_news_bulletins(ti); break;
+	    case MANAGED_ACCTS: receive_managed_accts(ti); break;
+	    case RECEIVE_FA: receive_fa(ti); break;
+	    case HISTORICAL_DATA: receive_historical_data(ti); break;
+	    case SCANNER_PARAMETERS: receive_scanner_parameters(ti); break;
+	    case SCANNER_DATA: receive_scanner_data(ti); break;
+	    default: ; /*provably can't happen */
         }
     } while(ti->connected);
 
@@ -886,7 +938,7 @@ out:
 
 static int send_int_max(tws_instance_t *ti, int val)
 {
-    return val != ~(1<<(8*sizeof val-1)) ? send_int(ti, val) : send_str(ti, "");
+    return val != ~(1U<<(8*sizeof val-1)) ? send_int(ti, val) : send_str(ti, "");
 }
 
 #define DBL_NOTMAX(d) (fabs((d) - DBL_MAX) >= 0.00000001)
@@ -922,6 +974,7 @@ static int read_line(tws_instance_t *ti, char *line, long *len)
     long j;
     int nread = -1, err = -1;
 
+    line[0] = '\0';
     for(j = 0; j < *len; j++) {
         nread = read_char(ti);
         if(nread < 0) {
@@ -1062,6 +1115,58 @@ void  tws_disconnect(void *tws)
     close(((tws_instance_t *) tws)->fd);
 }
 
+int tws_req_scanner_parameters(void *tws)
+{
+    tws_instance_t *ti = tws;
+
+    if(ti->server_version < 24) return UPDATE_TWS;
+    
+    send_int(ti, REQ_SCANNER_PARAMETERS);
+    send_int(ti, 1 /*VERSION*/);
+    return ti->connected ? 0: FAIL_SEND_REQSCANNERPARAMETERS;
+}
+
+int tws_req_scanner_subscription(void *tws, int ticker_id, tr_scanner_subscription_t *s)
+{
+    tws_instance_t *ti = tws;
+    if(ti->server_version < 24) return UPDATE_TWS;
+    
+    send_int(ti, REQ_SCANNER_SUBSCRIPTION);
+    send_int(ti, 1 /*VERSION*/);
+    send_int(ti, ticker_id);
+    send_int_max(ti, s->scan_number_of_rows);
+    send_str(ti, s->scan_instrument);
+    send_str(ti, s->scan_location_code);
+    send_str(ti, s->scan_code);
+    send_double_max(ti, &s->scan_above_price);
+    send_double_max(ti, &s->scan_below_price);
+    send_int_max(ti, s->scan_above_volume);
+    send_double_max(ti, &s->scan_market_cap_above);
+    send_double_max(ti, &s->scan_market_cap_below);
+    send_str(ti, s->scan_moody_rating_above);
+    send_str(ti, s->scan_moody_rating_below);
+    send_str(ti, s->scan_sp_rating_above);
+    send_str(ti, s->scan_sp_rating_below);
+    send_str(ti, s->scan_maturity_date_above);
+    send_str(ti, s->scan_maturity_date_below);
+    send_double_max(ti, &s->scan_coupon_rate_above);
+    send_double_max(ti, &s->scan_coupon_rate_below);
+    send_str(ti, s->scan_exclude_convertible);
+    
+    return ti->connected ? 0 : FAIL_SEND_REQSCANNER;
+}
+
+int tws_cancel_scanner_subscription(void *tws, int ticker_id)
+{
+    tws_instance_t *ti = tws;
+    if (ti->server_version < 24) return UPDATE_TWS;
+
+    send_int(ti, CANCEL_SCANNER_SUBSCRIPTION);
+    send_int(ti, 1 /*VERSION*/);
+    send_int(ti, ticker_id);
+    return ti->connected ? 0 : FAIL_SEND_CANSCANNER;
+}
+
 static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, int send_open_close)
 {
     long j;
@@ -1077,13 +1182,13 @@ static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, int send
     }
 }
 
-int tws_req_mkt_data(void *tws, long ticker_id, tr_contract_t *contract)
+int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 
     send_int(ti, REQ_MKT_DATA);
     send_int(ti, 5 /* version */);
-    send_int(ti, (unsigned int) ticker_id);
+    send_int(ti, ticker_id);
 
     send_str(ti, contract->c_symbol);
     send_str(ti, contract->c_sectype);
@@ -1109,7 +1214,7 @@ int tws_req_mkt_data(void *tws, long ticker_id, tr_contract_t *contract)
     return ti->connected ? 0 : FAIL_SEND_REQMKT;
 }
 
-int tws_req_historical_data(void *tws, long ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], int bar_size_setting, const char what_to_show[], int use_rth, int format_date)
+int tws_req_historical_data(void *tws, int ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], int bar_size_setting, const char what_to_show[], int use_rth, int format_date)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 
@@ -1118,7 +1223,7 @@ int tws_req_historical_data(void *tws, long ticker_id, tr_contract_t *contract, 
     
     send_int(ti, REQ_HISTORICAL_DATA);
     send_int(ti, 3 /*version*/);
-    send_int(ti, (unsigned int) ticker_id);
+    send_int(ti, ticker_id);
 
     send_str(ti, contract->c_symbol);
     send_str(ti, contract->c_sectype);
@@ -1144,6 +1249,17 @@ int tws_req_historical_data(void *tws, long ticker_id, tr_contract_t *contract, 
     return ti->connected ? 0 : FAIL_SEND_REQMKT;
 }
 
+int tws_cancel_historical_data(void *tws, int ticker_id)
+{
+    tws_instance_t *ti = (tws_instance_t *) tws;
+
+    if(ti->server_version < 24)	return UPDATE_TWS;
+    
+    send_int(ti, CANCEL_HISTORICAL_DATA);
+    send_int(ti, 1 /*VERSION*/);
+    send_int(ti, ticker_id);
+    return ti->connected ? 0 : FAIL_SEND_CANSCANNER;
+}
 
 int tws_req_contract_details(void *tws, tr_contract_t *contract)
 {
@@ -1173,7 +1289,7 @@ int tws_req_contract_details(void *tws, tr_contract_t *contract)
     return ti->connected ? 0 : FAIL_SEND_REQCONTRACT;
 }
 
-int tws_req_mkt_depth(void *tws, long tickerid, tr_contract_t *contract, int num_rows)
+int tws_req_mkt_depth(void *tws, int ticker_id, tr_contract_t *contract, int num_rows)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
     
@@ -1183,7 +1299,7 @@ int tws_req_mkt_depth(void *tws, long tickerid, tr_contract_t *contract, int num
     
     send_int(ti, REQ_MKT_DEPTH);
     send_int(ti, 3 /*VERSION*/);
-    send_int(ti, (int) tickerid);
+    send_int(ti, ticker_id);
     
     send_str(ti, contract->c_symbol);
     send_str(ti, contract->c_sectype);
@@ -1202,17 +1318,17 @@ int tws_req_mkt_depth(void *tws, long tickerid, tr_contract_t *contract, int num
     return ti->connected ? 0 : FAIL_SEND_REQMKTDEPTH;
 }
 
-int tws_cancel_mkt_data(void *tws, long tickerid)
+int tws_cancel_mkt_data(void *tws, int ticker_id)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 
     send_int(ti, CANCEL_MKT_DATA);
     send_int(ti, 1 /*VERSION*/);
-    send_int(ti, (int) tickerid);
+    send_int(ti, ticker_id);
     return ti->connected ? 0 : FAIL_SEND_CANMKT;
 }
 
-int tws_cancel_mkt_depth(void *tws, long tickerid)
+int tws_cancel_mkt_depth(void *tws, int ticker_id)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 
@@ -1222,12 +1338,12 @@ int tws_cancel_mkt_depth(void *tws, long tickerid)
     
     send_int(ti, CANCEL_MKT_DEPTH);
     send_int(ti, 1 /*VERSION*/);
-    send_int(ti, (int) tickerid);
+    send_int(ti, ticker_id);
 
     return ti->connected ? 0 : FAIL_SEND_CANMKTDEPTH;
 }
 
-int tws_exercise_options(void *tws, long ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int override)
+int tws_exercise_options(void *tws, int ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int override)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 
@@ -1236,7 +1352,7 @@ int tws_exercise_options(void *tws, long ticker_id, tr_contract_t *contract, int
     
     send_int(ti, EXERCISE_OPTIONS);
     send_int(ti, 1 /*VERSION*/);
-    send_int(ti, (unsigned int) ticker_id);
+    send_int(ti, ticker_id);
     send_str(ti, contract->c_symbol);
     send_str(ti, contract->c_sectype);
     send_str(ti, contract->c_expiry);

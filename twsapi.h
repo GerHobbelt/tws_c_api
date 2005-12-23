@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 /* public C API */
-#define TWSCLIENT_VERSION 22
+#define TWSCLIENT_VERSION 23
 
     typedef struct tr_contract_details {
         double d_mintick;
@@ -147,6 +147,27 @@ extern "C" {
         int f_clientid;
     } tr_exec_filter_t;
 
+    typedef struct tr_scanner_subscription {
+	double scan_above_price;
+	double scan_below_price;
+	double scan_coupon_rate_above;
+	double scan_coupon_rate_below;
+	double scan_market_cap_above;
+	double scan_market_cap_below;
+	char *scan_exclude_convertible;	
+	char *scan_instrument;
+	char *scan_location_code;
+	char *scan_maturity_date_above;
+	char *scan_maturity_date_below;
+	char *scan_moody_rating_above;
+	char *scan_moody_rating_below;
+	char *scan_code;
+	char *scan_sp_rating_above;
+	char *scan_sp_rating_below;
+	int scan_above_volume;
+	int scan_number_of_rows;
+    } tr_scanner_subscription_t;
+
 /* what the heck are these? */
 #define OPT_UNKNOWN  "?"
 #define OPT_BROKER_DEALER  "b"
@@ -171,10 +192,14 @@ extern "C" {
 
     int   tws_connect(void *tws, const char host[], unsigned short port, int clientid);
     void  tws_disconnect(void *tws);
-    int   tws_req_mkt_data(void *tws, long ticker_id, tr_contract_t *contract);
-    int   tws_req_historical_data(void *tws, long ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], int bar_size_setting, const char what_to_show[], int use_rth, int format_date);
-    int   tws_cancel_mkt_data(void *tws, long ticker_id);
-    int   tws_exercise_options(void *tws, long ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int override);
+    int  tws_req_scanner_parameters(void *tws);
+    int  tws_req_scanner_subscription(void *tws, int ticker_id, tr_scanner_subscription_t *subscription);
+    int  tws_cancel_scanner_subscription(void *tws, int ticker_id);
+    int   tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract);
+    int   tws_req_historical_data(void *tws, int ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], int bar_size_setting, const char what_to_show[], int use_rth, int format_date);
+    int  tws_cancel_historical_data(void *tws, int ticker_id);
+    int   tws_cancel_mkt_data(void *tws, int ticker_id);
+    int   tws_exercise_options(void *tws, int ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int override);
     int   tws_place_order(void *tws, long order_id, tr_contract_t *contract, tr_order_t *order);
     int   tws_cancel_order(void *tws, long order_id);
     int   tws_req_open_orders(void *tws);
@@ -183,8 +208,8 @@ extern "C" {
     int   tws_req_ids(void *tws, int num_ids);
     int   tws_check_messages(void *tws);
     int   tws_req_contract_details(void *tws, tr_contract_t *contract);    
-    int   tws_req_mkt_depth(void *tws, long ticker_id, tr_contract_t *contract, int num_rows);
-    int   tws_cancel_mkt_depth(void *tws, long ticker_id);
+    int   tws_req_mkt_depth(void *tws, int ticker_id, tr_contract_t *contract, int num_rows);
+    int   tws_cancel_mkt_depth(void *tws, int ticker_id);
     int   tws_req_news_bulletins(void *tws, int all_msgs);
     int   tws_cancel_news_bulletins(void *tws);
     int   tws_set_server_log_level(void *tws, int level);
@@ -196,9 +221,9 @@ extern "C" {
 
 /************************************ callbacks *************************************/
 /* API users must implement some or all of these C functions */
-    void event_tick_price(void *opaque, long ticker_id, long field, double price,
+    void event_tick_price(void *opaque, int ticker_id, long field, double price,
                           int can_auto_execute);
-    void event_tick_size(void *opaque, long ticker_id, long field, int size);
+    void event_tick_size(void *opaque, int ticker_id, long field, int size);
     void event_order_status(void *opaque, long order_id, const char status[],
                             int filled, int remaining, double avg_fill_price, int perm_id,
                             int parent_id, double last_fill_price, int client_id);
@@ -218,15 +243,17 @@ extern "C" {
     void event_exec_details(void *opaque, long order_id, const tr_contract_t *contract,
                             const tr_execution_t *execution);
     void event_error(void *opaque, int id, int error_code, const char error_string[]);
-    void event_update_mkt_depth(void *opaque, long ticker_id, int position, int operation, int side,
+    void event_update_mkt_depth(void *opaque, int ticker_id, int position, int operation, int side,
                                 double price, int size);
-    void event_update_mkt_depth_l2(void *opaque, long ticker_id, int position,
+    void event_update_mkt_depth_l2(void *opaque, int ticker_id, int position,
                                    char *market_maker, int operation, int side, double price, int size);
     void event_update_news_bulletin(void *opaque, int msgid, int msg_type, const char news_msg[],
                                     const char origin_exch[]);
     void event_managed_accounts(void *opaque, const char accounts_list[]);
     void event_receive_fa(void *opaque, long fa_data_type, const char cxml[]);
     void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, double wap, int has_gaps);
+    void event_scanner_parameters(void *opaque, const char xml[]);
+    void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[]); 
 
 /*outgoing message IDs */
     enum tws_outgoing_ids {
@@ -250,7 +277,11 @@ extern "C" {
         REQ_FA,
         REPLACE_FA,
         REQ_HISTORICAL_DATA,
-        EXERCISE_OPTIONS
+        EXERCISE_OPTIONS,
+	REQ_SCANNER_SUBSCRIPTION,
+	CANCEL_SCANNER_SUBSCRIPTION,
+	REQ_SCANNER_PARAMETERS,
+	CANCEL_HISTORICAL_DATA
     };
 
     enum tws_incoming_ids {
@@ -272,6 +303,8 @@ extern "C" {
         RECEIVE_FA,
         HISTORICAL_DATA,
         BOND_CONTRACT_DATA,
+	SCANNER_PARAMETERS,
+	SCANNER_DATA,
         no_more_messages
     };
 
@@ -298,7 +331,10 @@ extern "C" {
         FAIL_SEND_CANMKTDEPTH,
         FAIL_SEND_SERVER_LOG_LEVEL,
         FAIL_SEND_FA_REQUEST,
-        FAIL_SEND_FA_REPLACE
+        FAIL_SEND_FA_REPLACE,
+	FAIL_SEND_REQSCANNERPARAMETERS,
+	FAIL_SEND_CANSCANNER,
+	FAIL_SEND_REQSCANNER
     };
 
     struct twsclient_errmsg {
@@ -335,7 +371,7 @@ extern "C" {
         "acct_value", "portfolio_value", "acct_update_time", "next_valid_id",
         "contract_data", "execution_data", "market_depth", "market_depth_l2",
         "news_bulletins", "managed_accts", "receive_fa", "historical_data",
-        "bond_contract_data", 0
+        "bond_contract_data", "scanner_parameters", "scanner_data",
     };
 
     char *fa_msg_name[] = { "GROUPS", "PROFILES", "ALIASES" };

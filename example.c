@@ -15,6 +15,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <float.h>
+#include <math.h>
 
 int mythread_starter(tws_func_t func, void *arg)
 {
@@ -37,6 +39,27 @@ int mythread_starter(tws_func_t func, void *arg)
     return err; /* 0 success, -1 error */
 }
 
+/* find top percentage gainers (US stocks) with price > 5 and volume > 2M */
+static void scan_market(void *ti)
+{
+    /* illustrate new feature as of version 23 */
+    tr_scanner_subscription_t s;
+
+    tws_req_scanner_parameters(ti);
+
+    memset(&s, 0, sizeof s);
+    s.scan_number_of_rows = -1;
+    s.scan_instrument = "STK";
+    s.scan_location_code = "STK.US";
+    s.scan_code = "TOP_PERC_GAIN"; /* see xml returned by tws_req_scanner_parameters for more choices */
+
+    s.scan_above_price = 5.0;
+    s.scan_below_price = s.scan_coupon_rate_above = s.scan_coupon_rate_below = DBL_MAX;
+    s.scan_above_volume = 2000*1000;
+    s.scan_market_cap_above = s.scan_market_cap_below = DBL_MAX;
+    s.scan_moody_rating_above = s.scan_moody_rating_below = s.scan_sp_rating_above = s.scan_sp_rating_below = s.scan_maturity_date_above = s.scan_maturity_date_below = s.scan_exclude_convertible = "";
+    tws_req_scanner_subscription(ti, 1, &s);
+}
 
 int main()
 {
@@ -50,6 +73,7 @@ int main()
         printf("tws connect returned %d\n", err); exit(1);
     }
 
+    scan_market(ti);
     /* let's get some historical intraday data first */
     memset(&c, 0, sizeof c);
     c.c_symbol = "MSFT";
@@ -61,13 +85,13 @@ int main()
     c.c_primary_exch = "";
     c.c_currency = "USD";
     c.c_local_symbol = "";
-    /* it seems that if parameter 6 is less than 9 (=30 min) data is never received */
-    tws_req_historical_data(ti, 1, &c, /* MAKE date current or retrieval will fail */ "20051001 13:26:44",
-                            "4 D", 9, "TRADES", 0, 1); 
+    /* it seems that if parameter 6 is less than 9 (=30 min) data are never received */
+    tws_req_historical_data(ti, 2, &c, /* MAKE date current or retrieval will fail */ "20051001 13:26:44",
+                          "4 D", 9, "TRADES", 0, 1); 
 
     /* now request live data for msft */
     c.c_exchange = "SMART";
-    tws_req_mkt_data(ti, 2, &c);
+    tws_req_mkt_data(ti, 3, &c);
 
 #ifdef unix
     while(1) select(1,0,0,0,0);
