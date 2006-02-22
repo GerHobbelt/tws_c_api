@@ -28,6 +28,8 @@ typedef int socket_t;
 
 #define MAX_TWS_STRINGS 127
 #define WORD_SIZE_IN_BITS (8*sizeof(long))
+#define WORDS_NEEDED(num, wsize) (!!((num)%(wsize)) + ((num)/(wsize)))
+
 typedef struct {
     char str[512]; /* maximum conceivable string length */
 } tws_string_t;
@@ -40,9 +42,9 @@ typedef struct tws_instance {
     unsigned char buf[240]; /* buffer up to 240 chars at a time */
     unsigned int buf_next, buf_last; /* index of next, last chars in buf */
     unsigned int server_version;
-    volatile unsigned int connected:1;
+    volatile unsigned int connected;
     tws_string_t mempool[MAX_TWS_STRINGS];
-    unsigned long bitmask[1 + MAX_TWS_STRINGS / WORD_SIZE_IN_BITS];
+    unsigned long bitmask[WORDS_NEEDED(MAX_TWS_STRINGS, WORD_SIZE_IN_BITS)];
 } tws_instance_t;
 
 static int read_double(tws_instance_t *ti, double *val);
@@ -55,7 +57,7 @@ static int read_line(tws_instance_t *ti, char *line, long *len);
  */
 static char *alloc_string(tws_instance_t *ti)
 {
-    register unsigned long j, index, bits;
+    unsigned long j, index, bits;
 
     for(j = 0; j < MAX_TWS_STRINGS; j++) {
         index = j / WORD_SIZE_IN_BITS;
@@ -76,9 +78,9 @@ static char *alloc_string(tws_instance_t *ti)
 
 static void free_string(tws_instance_t *ti, void *ptr)
 {
-    unsigned long j = (unsigned long) ((tws_string_t *) ptr - &ti->mempool[0]);
-    unsigned long index = j / WORD_SIZE_IN_BITS;
-    unsigned long bits = 1 << (j & (WORD_SIZE_IN_BITS - 1));
+    unsigned long j = (unsigned long) ((tws_string_t *) ptr - &ti->mempool[0]),
+	index = j / WORD_SIZE_IN_BITS,
+	bits = 1 << (j & (WORD_SIZE_IN_BITS - 1));
 
     ti->bitmask[index] &= ~bits;
 }
@@ -277,7 +279,7 @@ static void receive_tick_size(tws_instance_t *ti)
 
 static void receive_order_status(tws_instance_t *ti)
 {
-    double dval, avg_fill_price, last_fill_price = 0.0;
+    double avg_fill_price, last_fill_price = 0.0;
     long lval;
     char *status = alloc_string(ti);
     int ival, version, id, filled, remaining, permid = 0, parentid = 0, clientid = 0;
@@ -287,7 +289,7 @@ static void receive_order_status(tws_instance_t *ti)
     lval = sizeof(tws_string_t), read_line(ti, status, &lval);
     read_int(ti, &ival), filled = ival;
     read_int(ti, &ival), remaining = ival;
-    read_double(ti, &dval), avg_fill_price = dval;
+    read_double(ti, &avg_fill_price);
     
     if(version >= 2)
         read_int(ti, &ival), permid = ival;
@@ -296,7 +298,7 @@ static void receive_order_status(tws_instance_t *ti)
         read_int(ti, &ival), parentid = ival;
     
     if(version >= 4)
-        read_double(ti, &dval), last_fill_price = dval;
+        read_double(ti, &last_fill_price);
     
     if(version >= 5)
         read_int(ti, &ival), clientid = ival;
@@ -334,7 +336,7 @@ static void receive_acct_value(tws_instance_t *ti)
 
 static void receive_portfolio_value(tws_instance_t *ti)
 {
-    double dval, market_price, market_value, average_cost = 0.0, unrealized_pnl = 0.0,
+    double market_price, market_value, average_cost = 0.0, unrealized_pnl = 0.0,
         realized_pnl = 0.0;
     tr_contract_t contract;
     long lval;
@@ -355,13 +357,13 @@ static void receive_portfolio_value(tws_instance_t *ti)
     
     read_int(ti, &ival), position = ival;
     
-    read_double(ti, &dval), market_price = dval;
-    read_double(ti, &dval), market_value = dval;
+    read_double(ti, &market_price);
+    read_double(ti, &market_value);
     
     if(version >=3 ) {
-        read_double(ti, &dval), average_cost = dval;
-        read_double(ti, &dval), unrealized_pnl = dval;
-        read_double(ti, &dval), realized_pnl = dval;
+        read_double(ti, &average_cost);
+        read_double(ti, &unrealized_pnl);
+        read_double(ti, &realized_pnl);
     }
     
     if(version >= 4)
@@ -896,7 +898,7 @@ static int send_str(tws_instance_t *ti, const char str[])
 
 static int send_double(tws_instance_t *ti, double *val)
 {
-    char buf[5*(sizeof *val)/2 + 8];
+    char buf[10*sizeof *val];
     long len;
     int err = 1;
 
@@ -941,7 +943,7 @@ static int send_int_max(tws_instance_t *ti, int val)
     return val != ~(1U<<(8*sizeof val-1)) ? send_int(ti, val) : send_str(ti, "");
 }
 
-#define DBL_NOTMAX(d) (fabs((d) - DBL_MAX) >= 0.00000001)
+#define DBL_NOTMAX(d) (fabs((d) - DBL_MAX) > DBL_EPSILON)
 static int send_double_max(tws_instance_t *ti, double *val)
 {
     return DBL_NOTMAX(*val) ? send_double(ti, val) : send_str(ti, "");
