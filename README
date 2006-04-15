@@ -1,5 +1,5 @@
 		C language API for TWS workstation clients
-	         (released under GPL and Artistic license)
+		       (released under a BSD license)
 
 1)  Introduction
 
@@ -14,7 +14,7 @@
     let each other know about bugs and get rid of them.
 
 2)  How to use
-    This API has been tested on linux, solaris and windows and is trivial to port
+    This API has been tested on freebsd, linux, solaris and windows and is trivial to port
     to other unix OS's if it doesn't compile error free.
     Generally speaking any POSIX compliant OS ought to be able to compile and
     run this API.
@@ -31,7 +31,7 @@
        instances by setting the unique variable "opaque" in tws_create().
        That variable will be echoed in every callback.
        Note: in response to several queries I should point out that "opaque" can be used
-       to disambiguate several instances of tws or to share state between requestor and
+       to disambiguate several instances of tws or to share state between requester and
        callback routine.
 
     e) Link in your code
@@ -49,42 +49,62 @@
        everywhere because people forget that there is 64 bit windows and processors other
        than x86.
 
-       On linux one might do:
+       On freebsd or linux one might do:
        $(CC) -D_REENTRANT -Wall -g -c twsapi.c callbacks.c
        $(CC) twsapi.o callbacks.o $(YOUR_OBJECTS) -o a.out -lpthread
 
+       Add -lsocket -lm link options for solaris 2.x builds.
        Example: link twsapi.o and callbacks.o with example.c and run it.
 
      f) If there are any problems recompile code with -DDEBUG to see the output of more printfs.
 
 3)  Motivation
     The currently available APIs from Interactive Brokers do not offer a lightweight,
-    high performance library to link with. The Java runtime is a veritable performance hog
-    and the C++ API doesn't care about performance either by gratuitously making use of
-    exceptions and windowisms like MFC CString classes.
+    high performance library to link with. The Java runtime is a veritable performance
+    hog and the C++ API doesn't care about performance either by gratuitously making
+    use of exceptions and windowisms like MFC CString classes.
     Either way the total memory footprint of the IB APIs is unnecessarily large.
-    Additionally if someone wants to do interprocedural optimizations he needs the source code.
+    Additionally if someone wants to do interprocedural optimizations he needs the source
+    code.
 
 4)  Rationale for this implementation and some programming notes
 
     Theoretically strings that are exchanged between the TWS client and server may
     have unlimited size, however, by using sufficiently large char arrays in the
     twsapi.c implementation (512 bytes for each string), the possibility of decoding
-    errors is practically obviated (for IB bulletin messages only the size is set to 127*512 bytes).
+    errors is practically obviated (for IB bulletin messages and in couple of other cases
+    the size is set to 127*512 bytes).
     Large switch statements are used instead of jump tables to give the compiler
     discretion how to optimize best.
     String allocation and deallocation happen via fixed size bitmaps and as a result
     they are fast and can never lead to memory fragmentation.
     Take note that all functions in the API use the standard C calling convention,
     which might be a problem if a thread has to be started that uses the Pascal calling
-    convention. Wrap calls to Pascal routines in C routines to avoid stack leaks.
+    convention. Wrap calls to Pascal routines in C routines to avoid stack leaks, or mark
+    them as such with a stdcall or a similar designation.
+    Co-routining could have been used in the place of a dedicated receiving thread but such
+    an implementation is not portable, nor does it benefit from multiple CPUs.
+    The current API does not support correct thread cancellation since no particular thread
+    library/implementation can be assumed. Write your own cancellation code if you're
+    concerned about that.
+
     Style notes: lowercase literals, optionally separated by _ are used throughout
     to conform to BSD/linux kernel coding conventions.
 
 5) C++ users
-   To use this API with C++ rename callbacks.c to callbacks.cpp and bracket entire set of functions 
-   with extern "C" { at the top and } at the bottom of the file. The callbacks may be implemented with
-   C++ objects freely. Be sure to compile C files with a C compiler and C++ files with a C++ compiler because
-   modern C++ compilers are unforgiving when it comes to certain valid C constructs.
+   To use this API with C++ rename callbacks.c to callbacks.cpp and bracket entire set of 
+   functions with extern "C" { at the top and } at the bottom of the file.
+   The callbacks may be implemented with
+   C++ objects freely. Be sure to compile C files with a C compiler and C++ files with a
+   C++ compiler because modern C++ compilers are unforgiving when it comes to certain
+   valid C constructs.
 
-Please direct bug reports to snikolov@tanika.net or file them on sourceforge.net.
+   WARNING: C++ and threads don't mix well. An implementation that attempts to mix them is
+   fraught with danger and invites subtle bugs; cancellation is the trickiest aspect
+   of thread programming, is not portable and presents subtle challenges that make program
+   correctness very difficult to prove.
+   You have been warned. One might be able to dispense with cancellation or emulate it
+   ineffectually by other means but the results are not likely to be impressive.
+
+Please direct bug reports to snikolov@autologictech.com or better yet file them
+on sourceforge.net.
