@@ -26,6 +26,10 @@ typedef int socket_t;
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifdef WITH_PTHREADS
+#include <pthread.h>
+#endif
+
 #define MAX_TWS_STRINGS 127
 #define WORD_SIZE_IN_BITS (8*sizeof(long))
 #define WORDS_NEEDED(num, wsize) (!!((num)%(wsize)) + ((num)/(wsize)))
@@ -37,12 +41,13 @@ typedef struct {
 typedef struct tws_instance {
     void *opaque;
     start_thread_t start_thread;
+    external_func_t extfunc;
     socket_t fd;
     char connect_time[60]; /* server reported time */
     unsigned char buf[240]; /* buffer up to 240 chars at a time */
     unsigned int buf_next, buf_last; /* index of next, last chars in buf */
     unsigned int server_version;
-    volatile unsigned int connected;
+    volatile unsigned int connected, started;
     tws_string_t mempool[MAX_TWS_STRINGS];
     unsigned long bitmask[WORDS_NEEDED(MAX_TWS_STRINGS, WORD_SIZE_IN_BITS)];
 } tws_instance_t;
@@ -817,6 +822,20 @@ static void event_loop(void *tws)
     tws_instance_t *ti = (tws_instance_t *) tws;
     int msgid;
 
+    ti->started = 1;
+    (*ti->extfunc)(0); /* indicate "startup" to callee */
+
+#ifdef WITH_PTHREADS
+    pthread_cleanup_push(tws_destroy, ti);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0); /* was deferred until now */
+    /* watch out in callbacks IF resources are allocated (i.e. not cancel safe),
+     * must (1) switch to deferred cancellation (2) allocate resource
+     * (3) pthread_cleanup_push(cleanup_handler, resource) (4) opaque->ptr = resource
+     * (5) pthread_cleanup_pop(0); (6) restore (async) cancellation state
+     * resource requesting thread is responsible for cleanup of resource(s)
+     */
+#endif
+
     do {
         read_int(ti, &msgid);
         
@@ -859,16 +878,23 @@ static void event_loop(void *tws)
 #ifdef DEBUG
     printf("reader thread exiting\n");
 #endif
+
+#ifdef WITH_PTHREADS
+    pthread_cleanup_pop(0);
+#endif
+
+    tws_destroy(ti);
 }
 
 /* caller supplies start_thread method */
-void *tws_create(start_thread_t start_thread, void *opaque)
+void *tws_create(start_thread_t start_thread, void *opaque, external_func_t myfunc)
 {
     tws_instance_t *ti = calloc(1, sizeof *ti);
     if(ti) {
         ti->fd = (socket_t) ~0;
         ti->start_thread = start_thread;
         ti->opaque = opaque;
+	ti->extfunc = myfunc;
     }
 
     return ti;
@@ -877,7 +903,11 @@ void *tws_create(start_thread_t start_thread, void *opaque)
 void tws_destroy(void *tws_instance)
 {
     tws_instance_t *ti = (tws_instance_t *) tws_instance;
-    close(ti->fd);
+
+    if(ti->started)
+         (*ti->extfunc)(1); /* indicate termination to callee */
+
+    if(ti->fd != (socket_t) ~0) close(ti->fd);
     free(tws_instance);
 }
 
@@ -949,6 +979,17 @@ static int send_double_max(tws_instance_t *ti, double *val)
     return DBL_NOTMAX(*val) ? send_double(ti, val) : send_str(ti, "");
 }
 
+static int receive(int fd, void *buf, size_t buflen)
+{
+    int r;
+#ifdef unix
+    r = read(fd, buf, buflen); /* workaround for recv not being cancellable */
+#else
+    r = recv(fd, buf, buflen, 0);
+#endif
+    return r;
+}
+
 /* returns 1 char at a time, kernel not entered most of the time 
  * return -1 on error or EOF
  */
@@ -957,7 +998,7 @@ static int read_char(tws_instance_t *ti)
     int nread;    
 
     if(ti->buf_next == ti->buf_last) {
-        nread = recv(ti->fd, ti->buf, sizeof ti->buf, 0);
+        nread = receive(ti->fd, ti->buf, sizeof ti->buf);
         if(nread <= 0) {
             nread = -1;
             goto out;
@@ -1109,6 +1150,7 @@ int tws_connect(void *tws, const char host[], unsigned short port, int clientid)
     ti->connected = 1;
     err = 0;
 out:
+    if(err) tws_destroy(ti);
     return err;
 }
 

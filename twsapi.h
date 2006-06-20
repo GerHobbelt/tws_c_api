@@ -183,11 +183,15 @@ extern "C" {
     typedef void (*tws_func_t)(void *arg);
 /* must return 0 on success, -1 on failure */
     typedef int (*start_thread_t)(tws_func_t func, void *arg);
+    typedef void (*external_func_t)(int);
+    /* "func" calls this one once at startup and again at termination,
+     * param 0 indicates startup, param 1 indicates termination
+     */
 
 /* creates new tws client instance, starts reader thread and 
  * and records opaque user defined pointer to be supplied in all callbacks
  */
-    void  *tws_create(start_thread_t start_thread, void *opaque);
+    void  *tws_create(start_thread_t start_thread, void *opaque, external_func_t myfunc);
     void  tws_destroy(void *tws_instance);
 
     int   tws_connect(void *tws, const char host[], unsigned short port, int clientid);

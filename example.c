@@ -18,6 +18,16 @@
 #include <float.h>
 #include <math.h>
 
+static void tws_thread_status(int arg)
+{
+     /* the real reason for having this func
+      * is so that array_of_threads[NAME_OF_THIS_ONE] can be set to
+      * pthread_self() on startup and 0 on termination, so that
+      * the top level thread can cancel one or all if it wants to
+      */
+     printf("tws reader thread %s\n", arg ? "terminated" : "started");
+}
+
 int mythread_starter(tws_func_t func, void *arg)
 {
 #ifdef unix
@@ -67,7 +77,8 @@ int main()
     void *ti;
     tr_contract_t c;
 
-    ti = tws_create(mythread_starter, (void *) 0x12345);
+    //ti = tws_create(mythread_starter, (void *) 0x12345);
+    ti = tws_create(mythread_starter, (void *) 0x12345, tws_thread_status);
     err = tws_connect(ti, 0 , 7496, 1);
     if(err) {
         printf("tws connect returned %d\n", err); exit(1);
