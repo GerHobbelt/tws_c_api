@@ -880,6 +880,7 @@ static void event_loop(void *tws)
 #endif
 
 #ifdef WITH_PTHREADS
+    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, 0); /* was async until now */
     pthread_cleanup_pop(0);
 #endif
 
