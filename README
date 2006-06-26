@@ -5,7 +5,7 @@
 
     The C API tracks Unix/Mac releases even though they are updated less frequently
     because the newest beta releases are sometimes unreliable.
-    This API implements client functionality version 23.
+    This API implements client functionality version 27.
     It has been tested against TWS server version 23.
     It is released as is, without warranty of any kind.
     Be advised that it may contain bugs and I can't be held responsible
@@ -42,7 +42,7 @@
 
        if using visual studio, or if you prefer the mingw compiler then
 
-       gcc -DWINDOWS -D_REENTRANT -Wall -g -c twsapi.c callbacks.c
+       gcc -DWINDOWS -D_REENTRANT -Wall -Wsign-compare -g -c twsapi.c callbacks.c
        gcc twsapi.o callbacks.o $(YOUR_OBJECTS) -o EXECUTABLE_NAME.exe -lws2_32
 
        Be sure to define -DWINDOWS for windows. BTW WIN32 is a bad name used almost

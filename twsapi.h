@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 /* public C API */
-#define TWSCLIENT_VERSION 23
+#define TWSCLIENT_VERSION 27
 
     typedef struct tr_contract_details {
         double d_mintick;
@@ -73,6 +73,8 @@ extern "C" {
         double o_stock_ref_price; /* make sure to default init to DBL_MAX */
         double o_delta; /* make sure to default init to DBL_MAX */
         double o_stock_range_lower, o_stock_range_upper; /* make sure to default init to DBL_MAX */
+	double o_volatility;
+	double o_delta_neutral_aux_price;
         char *o_good_after_time;
         char *o_good_till_date;
         char *o_shares_allocation;
@@ -91,6 +93,7 @@ extern "C" {
         char *o_designated_location; /* when slot == 2 only; default init to "" */
         char *o_rule80a;
         char *o_settling_firm;
+	char *o_delta_neutral_order_type;
         int  o_orderid;
         int  o_total_quantity;
         int  o_origin; /* default init to CUSTOMER */
@@ -102,6 +105,8 @@ extern "C" {
         int  o_display_size;
         int  o_trigger_method;
         int  o_min_qty; /* make sure to default init to ~(1 << 31) */
+	int  o_volatility_type;
+	int  o_reference_price_type;
         unsigned int  o_oca_type:3;
 #define CANCEL_WITH_BLOCK 1
 #define REDUCE_WITH_BLOCK 2
@@ -121,6 +126,7 @@ extern "C" {
         unsigned int  o_transmit: 1; /*default init to true */
         unsigned int  o_block_order: 1;
         unsigned int  o_sweep_to_fill: 1;
+	unsigned int  o_continuous_update: 1;
     } tr_order_t;
 
     typedef struct tr_execution {
@@ -164,8 +170,11 @@ extern "C" {
 	char *scan_code;
 	char *scan_sp_rating_above;
 	char *scan_sp_rating_below;
+	char *scan_scanner_setting_pairs;
+	char *scan_stock_type_filter;
 	int scan_above_volume;
 	int scan_number_of_rows;
+	int scan_average_option_volume_above;
     } tr_scanner_subscription_t;
 
 /* what the heck are these? */
@@ -196,12 +205,12 @@ extern "C" {
 
     int   tws_connect(void *tws, const char host[], unsigned short port, int clientid);
     void  tws_disconnect(void *tws);
-    int  tws_req_scanner_parameters(void *tws);
-    int  tws_req_scanner_subscription(void *tws, int ticker_id, tr_scanner_subscription_t *subscription);
-    int  tws_cancel_scanner_subscription(void *tws, int ticker_id);
+    int   tws_req_scanner_parameters(void *tws);
+    int   tws_req_scanner_subscription(void *tws, int ticker_id, tr_scanner_subscription_t *subscription);
+    int   tws_cancel_scanner_subscription(void *tws, int ticker_id);
     int   tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract);
     int   tws_req_historical_data(void *tws, int ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], int bar_size_setting, const char what_to_show[], int use_rth, int format_date);
-    int  tws_cancel_historical_data(void *tws, int ticker_id);
+    int   tws_cancel_historical_data(void *tws, int ticker_id);
     int   tws_cancel_mkt_data(void *tws, int ticker_id);
     int   tws_exercise_options(void *tws, int ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int override);
     int   tws_place_order(void *tws, long order_id, tr_contract_t *contract, tr_order_t *order);

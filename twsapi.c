@@ -826,7 +826,6 @@ static void event_loop(void *tws)
     (*ti->extfunc)(0); /* indicate "startup" to callee */
 
 #ifdef WITH_PTHREADS
-    pthread_cleanup_push(tws_destroy, ti);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0); /* was deferred until now */
     /* watch out in callbacks IF resources are allocated (i.e. not cancel safe),
      * must (1) switch to deferred cancellation (2) allocate resource
@@ -878,13 +877,6 @@ static void event_loop(void *tws)
 #ifdef DEBUG
     printf("reader thread exiting\n");
 #endif
-
-#ifdef WITH_PTHREADS
-    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, 0); /* was async until now */
-    pthread_cleanup_pop(0);
-#endif
-
-    tws_destroy(ti);
 }
 
 /* caller supplies start_thread method */
@@ -1197,7 +1189,15 @@ int tws_req_scanner_subscription(void *tws, int ticker_id, tr_scanner_subscripti
     send_double_max(ti, &s->scan_coupon_rate_above);
     send_double_max(ti, &s->scan_coupon_rate_below);
     send_str(ti, s->scan_exclude_convertible);
-    
+
+    if(ti->server_version >= 25) {
+	send_int(ti, s->scan_average_option_volume_above);
+	send_str(ti, s->scan_scanner_setting_pairs);
+    }
+
+    if(ti->server_version >= 27)
+	send_str(ti, s->scan_stock_type_filter);
+
     return ti->connected ? 0 : FAIL_SEND_REQSCANNER;
 }
 
@@ -1417,7 +1417,9 @@ int tws_exercise_options(void *tws, int ticker_id, tr_contract_t *contract, int 
 
 int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *order)
 {
+    double dmx = DBL_MAX;
     tws_instance_t *ti = (tws_instance_t *) tws;
+    int vol26;
 
     send_int(ti, PLACE_ORDER);
     send_int(ti, 18 /*VERSION*/);
@@ -1498,6 +1500,8 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
     }
 
     if(ti->server_version >= 19) {
+	vol26 = ti->server_version == 26 && !strcasecmp(order->o_order_type, "VOL");
+
         send_int(ti, order->o_oca_type);
         send_int(ti, order->o_rth_only);
         send_str(ti, order->o_rule80a);
@@ -1512,12 +1516,33 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
         send_double_max(ti, &order->o_starting_price);
         send_double_max(ti, &order->o_stock_ref_price);
         send_double_max(ti, &order->o_delta);
-        send_double_max(ti, &order->o_stock_range_lower);
-        send_double_max(ti, &order->o_stock_range_upper);
+        send_double_max(ti, vol26 ? &dmx : &order->o_stock_range_lower); /* hmm? see below */
+        send_double_max(ti, vol26 ? &dmx : &order->o_stock_range_upper); /* hmm? see below */
     }
 
     if(ti->server_version >= 22)
         send_int(ti, order->o_override_percentage_constraints);
+
+    if (ti->server_version >= 26) { /* Volatility orders */
+	send_double_max(ti, &order->o_volatility);
+	send_int_max(ti, order->o_volatility_type);
+	
+	if (ti->server_version < 28)
+	    send_int(ti, !strcasecmp(order->o_delta_neutral_order_type, "MKT"));
+	else {
+	    send_str(ti, order->o_delta_neutral_order_type);
+	    send_double_max(ti, &order->o_delta_neutral_aux_price);
+	}
+
+	send_int(ti, order->o_continuous_update);
+	if(ti->server_version == 26) {
+	    /* this is a mechanical translation of java code but is it correct? */
+	    send_double_max(ti, vol26 ? &order->o_stock_range_lower : &dmx);
+	    send_double_max(ti, vol26 ? &order->o_stock_range_upper : &dmx);
+	}
+
+	send_int_max(ti, order->o_reference_price_type);
+    }
 
     return ti->connected ? 0 : FAIL_SEND_ORDER;
 }
