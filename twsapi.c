@@ -1419,7 +1419,7 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
 {
     double dmx = DBL_MAX;
     tws_instance_t *ti = (tws_instance_t *) tws;
-    int vol26;
+    int vol26 = 0;
 
     send_int(ti, PLACE_ORDER);
     send_int(ti, 18 /*VERSION*/);
