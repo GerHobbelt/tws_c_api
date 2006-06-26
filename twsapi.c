@@ -26,10 +26,6 @@ typedef int socket_t;
 #include <stdlib.h>
 #include <stdio.h>
 
-#ifdef WITH_PTHREADS
-#include <pthread.h>
-#endif
-
 #define MAX_TWS_STRINGS 127
 #define WORD_SIZE_IN_BITS (8*sizeof(long))
 #define WORDS_NEEDED(num, wsize) (!!((num)%(wsize)) + ((num)/(wsize)))
@@ -825,16 +821,6 @@ static void event_loop(void *tws)
     ti->started = 1;
     (*ti->extfunc)(0); /* indicate "startup" to callee */
 
-#ifdef WITH_PTHREADS
-    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0); /* was deferred until now */
-    /* watch out in callbacks IF resources are allocated (i.e. not cancel safe),
-     * must (1) switch to deferred cancellation (2) allocate resource
-     * (3) pthread_cleanup_push(cleanup_handler, resource) (4) opaque->ptr = resource
-     * (5) pthread_cleanup_pop(0); (6) restore (async) cancellation state
-     * resource requesting thread is responsible for cleanup of resource(s)
-     */
-#endif
-
     do {
         read_int(ti, &msgid);
         
@@ -874,6 +860,7 @@ static void event_loop(void *tws)
         }
     } while(ti->connected);
 
+    (*ti->extfunc)(1); /* indicate termination to callee */
 #ifdef DEBUG
     printf("reader thread exiting\n");
 #endif
@@ -896,9 +883,6 @@ void *tws_create(start_thread_t start_thread, void *opaque, external_func_t myfu
 void tws_destroy(void *tws_instance)
 {
     tws_instance_t *ti = (tws_instance_t *) tws_instance;
-
-    if(ti->started)
-         (*ti->extfunc)(1); /* indicate termination to callee */
 
     if(ti->fd != (socket_t) ~0) close(ti->fd);
     free(tws_instance);
@@ -976,7 +960,7 @@ static int receive(int fd, void *buf, size_t buflen)
 {
     int r;
 #ifdef unix
-    r = read(fd, buf, buflen); /* workaround for recv not being cancellable */
+    r = read(fd, buf, buflen); /* workaround for recv not being cancellable on FreeBSD*/
 #else
     r = recv(fd, buf, buflen, 0);
 #endif
@@ -1708,4 +1692,20 @@ int tws_replace_fa(void *tws, long fa_data_type, const char xml[])
     send_str(ti, xml);
     
     return ti->connected ? 0 : FAIL_SEND_FA_REPLACE;
+}
+
+/* returns -1 on error, who knows 0 might be valid? */
+int tws_server_version(void *tws)
+{
+    tws_instance_t *ti = (tws_instance_t *) tws;
+    return ti->connected ? (int) ti->server_version : -1;
+}
+
+/* this routine is useless if used for synchronization
+ * because of clock drift, use NTP for time sync
+ */
+const char *tws_connection_time(void *tws)
+{
+    tws_instance_t *ti = (tws_instance_t *) tws;
+    return ti->connected ? ti->connect_time : 0;
 }

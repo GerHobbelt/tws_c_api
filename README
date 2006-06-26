@@ -85,9 +85,8 @@
     them as such with a stdcall or a similar designation.
     Co-routining could have been used in the place of a dedicated receiving thread but such
     an implementation is not portable, nor does it benefit from multiple CPUs.
-    The current API does not support correct thread cancellation, except if the library being used is pthreads and the code is compiled with -DWITH_PTHREADS, since no particular thread
-    library/implementation can be assumed. Write your own cancellation code if you're
-    concerned about that. If -DWITH_PTHREADS is defined then take note that the reader thread is subject to *asynchronous* cancellation which may adversely affect your implementation of certain functions in callbacks.c that allocate resources unless cancellability is temporarily made not async.
+    The current API does not support correct thread cancellation since no particular thread library/implementation can be assumed.
+    Write your own cancellation code if you're concerned about that.
 
     Style notes: lowercase literals, optionally separated by _ are used throughout
     to conform to BSD/linux kernel coding conventions.

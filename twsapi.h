@@ -231,7 +231,9 @@ extern "C" {
     int   tws_req_managed_accts(void *tws);
     int   tws_request_fa(void *tws, long fa_data_type);
     int   tws_replace_fa(void *tws, long fa_data_type, const char cxml[]);
-
+    /**** 2 auxilliary routines */
+    int tws_server_version(void *tws);
+    const char *tws_connection_time(void *tws);
 /************************************ callbacks *************************************/
 /* API users must implement some or all of these C functions */
     void event_tick_price(void *opaque, int ticker_id, long field, double price,
