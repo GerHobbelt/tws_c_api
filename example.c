@@ -68,6 +68,8 @@ static void scan_market(void *ti)
     s.scan_above_volume = 2000*1000;
     s.scan_market_cap_above = s.scan_market_cap_below = DBL_MAX;
     s.scan_moody_rating_above = s.scan_moody_rating_below = s.scan_sp_rating_above = s.scan_sp_rating_below = s.scan_maturity_date_above = s.scan_maturity_date_below = s.scan_exclude_convertible = "";
+    s.scan_scanner_setting_pairs = "";
+    s.scan_stock_type_filter = "";
     tws_req_scanner_subscription(ti, 1, &s);
 }
 
@@ -96,8 +98,8 @@ int main()
     c.c_primary_exch = "";
     c.c_currency = "USD";
     c.c_local_symbol = "";
-    /* it seems that if parameter 6 is less than 9 (=30 min) data are never received */
-    tws_req_historical_data(ti, 2, &c, /* MAKE date current or retrieval will fail */ "20051001 13:26:44",
+
+    tws_req_historical_data(ti, 2, &c, /* MAKE date current or retrieval will fail */ "20060801 13:26:44",
                           "4 D", 9, "TRADES", 0, 1); 
 
     /* now request live data for msft */
