@@ -733,11 +733,26 @@ static void receive_historical_data(void *tws)
     double open, high, low, close, wap;
     tws_instance_t *ti = (tws_instance_t *) tws;
     long j, lval;
-    int ival, reqid, item_count, volume, gaps;
-    char date[60], has_gaps[10];
+    int ival, version, reqid, item_count, volume, gaps;
+    char date[60], has_gaps[10], completion[140];
 
-    read_int(ti, &ival); /* version unused */
+    read_int(ti, &ival), version = ival;
     read_int(ti, &ival), reqid = ival;
+    memcpy(completion, "finished", sizeof "finished");
+    if(version >=2) {
+	char start_date[60], end_date[60]; /* X references completion */
+	size_t lmt = (size_t) (sizeof completion - sizeof "finished");
+	int failed = 0;
+	
+	lval = sizeof start_date; failed |= read_line(ti, start_date, &lval);
+	lval = sizeof end_date; failed |= read_line(ti, end_date, &lval);	
+	if(!failed) {
+	    strncat(completion, "-", --lmt);
+	    lmt -= sizeof start_date; strncat(completion, start_date, lmt);
+	    strncat(completion, "-", --lmt);
+	    lmt -= sizeof end_date; strncat(completion, end_date, lmt);
+	}
+    }
     read_int(ti, &ival), item_count = ival;
 
     for(j = 0; j < item_count; j++) {
@@ -757,7 +772,7 @@ static void receive_historical_data(void *tws)
     }
     /* send end of dataset marker */
     if(ti->connected)
-        event_historical_data(ti->opaque, reqid, "finished", 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0);    
+        event_historical_data(ti->opaque, reqid, completion, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0);    
 }
 
 static void receive_scanner_parameters(void *tws)
