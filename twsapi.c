@@ -1421,7 +1421,7 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
     int vol26 = 0;
 
     send_int(ti, PLACE_ORDER);
-    send_int(ti, 18 /*VERSION*/);
+    send_int(ti, 20 /*VERSION*/);
     send_int(ti, (int) id);
     
     /* send contract fields */
