@@ -132,7 +132,8 @@ static void init_order(tws_instance_t *ti, tr_order_t *o)
     o->o_orderref = alloc_string(ti);
     o->o_rule80a = alloc_string(ti);
     o->o_settling_firm = alloc_string(ti);
-    o->o_designated_location = alloc_string(ti);    
+    o->o_designated_location = alloc_string(ti);
+    o->o_delta_neutral_order_type = alloc_string(ti);
 }
 
 static void destroy_order(tws_instance_t *ti, tr_order_t *o)
@@ -154,6 +155,7 @@ static void destroy_order(tws_instance_t *ti, tr_order_t *o)
     free_string(ti, o->o_rule80a);
     free_string(ti, o->o_settling_firm);
     free_string(ti, o->o_designated_location);
+    free_string(ti, o->o_delta_neutral_order_type);
 }
 
 static void init_contract_details(tws_instance_t *ti, tr_contract_details_t *cd)
@@ -505,6 +507,27 @@ static void receive_open_order(tws_instance_t *ti)
         read_int(ti, &order.o_trigger_method);
     }
 
+    if (version >= 11) {
+	read_double(ti, &order.o_volatility);
+	read_int(ti, &order.o_volatility_type);
+	
+	if (version == 11) {
+	    read_int(ti, &ival); 
+	    order.o_delta_neutral_order_type = !ival ? (char*) "NONE" : (char *) "MKT"; 
+	} else {
+	    lval = sizeof(tws_string_t), read_line(ti, order.o_delta_neutral_order_type, &lval);
+	    read_double(ti, &order.o_delta_neutral_aux_price);
+	}
+	
+	read_int(ti, &ival); order.o_continuous_update = !!ival;
+	if (ti->server_version == 26) {
+	    read_double(ti, &order.o_stock_range_lower);
+	    read_double(ti, &order.o_stock_range_upper);
+	}
+	
+	read_int(ti, &order.o_reference_price_type);
+    }
+    
     if(ti->connected)
         event_open_order(ti->opaque, order.o_orderid, &contract, &order);
 
@@ -732,25 +755,24 @@ static void receive_historical_data(void *tws)
 {
     double open, high, low, close, wap;
     tws_instance_t *ti = (tws_instance_t *) tws;
-    long j, lval;
+    long j, lval, index;
     int ival, version, reqid, item_count, volume, gaps;
-    char date[60], has_gaps[10], completion[140];
+    char date[60], has_gaps[10], completion[60];
 
     read_int(ti, &ival), version = ival;
     read_int(ti, &ival), reqid = ival;
-    memcpy(completion, "finished", sizeof "finished");
+    memcpy(completion, "finished-", index = sizeof "finished-" -1);
+
     if(version >=2) {
-	char start_date[60], end_date[60]; /* X references completion */
-	size_t lmt = (size_t) (sizeof completion - sizeof "finished");
-	int failed = 0;
-	
-	lval = sizeof start_date; failed |= read_line(ti, start_date, &lval);
-	lval = sizeof end_date; failed |= read_line(ti, end_date, &lval);	
-	if(!failed) {
-	    strncat(completion, "-", --lmt);
-	    lmt -= sizeof start_date; strncat(completion, start_date, lmt);
-	    strncat(completion, "-", --lmt);
-	    lmt -= sizeof end_date; strncat(completion, end_date, lmt);
+	lval = sizeof completion -1 - index;
+	if(!read_line(ti, &completion[index], &lval)) {
+	    index += lval;
+	    completion[index] = '-';
+	    completion[++index] = '\0';
+
+	    lval = sizeof completion -1 - index;
+	    if(!read_line(ti, &completion[index], &lval))
+		completion[index+lval+1] = '\0';
 	}
     }
     read_int(ti, &ival), item_count = ival;
@@ -1003,7 +1025,7 @@ static int read_char(tws_instance_t *ti)
 out: return nread;
 }
 
-/* return -1 on error, 0 if successful */
+/* return -1 on error, 0 if successful, updates *len on success */
 static int read_line(tws_instance_t *ti, char *line, long *len)
 {
     long j;
@@ -1033,6 +1055,7 @@ static int read_line(tws_instance_t *ti, char *line, long *len)
 #ifdef DEBUG
     printf("read_line: i read %s\n", line);
 #endif
+    *len = j;
     err = 0;
 out:
     if(err < 0) {
