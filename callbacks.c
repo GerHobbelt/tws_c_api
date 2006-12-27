@@ -6,16 +6,26 @@
 void event_tick_price(void *opaque, int ticker_id, long field, double price,
                       int can_auto_execute)
 {
-    /*implement me*/
-    printf("tick_price: opaque=%p, ticker_id=%d, type=%ld, price=%.2lf, can_auto=%d\n",
+     printf("tick_price: opaque=%p, ticker_id=%d, type=%ld, price=%.2lf, can_auto=%d\n",
            opaque, ticker_id, field, price, can_auto_execute);
 }
 
 void event_tick_size(void *opaque, int ticker_id, long type, int size)
 {
-    /*implement me*/
-    printf("tick_size: opaque=%p, ticker_id=%d, type=%ld, size=%d\n",
+     printf("tick_size: opaque=%p, ticker_id=%d, type=%ld, size=%d\n",
            opaque, ticker_id, type, size);
+}
+
+void event_tick_option_computation(void *opaque, int ticker_id, int type, double implied_vol, double delta, double model_price, double pr_dividend)
+{
+}
+
+void event_tick_generic(void *opaque, int ticker_id, int type, double value)
+{
+}
+
+void event_tick_string(void *opaque, int ticker_id, int type, const char value[])
+{
 }
 
 void event_order_status(void *opaque, long order_id, const char status[],
@@ -28,8 +38,7 @@ void event_order_status(void *opaque, long order_id, const char status[],
 void event_open_order(void *opaque, long order_id, const tr_contract_t *contract,
                       const tr_order_t *order)
 {
-    /*implement me*/
-    printf("open_order: order_id=%ld\n", order_id);
+     printf("open_order: order_id=%ld\n", order_id);
 }
 
 void event_win_error(void *opaque, const char str[], int last_error)
@@ -110,7 +119,7 @@ void event_receive_fa(void *opaque, long fa_data_type, const char cxml[])
 
 }
 
-void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, double wap, int has_gaps)
+void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, int bar_count, double wap, int has_gaps)
 {
     printf("historical: opaque=%p, reqid=%d, date=%s, %.3lf, %.3lf, %.3lf, %.3lf, %d, wap=%.3lf, has_gaps=%d\n", opaque, reqid, date, open, high, low, close, volume, wap, has_gaps);
 }

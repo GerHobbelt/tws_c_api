@@ -29,6 +29,7 @@ typedef int socket_t;
 #define MAX_TWS_STRINGS 127
 #define WORD_SIZE_IN_BITS (8*sizeof(long))
 #define WORDS_NEEDED(num, wsize) (!!((num)%(wsize)) + ((num)/(wsize)))
+#define ROUND_UP_POW2(num, pow2) (((num) + (pow2)-1) & ~((pow2)-1))
 
 typedef struct {
     char str[512]; /* maximum conceivable string length */
@@ -62,16 +63,18 @@ static char *alloc_string(tws_instance_t *ti)
 
     for(j = 0; j < MAX_TWS_STRINGS; j++) {
         index = j / WORD_SIZE_IN_BITS;
-        if(ti->bitmask[index] == ~0UL)
+        if(ti->bitmask[index] == ~0UL) {
+            j = ROUND_UP_POW2(j+1, WORD_SIZE_IN_BITS) -1;
             continue;
+        }
 
-        bits = 1 << (j & (WORD_SIZE_IN_BITS - 1));
+        bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
         if(!(ti->bitmask[index] & bits)) {
             ti->bitmask[index] |= bits;
             return ti->mempool[j].str;
         }
     }
-#ifdef DEBUG
+#ifdef TWS_DEBUG
     printf("alloc_string: ran out of strings, will crash shortly\n");
 #endif
     return 0;
@@ -80,8 +83,8 @@ static char *alloc_string(tws_instance_t *ti)
 static void free_string(tws_instance_t *ti, void *ptr)
 {
     unsigned long j = (unsigned long) ((tws_string_t *) ptr - &ti->mempool[0]),
-	index = j / WORD_SIZE_IN_BITS,
-	bits = 1 << (j & (WORD_SIZE_IN_BITS - 1));
+        index = j / WORD_SIZE_IN_BITS,
+        bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
 
     ti->bitmask[index] &= ~bits;
 }
@@ -254,10 +257,10 @@ static void receive_tick_price(tws_instance_t *ti)
     
     if(version >= 2) {
         switch (tick_type) {
-        case 1: /* BID */  size_tick_type = 0; break; /* BID_SIZE */
-        case 2: /* ASK */  size_tick_type = 3; break; /* ASK_SIZE */
-        case 4: /* LAST */ size_tick_type = 5; break; /* LAST_SIZE */
-        default: size_tick_type = -1; /* not a tick */
+            case 1: /* BID */  size_tick_type = 0; break; /* BID_SIZE */
+            case 2: /* ASK */  size_tick_type = 3; break; /* ASK_SIZE */
+            case 4: /* LAST */ size_tick_type = 5; break; /* LAST_SIZE */
+            default: size_tick_type = -1; /* not a tick */
         }
         
         if(size_tick_type != -1)
@@ -278,6 +281,60 @@ static void receive_tick_size(tws_instance_t *ti)
     
     if(ti->connected)
         event_tick_size(ti->opaque, ticker_id, tick_type, size);
+}
+
+static void receive_tick_option_computation(tws_instance_t *ti)
+{
+    double implied_vol, delta, model_price, pv_dividend;
+    int ival, ticker_id, tick_type;
+
+    read_int(ti, &ival /*version*/); /* ignored */
+    read_int(ti, &ival), ticker_id = ival;
+    read_int(ti, &ival), tick_type = ival;
+    read_double(ti, &implied_vol);
+
+    if(implied_vol < 0) /* -1 is the "not yet computed" indicator */
+        implied_vol = DBL_MAX;
+
+    read_double(ti, &delta);
+    if(fabs(delta) > 1.0)  /* -2 is the "not yet computed" indicator */
+        delta = DBL_MAX;
+
+    if (tick_type == MODEL_OPTION) { /* introduced in version == 5 */
+        read_double(ti, &model_price);
+        read_double(ti, &pv_dividend);
+    } else
+        model_price = pv_dividend = DBL_MAX;
+    
+    if(ti->connected)
+        event_tick_option_computation(ti->opaque, ticker_id, tick_type, implied_vol, delta, model_price, pv_dividend);   
+}
+
+static void receive_tick_generic(tws_instance_t *ti)
+{
+    double value;
+    int ival, ticker_id, tick_type;
+
+    read_int(ti, &ival /*version */); /* ignored */
+    read_int(ti, &ival), ticker_id = ival;
+    read_int(ti, &ival), tick_type = ival;
+    read_double(ti, &value);
+    if(ti->connected)
+        event_tick_generic(ti->opaque, ticker_id, tick_type, value);
+}
+
+static void receive_tick_string(tws_instance_t *ti)
+{
+    long lval = sizeof ti->mempool;
+    char *value = (char *) &ti->mempool[0];
+    int ival, ticker_id, tick_type;
+
+    read_int(ti, &ival /*version */); /* ignored */
+    read_int(ti, &ival), ticker_id = ival;
+    read_int(ti, &ival), tick_type = ival;
+    read_line(ti, value, &lval);
+    if(ti->connected)
+        event_tick_string(ti->opaque, ticker_id, tick_type, value);
 }
 
 static void receive_order_status(tws_instance_t *ti)
@@ -508,24 +565,24 @@ static void receive_open_order(tws_instance_t *ti)
     }
 
     if (version >= 11) {
-	read_double(ti, &order.o_volatility);
-	read_int(ti, &order.o_volatility_type);
-	
-	if (version == 11) {
-	    read_int(ti, &ival); 
-	    order.o_delta_neutral_order_type = !ival ? (char*) "NONE" : (char *) "MKT"; 
-	} else {
-	    lval = sizeof(tws_string_t), read_line(ti, order.o_delta_neutral_order_type, &lval);
-	    read_double(ti, &order.o_delta_neutral_aux_price);
-	}
-	
-	read_int(ti, &ival); order.o_continuous_update = !!ival;
-	if (ti->server_version == 26) {
-	    read_double(ti, &order.o_stock_range_lower);
-	    read_double(ti, &order.o_stock_range_upper);
-	}
-	
-	read_int(ti, &order.o_reference_price_type);
+        read_double(ti, &order.o_volatility);
+        read_int(ti, &order.o_volatility_type);
+        
+        if (version == 11) {
+            read_int(ti, &ival); 
+            order.o_delta_neutral_order_type = !ival ? (char*) "NONE" : (char *) "MKT"; 
+        } else {
+            lval = sizeof(tws_string_t), read_line(ti, order.o_delta_neutral_order_type, &lval);
+            read_double(ti, &order.o_delta_neutral_aux_price);
+        }
+        
+        read_int(ti, &ival); order.o_continuous_update = !!ival;
+        if (ti->server_version == 26) {
+            read_double(ti, &order.o_stock_range_lower);
+            read_double(ti, &order.o_stock_range_upper);
+        }
+        
+        read_int(ti, &order.o_reference_price_type);
     }
     
     if(ti->connected)
@@ -756,7 +813,7 @@ static void receive_historical_data(void *tws)
     double open, high, low, close, wap;
     tws_instance_t *ti = (tws_instance_t *) tws;
     long j, lval, index;
-    int ival, version, reqid, item_count, volume, gaps;
+    int ival, version, reqid, item_count, volume, gaps, bar_count;
     char date[60], has_gaps[10], completion[60];
 
     read_int(ti, &ival), version = ival;
@@ -764,16 +821,16 @@ static void receive_historical_data(void *tws)
     memcpy(completion, "finished-", index = sizeof "finished-" -1);
 
     if(version >=2) {
-	lval = sizeof completion -1 - index;
-	if(!read_line(ti, &completion[index], &lval)) {
-	    index += lval;
-	    completion[index] = '-';
-	    completion[++index] = '\0';
+        lval = sizeof completion -1 - index;
+        if(!read_line(ti, &completion[index], &lval)) {
+            index += lval;
+            completion[index] = '-';
+            completion[++index] = '\0';
 
-	    lval = sizeof completion -1 - index;
-	    if(!read_line(ti, &completion[index], &lval))
-		completion[index+lval+1] = '\0';
-	}
+            lval = sizeof completion -1 - index;
+            if(!read_line(ti, &completion[index], &lval))
+                completion[index+lval+1] = '\0';
+        }
     }
     read_int(ti, &ival), item_count = ival;
 
@@ -785,16 +842,21 @@ static void receive_historical_data(void *tws)
         read_double(ti, &close);
         read_int(ti, &ival), volume = ival;
         read_double(ti, &wap);
-
         lval = sizeof has_gaps; read_line(ti, has_gaps, &lval);
         gaps = !strncasecmp(has_gaps, "false", 4) ? 0 : 1;
+
+        if(version >= 3)
+            read_int(ti, &ival), bar_count = ival;
+        else
+            bar_count = -1;
+
         if(ti->connected)
-            event_historical_data(ti->opaque, reqid, date, open, high, low, close, volume, wap, gaps);
+            event_historical_data(ti->opaque, reqid, date, open, high, low, close, volume, bar_count, wap, gaps);
 
     }
     /* send end of dataset marker */
     if(ti->connected)
-        event_historical_data(ti->opaque, reqid, completion, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0);    
+        event_historical_data(ti->opaque, reqid, completion, 0.0, 0.0, 0.0, 0.0, 0, -1, 0.0, 0);    
 }
 
 static void receive_scanner_parameters(void *tws)
@@ -807,98 +869,96 @@ static void receive_scanner_parameters(void *tws)
     read_int(ti, &ival); /*version*/
     read_line(ti, xml, &lval);
     if(ti->connected)
-	event_scanner_parameters(ti->opaque, xml);
+        event_scanner_parameters(ti->opaque, xml);
 }
 
 static void receive_scanner_data(void *tws)
 {
-   tr_contract_details_t cdetails;
-   tws_instance_t *ti = (tws_instance_t *) tws;
-   char *distance = alloc_string(ti), *benchmark = alloc_string(ti), *projection = alloc_string(ti);
-   long lval, j;
-   int ival, rank, ticker_id, num_elements;
+    tr_contract_details_t cdetails;
+    tws_instance_t *ti = (tws_instance_t *) tws;
+    char *distance = alloc_string(ti), *benchmark = alloc_string(ti), *projection = alloc_string(ti);
+    long lval, j;
+    int ival, rank, ticker_id, num_elements;
 
-   init_contract_details(ti, &cdetails);
+    init_contract_details(ti, &cdetails);
 
-   read_int(ti, &ival); /* version unused */
-   read_int(ti, &ival), ticker_id = ival;
-   read_int(ti, &ival), num_elements = ival;
+    read_int(ti, &ival); /* version unused */
+    read_int(ti, &ival), ticker_id = ival;
+    read_int(ti, &ival), num_elements = ival;
 
-   for(j = 0; j < num_elements; j++) {
-       read_int(ti, &ival), rank = ival;
-       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_symbol, &lval);
-       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_sectype, &lval);
-       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_expiry, &lval);
-       read_double(ti, &cdetails.d_summary.s_strike);
-       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_right, &lval);
-       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_exchange, &lval);
-       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_currency, &lval);
-       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_local_symbol, &lval);
-       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_market_name, &lval);
-       lval = sizeof(tws_string_t), read_line(ti, cdetails.d_trading_class, &lval);
-       lval = sizeof(tws_string_t), read_line(ti, distance, &lval);
-       lval = sizeof(tws_string_t), read_line(ti, benchmark, &lval);
-       lval = sizeof(tws_string_t), read_line(ti, projection, &lval);
+    for(j = 0; j < num_elements; j++) {
+        read_int(ti, &ival), rank = ival;
+        lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_symbol, &lval);
+        lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_sectype, &lval);
+        lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_expiry, &lval);
+        read_double(ti, &cdetails.d_summary.s_strike);
+        lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_right, &lval);
+        lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_exchange, &lval);
+        lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_currency, &lval);
+        lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_local_symbol, &lval);
+        lval = sizeof(tws_string_t), read_line(ti, cdetails.d_market_name, &lval);
+        lval = sizeof(tws_string_t), read_line(ti, cdetails.d_trading_class, &lval);
+        lval = sizeof(tws_string_t), read_line(ti, distance, &lval);
+        lval = sizeof(tws_string_t), read_line(ti, benchmark, &lval);
+        lval = sizeof(tws_string_t), read_line(ti, projection, &lval);
 
-       if(ti->connected)
-	   event_scanner_data(ti->opaque, ticker_id, rank, &cdetails, distance, benchmark, projection);
-   }
+        if(ti->connected)
+            event_scanner_data(ti->opaque, ticker_id, rank, &cdetails, distance, benchmark, projection);
+    }
 
-   destroy_contract_details(ti, &cdetails);
-   free_string(ti, distance);
-   free_string(ti, benchmark);
-   free_string(ti, projection);
+    destroy_contract_details(ti, &cdetails);
+    free_string(ti, distance);
+    free_string(ti, benchmark);
+    free_string(ti, projection);
 }
 
 static void event_loop(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
-    int msgid;
+    int msgid, valid;
 
     ti->started = 1;
     (*ti->extfunc)(0); /* indicate "startup" to callee */
 
     do {
         read_int(ti, &msgid);
-        
-        if(msgid < 1 || msgid >= no_more_messages) {
-#ifdef DEBUG
-            printf("read_int: invalid msgid received %d\n", msgid);
-#endif
-            break;
-        }
-        
-#ifdef DEBUG
-        printf("\nreceived %s\n", tws_incoming_msg_names[msgid-1]);
-#endif
+        valid = 1;
       
         switch(msgid) {
-	    case TICK_PRICE: receive_tick_price(ti); break;
-	    case TICK_SIZE: receive_tick_size(ti); break;
-	    case ORDER_STATUS: receive_order_status(ti); break;
-	    case ACCT_VALUE: receive_acct_value(ti); break;
-	    case PORTFOLIO_VALUE: receive_portfolio_value(ti); break;
-	    case ACCT_UPDATE_TIME: receive_acct_update_time(ti); break;
-	    case ERR_MSG: receive_err_msg(ti); break;
-	    case OPEN_ORDER: receive_open_order(ti); break;
-	    case NEXT_VALID_ID: receive_next_valid_id(ti); break;
-	    case CONTRACT_DATA: receive_contract_data(ti); break;
-	    case BOND_CONTRACT_DATA: receive_bond_contract_data(ti); break;
-	    case EXECUTION_DATA: receive_execution_data(ti); break;
-	    case MARKET_DEPTH: receive_market_depth(ti); break;
-	    case MARKET_DEPTH_L2: receive_market_depth_l2(ti); break;
-	    case NEWS_BULLETINS: receive_news_bulletins(ti); break;
-	    case MANAGED_ACCTS: receive_managed_accts(ti); break;
-	    case RECEIVE_FA: receive_fa(ti); break;
-	    case HISTORICAL_DATA: receive_historical_data(ti); break;
-	    case SCANNER_PARAMETERS: receive_scanner_parameters(ti); break;
-	    case SCANNER_DATA: receive_scanner_data(ti); break;
-	    default: ; /*provably can't happen */
+            case TICK_PRICE: receive_tick_price(ti); break;
+            case TICK_SIZE: receive_tick_size(ti); break;
+            case TICK_OPTION_COMPUTATION: receive_tick_option_computation(ti); break;
+            case TICK_GENERIC: receive_tick_generic(ti); break;
+            case TICK_STRING: receive_tick_string(ti); break;
+            case ORDER_STATUS: receive_order_status(ti); break;
+            case ACCT_VALUE: receive_acct_value(ti); break;
+            case PORTFOLIO_VALUE: receive_portfolio_value(ti); break;
+            case ACCT_UPDATE_TIME: receive_acct_update_time(ti); break;
+            case ERR_MSG: receive_err_msg(ti); break;
+            case OPEN_ORDER: receive_open_order(ti); break;
+            case NEXT_VALID_ID: receive_next_valid_id(ti); break;
+            case CONTRACT_DATA: receive_contract_data(ti); break;
+            case BOND_CONTRACT_DATA: receive_bond_contract_data(ti); break;
+            case EXECUTION_DATA: receive_execution_data(ti); break;
+            case MARKET_DEPTH: receive_market_depth(ti); break;
+            case MARKET_DEPTH_L2: receive_market_depth_l2(ti); break;
+            case NEWS_BULLETINS: receive_news_bulletins(ti); break;
+            case MANAGED_ACCTS: receive_managed_accts(ti); break;
+            case RECEIVE_FA: receive_fa(ti); break;
+            case HISTORICAL_DATA: receive_historical_data(ti); break;
+            case SCANNER_PARAMETERS: receive_scanner_parameters(ti); break;
+            case SCANNER_DATA: receive_scanner_data(ti); break;
+            default: valid = 0; break;
         }
+
+#ifdef TWS_DEBUG
+        printf("\nreceived id=%d, name=%s\n", msgid,
+               valid ? tws_incoming_msg_names[msgid-1] : "invalid id");
+#endif
     } while(ti->connected);
 
     (*ti->extfunc)(1); /* indicate termination to callee */
-#ifdef DEBUG
+#ifdef TWS_DEBUG
     printf("reader thread exiting\n");
 #endif
 }
@@ -911,7 +971,7 @@ void *tws_create(start_thread_t start_thread, void *opaque, external_func_t myfu
         ti->fd = (socket_t) ~0;
         ti->start_thread = start_thread;
         ti->opaque = opaque;
-	ti->extfunc = myfunc;
+        ti->extfunc = myfunc;
     }
 
     return ti;
@@ -1035,7 +1095,7 @@ static int read_line(tws_instance_t *ti, char *line, long *len)
     for(j = 0; j < *len; j++) {
         nread = read_char(ti);
         if(nread < 0) {
-#ifdef DEBUG
+#ifdef TWS_DEBUG
             printf("read_line: going out 1, nread=%d\n", nread);
 #endif
             goto out;
@@ -1046,13 +1106,13 @@ static int read_line(tws_instance_t *ti, char *line, long *len)
     }
 
     if(j == *len) {
-#ifdef DEBUG
+#ifdef TWS_DEBUG
         printf("read_line: going out 2 j=%ld\n", j);
 #endif
         goto out;
     }
 
-#ifdef DEBUG
+#ifdef TWS_DEBUG
     printf("read_line: i read %s\n", line);
 #endif
     *len = j;
@@ -1063,7 +1123,7 @@ out:
             close(ti->fd);
             ti->connected = 0;
         } else {
-#ifdef DEBUG
+#ifdef TWS_DEBUG
             printf("read_line: corruption happened (string longer than max)\n");
 #endif
         }
@@ -1191,7 +1251,7 @@ int tws_req_scanner_subscription(void *tws, int ticker_id, tr_scanner_subscripti
     if(ti->server_version < 24) return UPDATE_TWS;
     
     send_int(ti, REQ_SCANNER_SUBSCRIPTION);
-    send_int(ti, 1 /*VERSION*/);
+    send_int(ti, 3 /*VERSION*/);
     send_int(ti, ticker_id);
     send_int_max(ti, s->scan_number_of_rows);
     send_str(ti, s->scan_instrument);
@@ -1213,12 +1273,12 @@ int tws_req_scanner_subscription(void *tws, int ticker_id, tr_scanner_subscripti
     send_str(ti, s->scan_exclude_convertible);
 
     if(ti->server_version >= 25) {
-	send_int(ti, s->scan_average_option_volume_above);
-	send_str(ti, s->scan_scanner_setting_pairs);
+        send_int(ti, s->scan_average_option_volume_above);
+        send_str(ti, s->scan_scanner_setting_pairs);
     }
 
     if(ti->server_version >= 27)
-	send_str(ti, s->scan_stock_type_filter);
+        send_str(ti, s->scan_stock_type_filter);
 
     return ti->connected ? 0 : FAIL_SEND_REQSCANNER;
 }
@@ -1249,12 +1309,12 @@ static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, int send
     }
 }
 
-int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract)
+int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract, const char generic_tick_list[])
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 
     send_int(ti, REQ_MKT_DATA);
-    send_int(ti, 5 /* version */);
+    send_int(ti, 6 /* version */);
     send_int(ti, ticker_id);
 
     send_str(ti, contract->c_symbol);
@@ -1275,13 +1335,16 @@ int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract)
     if(ti->server_version >= 2)
         send_str(ti, contract->c_local_symbol);
 
-    if(ti->server_version >= 8)
+    if(ti->server_version >= 8 && !strcasecmp(contract->c_sectype, "BAG"))
         send_combolegs(ti, contract, 0);
+
+    if(ti->server_version >= 31)
+        send_str(ti, generic_tick_list);
 
     return ti->connected ? 0 : FAIL_SEND_REQMKT;
 }
 
-int tws_req_historical_data(void *tws, int ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], int bar_size_setting, const char what_to_show[], int use_rth, int format_date)
+int tws_req_historical_data(void *tws, int ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], const char bar_size_setting[], const char what_to_show[], int use_rth, int format_date)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 
@@ -1289,7 +1352,7 @@ int tws_req_historical_data(void *tws, int ticker_id, tr_contract_t *contract, c
         return UPDATE_TWS;
     
     send_int(ti, REQ_HISTORICAL_DATA);
-    send_int(ti, 3 /*version*/);
+    send_int(ti, 4 /*version*/);
     send_int(ti, ticker_id);
 
     send_str(ti, contract->c_symbol);
@@ -1302,9 +1365,13 @@ int tws_req_historical_data(void *tws, int ticker_id, tr_contract_t *contract, c
     send_str(ti, contract->c_primary_exch);
     send_str(ti, contract->c_currency);
     send_str(ti, contract->c_local_symbol);
+
+    if(ti->server_version >= 31)
+        send_int(ti, contract->c_include_expired);
+
     if(ti->server_version >= 20) {
         send_str(ti, end_date_time);
-        send_int(ti, bar_size_setting);
+        send_str(ti, bar_size_setting);
     }
     send_str(ti, duration_str);
     send_int(ti, use_rth);
@@ -1320,7 +1387,7 @@ int tws_cancel_historical_data(void *tws, int ticker_id)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 
-    if(ti->server_version < 24)	return UPDATE_TWS;
+    if(ti->server_version < 24) return UPDATE_TWS;
     
     send_int(ti, CANCEL_HISTORICAL_DATA);
     send_int(ti, 1 /*VERSION*/);
@@ -1338,7 +1405,7 @@ int tws_req_contract_details(void *tws, tr_contract_t *contract)
 
     /* send req mkt data msg */
     send_int(ti, REQ_CONTRACT_DATA);
-    send_int(ti, 2 /*VERSION*/);
+    send_int(ti, 3 /*VERSION*/);
     
     send_str(ti, contract->c_symbol);
     send_str(ti, contract->c_sectype);
@@ -1352,6 +1419,8 @@ int tws_req_contract_details(void *tws, tr_contract_t *contract)
     send_str(ti, contract->c_exchange);
     send_str(ti, contract->c_currency);
     send_str(ti, contract->c_local_symbol);
+    if(ti->server_version >= 31)
+        send_int(ti, contract->c_include_expired);
 
     return ti->connected ? 0 : FAIL_SEND_REQCONTRACT;
 }
@@ -1444,7 +1513,7 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
     int vol26 = 0;
 
     send_int(ti, PLACE_ORDER);
-    send_int(ti, 20 /*VERSION*/);
+    send_int(ti, 21 /*VERSION*/);
     send_int(ti, (int) id);
     
     /* send contract fields */
@@ -1522,7 +1591,7 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
     }
 
     if(ti->server_version >= 19) {
-	vol26 = ti->server_version == 26 && !strcasecmp(order->o_order_type, "VOL");
+        vol26 = ti->server_version == 26 && !strcasecmp(order->o_order_type, "VOL");
 
         send_int(ti, order->o_oca_type);
         send_int(ti, order->o_rth_only);
@@ -1546,25 +1615,28 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
         send_int(ti, order->o_override_percentage_constraints);
 
     if (ti->server_version >= 26) { /* Volatility orders */
-	send_double_max(ti, &order->o_volatility);
-	send_int_max(ti, order->o_volatility_type);
-	
-	if (ti->server_version < 28)
-	    send_int(ti, !strcasecmp(order->o_delta_neutral_order_type, "MKT"));
-	else {
-	    send_str(ti, order->o_delta_neutral_order_type);
-	    send_double_max(ti, &order->o_delta_neutral_aux_price);
-	}
+        send_double_max(ti, &order->o_volatility);
+        send_int_max(ti, order->o_volatility_type);
+        
+        if (ti->server_version < 28)
+            send_int(ti, !strcasecmp(order->o_delta_neutral_order_type, "MKT"));
+        else {
+            send_str(ti, order->o_delta_neutral_order_type);
+            send_double_max(ti, &order->o_delta_neutral_aux_price);
+        }
 
-	send_int(ti, order->o_continuous_update);
-	if(ti->server_version == 26) {
-	    /* this is a mechanical translation of java code but is it correct? */
-	    send_double_max(ti, vol26 ? &order->o_stock_range_lower : &dmx);
-	    send_double_max(ti, vol26 ? &order->o_stock_range_upper : &dmx);
-	}
+        send_int(ti, order->o_continuous_update);
+        if(ti->server_version == 26) {
+            /* this is a mechanical translation of java code but is it correct? */
+            send_double_max(ti, vol26 ? &order->o_stock_range_lower : &dmx);
+            send_double_max(ti, vol26 ? &order->o_stock_range_upper : &dmx);
+        }
 
-	send_int_max(ti, order->o_reference_price_type);
+        send_int_max(ti, order->o_reference_price_type);
     }
+
+    if(ti->server_version >= 30)
+        send_double_max(ti, &order->o_trail_stop_price);
 
     return ti->connected ? 0 : FAIL_SEND_ORDER;
 }

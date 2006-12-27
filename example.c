@@ -79,7 +79,6 @@ int main()
     void *ti;
     tr_contract_t c;
 
-    //ti = tws_create(mythread_starter, (void *) 0x12345);
     ti = tws_create(mythread_starter, (void *) 0x12345, tws_thread_status);
     err = tws_connect(ti, 0 , 7496, 1);
     if(err) {
@@ -89,22 +88,20 @@ int main()
     scan_market(ti);
     /* let's get some historical intraday data first */
     memset(&c, 0, sizeof c);
-    c.c_symbol = "MSFT";
+    c.c_symbol = "QQQQ";
     c.c_sectype = "STK";
     c.c_expiry = "";
     c.c_right = "";
     c.c_multiplier = "";
-    c.c_exchange = "SUPERSOES";
-    c.c_primary_exch = "";
+    c.c_exchange = "SMART";
+    c.c_primary_exch = "SUPERSOES";
     c.c_currency = "USD";
     c.c_local_symbol = "";
 
-    tws_req_historical_data(ti, 2, &c, /* MAKE date current or retrieval will fail */ "20060801 13:26:44",
-                          "4 D", 9, "TRADES", 0, 1); 
+    tws_req_historical_data(ti, 2, &c, /* MAKE date current or retrieval will fail */ "20061220 13:26:44", "1 D", "1 hour", "TRADES", 0, 1); 
 
-    /* now request live data for msft */
-    c.c_exchange = "SMART";
-    tws_req_mkt_data(ti, 3, &c);
+    /* now request live data for QQQQ */
+    tws_req_mkt_data(ti, 3, &c, "100,101,104,106,162,165,221,225");
 
 #ifdef unix
     while(1) select(1,0,0,0,0);
