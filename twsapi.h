@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 /* public C API */
-#define TWSCLIENT_VERSION 30
+#define TWSCLIENT_VERSION 32
 
     typedef struct tr_contract_details {
         double d_mintick;
@@ -27,9 +27,13 @@ extern "C" {
             char *s_bond_type;
             char *s_coupon_type;
             char *s_desc_append;
-            unsigned int s_convertible: 1;
-            unsigned int s_callable: 1;
-            unsigned int s_putable: 1;
+            char *s_next_option_date;
+            char *s_next_option_type;
+            char *s_notes;
+            unsigned s_convertible: 1;
+            unsigned s_callable: 1;
+            unsigned s_putable: 1;
+            unsigned s_next_option_partial:1;
         } d_summary;
         char   *d_market_name;
         char   *d_trading_class;
@@ -59,6 +63,7 @@ extern "C" {
         char *c_right;
         char *c_local_symbol;
         char *c_multiplier;
+        char *c_combolegs_descrip;
         tr_comboleg_t *c_comboleg;
         long c_num_combolegs;
 	unsigned c_include_expired:1;
@@ -77,6 +82,7 @@ extern "C" {
 	double o_volatility;
 	double o_delta_neutral_aux_price;
 	double o_trail_stop_price;
+        double o_basis_points;
         char *o_good_after_time;
         char *o_good_till_date;
         char *o_shares_allocation;
@@ -109,26 +115,27 @@ extern "C" {
         int  o_min_qty; /* make sure to default init to ~(1 << 31) */
 	int  o_volatility_type;
 	int  o_reference_price_type;
-        unsigned int  o_oca_type:3;
+        int  o_basis_points_type;
+        unsigned o_oca_type:3;
 #define CANCEL_WITH_BLOCK 1
 #define REDUCE_WITH_BLOCK 2
 #define REDUCE_NON_BLOCK 3
-        unsigned int  o_auction_strategy:3;
+        unsigned o_auction_strategy:3;
 #define AUCTION_MATCH 1
 #define AUCTION_IMPROVEMENT 2
 #define AUCTION_TRANSPARENT 3
-        unsigned int  o_short_sale_slot:2; /*1 or 2 */
-        unsigned int  o_override_percentage_constraints:1;
-        unsigned int  o_firm_quote_only:1;
-        unsigned int  o_etrade_only:1;
-        unsigned int  o_rth_only:1;
-        unsigned int  o_all_or_none:1;
-        unsigned int  o_ignore_rth: 1;
-        unsigned int  o_hidden: 1;
-        unsigned int  o_transmit: 1; /*default init to true */
-        unsigned int  o_block_order: 1;
-        unsigned int  o_sweep_to_fill: 1;
-	unsigned int  o_continuous_update: 1;
+        unsigned o_short_sale_slot:2; /*1 or 2 */
+        unsigned o_override_percentage_constraints:1;
+        unsigned o_firm_quote_only:1;
+        unsigned o_etrade_only:1;
+        unsigned o_rth_only:1;
+        unsigned o_all_or_none:1;
+        unsigned o_ignore_rth: 1;
+        unsigned o_hidden: 1;
+        unsigned o_transmit: 1; /*default init to true */
+        unsigned o_block_order: 1;
+        unsigned o_sweep_to_fill: 1;
+	unsigned o_continuous_update: 1;
     } tr_order_t;
 
     typedef struct tr_execution {
@@ -233,6 +240,9 @@ extern "C" {
     int   tws_req_managed_accts(void *tws);
     int   tws_request_fa(void *tws, long fa_data_type);
     int   tws_replace_fa(void *tws, long fa_data_type, const char cxml[]);
+    int tws_req_current_time(void *tws);
+    int   tws_request_realtime_bars(void *tws, int ticker_id, tr_contract_t *c, int bar_size, const char what_to_show[], int use_rth);
+    int tws_cancel_realtime_bars(void *tws, int ticker_id);
     /**** 2 auxilliary routines */
     int tws_server_version(void *tws);
     const char *tws_connection_time(void *tws);
@@ -244,9 +254,10 @@ extern "C" {
     void event_tick_option_computation(void *opaque, int ticker_id, int type, double implied_vol, double delta, double model_price, double pr_dividend);
     void event_tick_generic(void *opaque, int ticker_id, int type, double value);
     void event_tick_string(void *opaque, int ticker_id, int type, const char value[]);
+    void event_tick_efp(void *opaque, int ticker_id, int tick_type, double basis_points, const char formatted_basis_points[], double implied_futures_price, int hold_days, const char future_expiry[], double dividend_impact, double dividends_to_expiry);
     void event_order_status(void *opaque, long order_id, const char status[],
                             int filled, int remaining, double avg_fill_price, int perm_id,
-                            int parent_id, double last_fill_price, int client_id);
+                            int parent_id, double last_fill_price, int client_id, const char why_held[]);
     void event_open_order(void *opaque, long order_id, const tr_contract_t *contract,
                           const tr_order_t *order);
     void event_win_error(void *opaque, const char str[], int last_error);
@@ -273,35 +284,40 @@ extern "C" {
     void event_receive_fa(void *opaque, long fa_data_type, const char cxml[]);
     void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, int bar_count, double wap, int has_gaps);
     void event_scanner_parameters(void *opaque, const char xml[]);
-    void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[]); 
+    void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[], const char legs_str[]); 
+    void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long volume, double wap, int count);
+    void event_current_time(void *opaque, long time);
 
 /*outgoing message IDs */
     enum tws_outgoing_ids {
         REQ_MKT_DATA = 1,
-        CANCEL_MKT_DATA,
-        PLACE_ORDER,
-        CANCEL_ORDER,
-        REQ_OPEN_ORDERS,
-        REQ_ACCOUNT_DATA,
-        REQ_EXECUTIONS,
-        REQ_IDS,
-        REQ_CONTRACT_DATA,
-        REQ_MKT_DEPTH,
-        CANCEL_MKT_DEPTH,
-        REQ_NEWS_BULLETINS,
-        CANCEL_NEWS_BULLETINS,
-        SET_SERVER_LOGLEVEL,
-        REQ_AUTO_OPEN_ORDERS,
-        REQ_ALL_OPEN_ORDERS,
-        REQ_MANAGED_ACCTS,
-        REQ_FA,
-        REPLACE_FA,
-        REQ_HISTORICAL_DATA,
-        EXERCISE_OPTIONS,
-	REQ_SCANNER_SUBSCRIPTION,
-	CANCEL_SCANNER_SUBSCRIPTION,
-	REQ_SCANNER_PARAMETERS,
-	CANCEL_HISTORICAL_DATA
+        CANCEL_MKT_DATA = 2,
+        PLACE_ORDER = 3,
+        CANCEL_ORDER = 4,
+        REQ_OPEN_ORDERS = 5,
+        REQ_ACCOUNT_DATA = 6,
+        REQ_EXECUTIONS = 7,
+        REQ_IDS = 8,
+        REQ_CONTRACT_DATA = 9,
+        REQ_MKT_DEPTH = 10,
+        CANCEL_MKT_DEPTH = 11,
+        REQ_NEWS_BULLETINS = 12,
+        CANCEL_NEWS_BULLETINS = 13,
+        SET_SERVER_LOGLEVEL = 14,
+        REQ_AUTO_OPEN_ORDERS = 15,
+        REQ_ALL_OPEN_ORDERS = 16,
+        REQ_MANAGED_ACCTS = 17,
+        REQ_FA = 18,
+        REPLACE_FA = 19,
+        REQ_HISTORICAL_DATA = 20,
+        EXERCISE_OPTIONS = 21,
+	REQ_SCANNER_SUBSCRIPTION = 22,
+	CANCEL_SCANNER_SUBSCRIPTION = 23,
+	REQ_SCANNER_PARAMETERS = 24,
+	CANCEL_HISTORICAL_DATA = 25,
+        REQ_CURRENT_TIME = 49,
+        REQ_REAL_TIME_BARS = 50,
+        CANCEL_REAL_TIME_BARS = 51
     };
 
     enum tws_incoming_ids {
@@ -322,12 +338,15 @@ extern "C" {
         MANAGED_ACCTS =15,
         RECEIVE_FA =16,
         HISTORICAL_DATA =17,
-        BOND_CONTRACT_DATA = 18,
-	SCANNER_PARAMETERS = 19,
+        BOND_CONTRACT_DATA =18,
+	SCANNER_PARAMETERS =19,
 	SCANNER_DATA =20,
-	TICK_OPTION_COMPUTATION = 21,
-	TICK_GENERIC = 45,
-	TICK_STRING = 46
+	TICK_OPTION_COMPUTATION =21,
+	TICK_GENERIC =45,
+	TICK_STRING =46,
+        TICK_EFP =47,
+        CURRENT_TIME =49,
+        REAL_TIME_BARS = 50        
     };
 
 
@@ -356,7 +375,10 @@ extern "C" {
         FAIL_SEND_FA_REPLACE,
 	FAIL_SEND_REQSCANNERPARAMETERS,
 	FAIL_SEND_CANSCANNER,
-	FAIL_SEND_REQSCANNER
+	FAIL_SEND_REQSCANNER,
+        FAIL_SEND_REQRTBARS,
+        FAIL_SEND_CANRTBARS,
+        FAIL_SEND_REQCURRTIME
     };
 
     struct twsclient_errmsg {
@@ -366,6 +388,9 @@ extern "C" {
 
 #ifdef TWSAPI_GLOBALS
     struct twsclient_errmsg twsclient_err_indication[] = {
+        /* these correspond to enum twsclient_error_codes, save for code -1 
+         * usage: if(err_code >= 0) puts(twsclient_err_indication[err_code]);
+         */
         { 0, "No error" },
         { 501, "Already connected." },
         { 502, "Couldn't connect to TWS.  Confirm that \"Enable ActiveX and Socket Clients\" is enabled on the TWS \"Configure->API\" menu." },
@@ -386,6 +411,14 @@ extern "C" {
         { 521, "Set Server Log Level Sending Error - "},
         { 522, "FA Information Request Sending Error - "},
         { 523, "FA Information Replace Sending Error - "},
+        { 524,  "Request Scanner Subscription Sending Error - "},
+        { 525, "Cancel Scanner Subscription Sending Error - "},
+        { 526, "Request Scanner Parameter Sending Error - "},
+        { 527, "Request Historical Data Sending Error - "},
+        { 528, "Request Historical Data Sending Error - "},
+        { 529, "Request Real-time Bar Data Sending Error - "},
+        { 530, "Cancel Real-time Bar Data Sending Error - "},
+        { 531, "Request Current Time Sending Error - "}
     };
 
     char *tws_incoming_msg_names[] = {
@@ -393,7 +426,14 @@ extern "C" {
         "acct_value", "portfolio_value", "acct_update_time", "next_valid_id",
         "contract_data", "execution_data", "market_depth", "market_depth_l2",
         "news_bulletins", "managed_accts", "receive_fa", "historical_data",
-        "bond_contract_data", "scanner_parameters", "scanner_data",
+        "bond_contract_data", "scanner_parameters", "scanner_data", "tick_option_computation",
+        /* place holders follow */
+        "msg22", "msg23", "msg24", "msg25", "msg26", "msg27", "msg28", "msg29", "msg30",
+        "msg31", "msg32", "msg33", "msg34", "msg35", "msg36", "msg37", "msg38", "msg39",
+        "msg40", "msg41", "msg42", "msg43", "msg44",
+        /* end of place holders */
+        "tick_generic", "tick_string", "tick_efp", "msg48",
+        "current_time", "realtime_bars"
     };
 
     char *fa_msg_name[] = { "GROUPS", "PROFILES", "ALIASES" };

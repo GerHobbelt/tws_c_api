@@ -6,13 +6,13 @@
 void event_tick_price(void *opaque, int ticker_id, long field, double price,
                       int can_auto_execute)
 {
-     printf("tick_price: opaque=%p, ticker_id=%d, type=%ld, price=%.2lf, can_auto=%d\n",
+    printf("tick_price: opaque=%p, ticker_id=%d, type=%ld, price=%.2lf, can_auto=%d\n",
            opaque, ticker_id, field, price, can_auto_execute);
 }
 
 void event_tick_size(void *opaque, int ticker_id, long type, int size)
 {
-     printf("tick_size: opaque=%p, ticker_id=%d, type=%ld, size=%d\n",
+    printf("tick_size: opaque=%p, ticker_id=%d, type=%ld, size=%d\n",
            opaque, ticker_id, type, size);
 }
 
@@ -28,9 +28,13 @@ void event_tick_string(void *opaque, int ticker_id, int type, const char value[]
 {
 }
 
+void event_tick_efp(void *opaque, int ticker_id, int tick_type, double basis_points, const char formatted_basis_points[], double implied_futures_price, int hold_days, const char future_expiry[], double dividend_impact, double dividends_to_expiry)
+{
+}
+
 void event_order_status(void *opaque, long order_id, const char status[],
                         int filled, int remaining, double avg_fill_price, int perm_id,
-                        int parent_id, double last_fill_price, int client_id)
+                        int parent_id, double last_fill_price, int client_id, const char why_held[])
 {
 
 }
@@ -38,7 +42,7 @@ void event_order_status(void *opaque, long order_id, const char status[],
 void event_open_order(void *opaque, long order_id, const tr_contract_t *contract,
                       const tr_order_t *order)
 {
-     printf("open_order: order_id=%ld\n", order_id);
+    printf("open_order: order_id=%ld\n", order_id);
 }
 
 void event_win_error(void *opaque, const char str[], int last_error)
@@ -129,11 +133,19 @@ void event_scanner_parameters(void *opaque, const char xml[])
     printf("scanner_parameters: opaque=%p, xml=%s\n", opaque, xml);
 }
 
-void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[])
+void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[], const char legs_str[])
 {
     printf("scanner_data: opaque=%p, ticker_id=%d, rank=%d, distance=%s, benchmark=%s, projection=%s\n",
 	   opaque, ticker_id, rank, distance, benchmark, projection);
     printf("scanner_data details: sym=%s, sectype=%s, expiry=%s, strike=%.3lf, right=%s, exch=%s, currency=%s, local_sym=%s, market_name=%s, trading_class=%s\n", cd->d_summary.s_symbol, cd->d_summary.s_sectype, cd->d_summary.s_expiry, cd->d_summary.s_strike, cd->d_summary.s_right, cd->d_summary.s_exchange, cd->d_summary.s_currency, cd->d_summary.s_local_symbol, cd->d_market_name, cd->d_trading_class);
 
     /* it seems that NYSE traded stocks have different market_name and trading_class from NASDAQ */
+}
+
+void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long volume, double wap, int count)
+{
+}
+
+void event_current_time(void *opaque, long time)
+{
 }

@@ -98,7 +98,7 @@ int main()
     c.c_currency = "USD";
     c.c_local_symbol = "";
 
-    tws_req_historical_data(ti, 2, &c, /* MAKE date current or retrieval will fail */ "20061220 13:26:44", "1 D", "1 hour", "TRADES", 0, 1); 
+    tws_req_historical_data(ti, 2, &c, /* MAKE date current or retrieval will fail */ "20070629 13:26:44", "1 D", "1 hour", "TRADES", 0, 1); 
 
     /* now request live data for QQQQ */
     tws_req_mkt_data(ti, 3, &c, "100,101,104,106,162,165,221,225");
