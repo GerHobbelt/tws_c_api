@@ -2,6 +2,9 @@
 #include "twsapi.h"
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <float.h>
+#include <math.h>
 
 void event_tick_price(void *opaque, int ticker_id, long field, double price,
                       int can_auto_execute)
@@ -36,18 +39,18 @@ void event_order_status(void *opaque, long order_id, const char status[],
                         int filled, int remaining, double avg_fill_price, int perm_id,
                         int parent_id, double last_fill_price, int client_id, const char why_held[])
 {
-
+    printf("order_status: opaque=%p, order_id=%ld, filled=%d remaining %d, avg_fill_price=%lf, last_fill_price=%lf, why_held=%s\n", opaque, order_id, filled, remaining, avg_fill_price, last_fill_price, why_held);
 }
 
-void event_open_order(void *opaque, long order_id, const tr_contract_t *contract,
-                      const tr_order_t *order)
+void event_open_order(void *opaque, long order_id, const tr_contract_t *contract, const tr_order_t *order, const tr_order_status_t *ostatus)
 {
-    printf("open_order: order_id=%ld\n", order_id);
-}
+    /* commission values might be DBL_MAX */
+    if(fabs(ostatus->ost_commission - DBL_MAX) < DBL_EPSILON)
+        printf("open_order: commission not reported\n");
+    else
+        printf("open_order: commission for %ld was %.4lf\n", order_id, ostatus->ost_commission);
 
-void event_win_error(void *opaque, const char str[], int last_error)
-{
-    printf("win_error: %p, str=%s, last_error=%d\n", opaque, str, last_error);
+    printf("open_order: opaque=%p, order_id=%ld, sym=%s\n", opaque, order_id, contract->c_symbol);
 }
 
 void event_connection_closed(void *opaque)
@@ -57,13 +60,16 @@ void event_connection_closed(void *opaque)
 void event_update_account_value(void *opaque, const char key[], const char val[],
                                 const char currency[], const char account_name[])
 {
+    printf("update_account_value: %p, key=%s val=%s, currency=%s, name=%s\n",
+           opaque, key, val, currency, account_name);
 }
 
 void event_update_portfolio(void *opaque, const tr_contract_t *contract, int position,
                             double mkt_price, double mkt_value, double average_cost,
                             double unrealized_pnl, double realized_pnl, const char account_name[])
 {
-
+    printf("update_portfolio: %p, sym=%s, position=%d, mkr_price=%.4lf, mkt_value=%.4lf, avg_cost=%.4lf, unrealized_pnl=%.4lf, realized pnl=%.4lf name=%s\n",
+           opaque, contract->c_symbol, position, mkt_price, mkt_value, average_cost, unrealized_pnl, realized_pnl, account_name);
 }
 
 void event_update_account_time(void *opaque, const char time_stamp[])
@@ -73,7 +79,14 @@ void event_update_account_time(void *opaque, const char time_stamp[])
 
 void event_next_valid_id(void *opaque, long order_id)
 {
-
+    /* invoked once at connection establishment
+     * the scope of this variable is not program wide, instance wide,
+     * or even system wide. It has the same scope as the TWS account itself.
+     * It appears to be persistent across TWS restarts.
+     * Well behaved human and automatic TWS clients shall increment
+     * this order_id atomically and cooperatively
+     */
+     printf("next_valid_id for order placement %ld\n", order_id);
 }
 
 void event_contract_details(void *opaque, const tr_contract_details_t *contract_details)
@@ -142,8 +155,13 @@ void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_detai
     /* it seems that NYSE traded stocks have different market_name and trading_class from NASDAQ */
 }
 
+void event_scanner_data_end(void *opaque, int ticker_id)
+{
+}
+
 void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long volume, double wap, int count)
 {
+    printf("realtime_bar: %p reqid=%d time=%ld, ohlc=%.4lf/%.4lf/%.4lf/%.4lf, vol=%ld, wap=%.4lf, count=%d\n", opaque, reqid, time, open, high, low, close, volume, wap, count);
 }
 
 void event_current_time(void *opaque, long time)

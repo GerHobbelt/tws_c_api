@@ -98,11 +98,49 @@ int main()
     c.c_currency = "USD";
     c.c_local_symbol = "";
 
-    tws_req_historical_data(ti, 2, &c, /* MAKE date current or retrieval will fail */ "20070629 13:26:44", "1 D", "1 hour", "TRADES", 0, 1); 
+    tws_req_historical_data(ti, 2, &c, /* MAKE date current or retrieval will fail */ "20080111 13:26:44", "1 D", "1 hour", "TRADES", 0, 1); 
 
     /* now request live data for QQQQ */
-    tws_req_mkt_data(ti, 3, &c, "100,101,104,106,162,165,221,225");
+    tws_req_mkt_data(ti, 3, &c, "100,101,104,106,162,165,221,225", 0);
 
+#if 0  /* flip it to 1, recompile and run at your own risk */
+    /* let's place a market order to buy 1 share of QQQQ */
+    do {
+        tr_order_t o;
+
+        memset(&o, 0, sizeof o);
+
+        o.o_action = "BUY";
+        o.o_total_quantity = 1;
+        o.o_order_type = "MKT";
+        o.o_transmit = 1;
+
+        /* misc default initializations */
+        o.o_min_qty = ~(1U<< 31);
+        o.o_percent_offset = o.o_nbbo_price_cap = DBL_MAX;
+        o.o_starting_price = o.o_stock_ref_price = DBL_MAX;
+        o.o_delta = o.o_stock_range_lower = o.o_stock_range_upper = DBL_MAX;
+        o.o_volatility = o.o_delta_neutral_aux_price = DBL_MAX;
+        o.o_volatility_type = o.o_reference_price_type = ~(1U<< 31);
+        o.o_trail_stop_price = DBL_MAX;
+        o.o_scale_num_components =  o.o_scale_component_size = ~(1U<< 31);
+        o.o_scale_price_increment = DBL_MAX;
+        o.o_tif = o.o_oca_group = o.o_account = o.o_open_close = "";
+        o.o_orderref = o.o_good_after_time = o.o_good_till_date = "";
+        o.o_fagroup = o.o_famethod = o.o_fapercentage = o.o_faprofile = "";
+        o.o_designated_location = o.o_rule80a = o.o_settling_firm = "";
+        o.o_delta_neutral_order_type = o.o_clearing_account = o.o_clearing_intent = "";
+
+        /* see comment in function event_next_valid_id() before placing the order */
+        tws_place_order(ti, 1 /* change order_id */, &c, &o);
+    } while(0);
+#endif /* how to place order example ends */
+
+    /* 3 more illustrations and that's it */
+    tws_req_open_orders(ti);
+    tws_req_account_updates(ti, 1, "");
+    tws_request_realtime_bars(ti, 4, &c, 5, "TRADES", 1);
+    
 #ifdef unix
     while(1) select(1,0,0,0,0);
 #else

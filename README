@@ -1,97 +1,113 @@
-		C language API for TWS workstation clients
-		      (released under a BSD license)
+              C language API for TWS workstation clients
+          (released under the revised 3 clause BSD license)
 
 1)  Introduction
 
-    The C API tracks Unix releases even though they are updated less frequently
-    because the newest beta releases are sometimes unreliable.
-    This API implements client functionality version 32.
-    It has been tested against TWS server version 34.
-    It is released as is, without warranty of any kind.
-    Be advised that it may contain bugs and I can't be held responsible
-    for any trading losses you incur as a result of them.
-    It is my hope that by releasing this implementation to the public we'll
-    let each other know about bugs and get rid of them.
+    The C API tracks Unix releases even though they are updated less
+    frequently because the newest beta releases are sometimes
+    unreliable.  This API implements client functionality version 37.
+    It has been tested against TWS server version 39.  It is released
+    as is, without warranty of any kind.  Be advised that it may
+    contain bugs and I can't be held responsible for any trading
+    losses you incur as a result of them.  It is my hope that by
+    releasing this implementation to the public we'll let each other
+    know about bugs and get rid of them.
 
 2)  How to use
-    This API has been tested on freebsd, linux, solaris and windows and is trivial to
-    port to other unix like OS's if it doesn't compile error free.
-    Generally speaking any POSIX compliant OS ought to be able to compile and
-    run this API.
+
+    This API has been tested on freebsd, linux, solaris and windows
+    and is trivial to port to other unix like OS's if it doesn't
+    compile error free.  Generally speaking any POSIX compliant OS
+    ought to be able to compile and run this API.
 
     a) #include "twsapi.h"
 
     b) implement callbacks of interest in callbacks.c
 
-    c) write a thread starter routine according to the documentation of your thread
-       library which will be used to start the event loop that drives the callbacks.
-       See mythread_starter() example routine in example.c.
+    c) write a thread starter routine according to the documentation
+       of your thread library which will be used to start the event
+       loop that drives the callbacks.  See mythread_starter() example
+       routine in example.c.
 
     d) create 1 or more tws client instances and match callbacks to
-       instances by setting the unique variable "opaque" in tws_create().
-       That variable will be echoed in every callback.
-       Note: in response to several queries I should point out that "opaque" can be used
-       to disambiguate several instances of tws or to share state between requester and
-       callback routine.
+       instances by setting the unique variable "opaque" in
+       tws_create().  That variable will be echoed in every callback.
+       Note: in response to several queries I should point out that
+       "opaque" can be used to disambiguate several instances of tws
+       or to share state between requester and callback routine.
 
     e) Link in your code
        On windows one might do:
 
        cl -MDd -DWINVER=0x400 -DWINDOWS -nologo -W3 -Yd -Zi -c twsapi.c callbacks.c
-       cl -MDd twsapi.o callbacks.o $(YOUR_OBJECTS) -FeEXECYUTABLE_NAME.exe ws2_32.lib
+       cl -MDd twsapi.obj callbacks.obj $(YOUR_OBJECTS) -FeEXECYUTABLE_NAME.exe ws2_32.lib
 
        if using visual studio, or if you prefer the mingw compiler then
 
        gcc -DWINDOWS -D_REENTRANT -Wall -Wsign-compare -Wfloat-equal -g -c twsapi.c callbacks.c
        gcc twsapi.o callbacks.o $(YOUR_OBJECTS) -o EXECUTABLE_NAME.exe -lws2_32
 
-       Be sure to define -DWINDOWS for windows. BTW WIN32 is a bad name used almost
-       everywhere because people forget that there is 64 bit windows and processors other
-       than x86.
+       Be sure to define -DWINDOWS for windows. BTW WIN32 is a bad
+       name used almost everywhere because people forget that 64 bit
+       windows and processors other than x86 exist.
 
        On freebsd or linux one might do:
-       $(CC) -D_REENTRANT -Wall -g -c twsapi.c callbacks.c
+       $(CC) -D_REENTRANT -Wall -Wsign-compare -Wfloat-equal -g -c twsapi.c callbacks.c
        $(CC) twsapi.o callbacks.o $(YOUR_OBJECTS) -o a.out -lpthread
 
        Add -lsocket -lm link options for solaris 2.x builds.
-       Example: link twsapi.o and callbacks.o with example.c and run it.
+       Example: link twsapi.o and callbacks.o with example.o and run it.
 
-     f) If there are any problems recompile code with -DTWS_DEBUG to see the output of more
-	printfs.
-
+    f) If there are any problems recompile code with -DTWS_DEBUG to
+       see the output of more printfs. If client or server exhibit
+       consistent disconnections then they most likely don't speak the
+       same protocol, and it means that either the implementation in
+       twsapi.c is broken or the TWS program is broken or both.  If
+       you get a segmentation fault or GPF then it probably means that
+       a struct member of type "char *" is pointing to 0 or garbage on
+       the stack.  All char pointers in structs must be initialized,
+       try "" if in doubt.
+       
 3)  Some programming notes
 
-    Theoretically strings that are exchanged between the TWS client and server may
-    have unlimited size, however, by using sufficiently large char arrays in the
-    twsapi.c implementation (512 bytes for each string), the possibility of decoding
-    errors is practically obviated (for IB bulletin messages and in couple of other cases
-    the size is set to 127*512 bytes).
-    Large switch statements are used instead of jump tables to give the compiler
-    discretion how to optimize best.
-    String allocation and deallocation happen via fixed size bitmaps and as a result
-    they are fast and can never lead to memory fragmentation.
-    Take note that all functions in the API use the standard C calling convention,
-    which might be a problem if a thread has to be started that uses the Pascal calling
-    convention. Wrap calls to Pascal routines in C routines to avoid stack leaks, or mark
-    them as such with a stdcall or a similar designation.
-    Co-routining could have been used in the place of a dedicated receiving thread but such
-    an implementation is not portable, nor does it benefit from multiple CPUs.
-    The current API does not support correct thread cancellation since no particular thread
-    library/implementation can be assumed.
-    However the good news is that the tws reader thread doesn't own any resources (the callbacks
-    implementation by the API user may change that though).
-    Write your own cancellation code if necessary.
+    Theoretically strings that are exchanged between the TWS client
+    and server may have unlimited size, however, by using sufficiently
+    large char arrays in the twsapi.c implementation (512 bytes for
+    each string), the possibility of decoding errors is practically
+    obviated (for IB bulletin messages and in couple of other cases
+    the size is set to 127*512 bytes).  Large switch statements are
+    used instead of jump tables to give the compiler discretion how to
+    optimize best.  String allocation and deallocation happen via
+    fixed size bitmaps and as a result they are fast and can never
+    lead to memory fragmentation.  Take note that all functions in the
+    API use the standard C calling convention, which might be a
+    problem if a thread has to be started that uses the Pascal calling
+    convention. Wrap calls to Pascal routines in C routines to avoid
+    stack leaks, or mark them as such with a stdcall or a similar
+    designation.  Co-routining could have been used in the place of a
+    dedicated receiving thread but such an implementation is not
+    portable, nor does it benefit from multiple CPUs.
 
-    Style notes: lowercase literals, optionally separated by _ are used throughout
-    to conform to BSD/linux kernel coding conventions.
+    The current API does not support correct thread cancellation since
+    no particular thread library/implementation can be assumed.
+    However the good news are that the tws reader thread doesn't own
+    any resources (the callbacks implementation by the API user may
+    change that though) which makes async cancellation easier to get
+    right. Write your own cancellation code if necessary.  Callback
+    implementations must not block very long because the TWS feed
+    needs to be processed quickly.
+
+    Style notes: lowercase literals, optionally separated by _ are
+    used throughout to conform to BSD/linux kernel coding conventions.
 
 5) C++ users
-   To use this API with C++ rename callbacks.c to callbacks.cpp and bracket entire set of 
-   functions with extern "C" { at the top and } at the bottom of the file.
-   The callbacks may be implemented with
-   C++ objects freely. Be sure to compile C files with a C compiler and C++ files with a
-   C++ compiler because modern C++ compilers are unforgiving when it comes to certain
-   valid C constructs.
 
-Please file bug reports on sourceforge and email your fixes to snikolov@autologictech.com for
-speedy inclusion.
+   To use this API with C++ rename callbacks.c to callbacks.cpp and
+   bracket entire set of functions with extern "C" { at the top and }
+   at the bottom of the file.  The callbacks may be implemented with
+   C++ objects freely. Be sure to compile C files with a C compiler
+   and C++ files with a C++ compiler because modern C++ compilers are
+   unforgiving when it comes to certain valid C constructs.
+
+Please file bug reports on sourceforge and email your fixes to
+snikolov@autologictech.com for speedy inclusion.
