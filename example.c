@@ -7,6 +7,8 @@
 #ifdef unix
 #include <pthread.h>
 #include <sys/select.h>
+#include <netdb.h>
+#include <fcntl.h>
 #else
 #include <windows.h>
 #include <process.h>
@@ -28,7 +30,7 @@ static void tws_thread_status(int arg)
      printf("tws reader thread %s\n", arg ? "terminated" : "started");
 }
 
-int mythread_starter(tws_func_t func, void *arg)
+static int mythread_starter(tws_func_t func, void *arg)
 {
 #ifdef unix
     pthread_t thr;
@@ -47,6 +49,82 @@ int mythread_starter(tws_func_t func, void *arg)
 #endif
 
     return err; /* 0 success, -1 error */
+}
+
+/* User is responsible for implementing this function
+ * name is a null terminated string
+ * addr is where the address should be copied on success
+ * addr_len contains length of addr buffer and
+ * may be decreased on return to caller
+ * function returns -1 on failure, 0 on success
+ */
+static int resolve_name(const void *name, void *addr, long *addr_len)
+{
+    int error = -1;
+#if 1
+    struct hostent *h;
+
+    if(*addr_len < 4)
+	goto out;
+
+    h = gethostbyname((char *) name); /* does not support ipv6 either, though the API does */
+    if(!h)
+	goto out;
+
+    memcpy(addr, h->h_addr_list[0], 4);
+    *addr_len = 4;
+    error = 0;
+#else
+    struct addrinfo *ai = 0, hints;
+
+    if(*addr_len < 4)
+	goto out;
+
+    memset((void *) &hints, 0, sizeof hints);
+    hints.ai_family = PF_INET; /* first attempt ipv4 resolution */
+    hints.ai_socktype = SOCK_STREAM;
+    error = getaddrinfo((char *) name, 0, &hints, &ai);
+    if(!error && ai && ai->ai_family == PF_INET) {
+	struct sockaddr_in a4;
+
+	memcpy((void *) &a4, &ai->ai_addr[0], sizeof a4);
+	memcpy(addr, &a4.sin_addr, 4);
+	*addr_len = 4;
+	error = 0;
+    } else
+	error = -1;
+
+    if(ai)
+	freeaddrinfo(ai);
+
+    if(!error)
+	goto out;
+
+    /* try to get an ipv6 address */
+    if(*addr_len < 16) {
+	error = -1;
+	goto out;
+    }
+
+    ai = 0;
+    hints.ai_family = PF_INET6;
+    error = getaddrinfo((char *) name, 0, &hints, &ai);
+
+    if(!error && ai && ai->ai_family == PF_INET6) {
+	struct sockaddr_in6 a6;
+
+	memcpy((void *) &a6, &ai->ai_addr[0], sizeof a6);
+	memcpy(addr, &a6.sin6_addr, 16);
+	*addr_len = 16;
+	error = 0;
+    } else
+	error = -1;
+
+    if(ai)
+	freeaddrinfo(ai);
+#endif
+out:
+    return error;
 }
 
 /* find top percentage gainers (US stocks) with price > 5 and volume > 2M */
@@ -73,19 +151,33 @@ static void scan_market(void *ti)
     tws_req_scanner_subscription(ti, 1, &s);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    int err;
+    int err, no_thread = 0;
     void *ti;
     tr_contract_t c;
 
-    ti = tws_create(mythread_starter, (void *) 0x12345, tws_thread_status);
-    err = tws_connect(ti, 0 , 7496, 1);
+    if(argc != 2) {
+    usage:
+	printf("Usage: %s spawn_thread|no_thread\n", argv[0]);
+	return 1;
+    }
+
+    if(!memcmp(argv[1], "spawn_thread", sizeof "spawn_thread" -1))
+	;
+    else if(!memcmp(argv[1], "no_thread", sizeof "no_thread" -1))
+	no_thread = 1;
+    else
+	goto usage;
+
+    ti = tws_create(no_thread ? TWS_NO_THREAD : mythread_starter, (void *) 0x12345, tws_thread_status);
+    err = tws_connect(ti, 0 , 7496, 1, resolve_name);
     if(err) {
         printf("tws connect returned %d\n", err); exit(1);
     }
 
     scan_market(ti);
+
     /* let's get some historical intraday data first */
     memset(&c, 0, sizeof c);
     c.c_symbol = "QQQQ";
@@ -99,7 +191,6 @@ int main()
     c.c_local_symbol = "";
 
     tws_req_historical_data(ti, 2, &c, /* MAKE date current or retrieval will fail */ "20080111 13:26:44", "1 D", "1 hour", "TRADES", 0, 1); 
-
     /* now request live data for QQQQ */
     tws_req_mkt_data(ti, 3, &c, "100,101,104,106,162,165,221,225", 0);
 
@@ -137,10 +228,15 @@ int main()
 #endif /* how to place order example ends */
 
     /* 3 more illustrations and that's it */
-    tws_req_open_orders(ti);
+    tws_req_open_orders(ti);\
     tws_req_account_updates(ti, 1, "");
     tws_request_realtime_bars(ti, 4, &c, 5, "TRADES", 1);
-    
+
+    if(no_thread) {
+	while(0 == tws_event_process(ti));
+	return 0;
+    }
+
 #ifdef unix
     while(1) select(1,0,0,0,0);
 #else

@@ -220,20 +220,30 @@ extern "C" {
 #define PROFILES 2
 #define ALIASES 3
     typedef void (*tws_func_t)(void *arg);
-/* must return 0 on success, -1 on failure */
+
+    /* must return 0 on success, -1 on failure */
     typedef int (*start_thread_t)(tws_func_t func, void *arg);
+    /* it's up to user whether to use threads or not */
+#define TWS_NO_THREAD  ((start_thread_t) 0)
+
     typedef void (*external_func_t)(int);
     /* "func" calls this one once at startup and again at termination,
      * param 0 indicates startup, param 1 indicates termination
      */
 
-/* creates new tws client instance, starts reader thread and 
- * and records opaque user defined pointer to be supplied in all callbacks
- */
+    /* user is responsible for implementing this function, see example.c */
+    typedef int (*resolve_name_t)(const void *name /*IN*/, void *addr /*OUT*/, long *addr_len /*IN,OUT*/);
+    /* returns -1 on failure, 0 otherwise, addr_len 4 means ipv4, 16 means ipv6 */
+
+    /* creates new tws client instance, starts reader thread and 
+     * and records opaque user defined pointer to be supplied in all callbacks
+     */
     void  *tws_create(start_thread_t start_thread, void *opaque, external_func_t myfunc);
     void   tws_destroy(void *tws_instance);
+    int    tws_connected(void *tws_instance); /* true=1 or false=0 */
+    int    tws_event_process(void *tws_instance); /* dispatches event to a callback.c func */
 
-    int    tws_connect(void *tws, const char host[], unsigned short port, int clientid);
+    int    tws_connect(void *tws, const char host[], unsigned short port, int clientid, resolve_name_t resolv_func);
     void   tws_disconnect(void *tws);
     int    tws_req_scanner_parameters(void *tws);
     int    tws_req_scanner_subscription(void *tws, int ticker_id, tr_scanner_subscription_t *subscription);

@@ -18,7 +18,6 @@ typedef int socket_t;
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h>
 #endif
 
 #include <float.h>
@@ -1098,6 +1097,49 @@ static void receive_current_time(void *tws)
         event_current_time(ti->opaque, time);
 }
 
+/* allows for reading events from within the same thread or an externally
+ * spawned thread, returns 0 on success, -1 on error,
+ */
+int tws_event_process(void *tws)
+{
+    tws_instance_t *ti = (tws_instance_t *) tws;
+    int msgid, valid = 1;
+
+    read_int(ti, &msgid);
+  
+    switch(msgid) {
+	case TICK_PRICE: receive_tick_price(ti); break;
+	case TICK_SIZE: receive_tick_size(ti); break;
+	case TICK_OPTION_COMPUTATION: receive_tick_option_computation(ti); break;
+	case TICK_GENERIC: receive_tick_generic(ti); break;
+	case TICK_STRING: receive_tick_string(ti); break;
+	case TICK_EFP: receive_tick_efp(ti); break;
+	case ORDER_STATUS: receive_order_status(ti); break;
+	case ACCT_VALUE: receive_acct_value(ti); break;
+	case PORTFOLIO_VALUE: receive_portfolio_value(ti); break;
+	case ACCT_UPDATE_TIME: receive_acct_update_time(ti); break;
+	case ERR_MSG: receive_err_msg(ti); break;
+	case OPEN_ORDER: receive_open_order(ti); break;
+	case NEXT_VALID_ID: receive_next_valid_id(ti); break;
+	case CONTRACT_DATA: receive_contract_data(ti); break;
+	case BOND_CONTRACT_DATA: receive_bond_contract_data(ti); break;
+	case EXECUTION_DATA: receive_execution_data(ti); break;
+	case MARKET_DEPTH: receive_market_depth(ti); break;
+	case MARKET_DEPTH_L2: receive_market_depth_l2(ti); break;
+	case NEWS_BULLETINS: receive_news_bulletins(ti); break;
+	case MANAGED_ACCTS: receive_managed_accts(ti); break;
+	case RECEIVE_FA: receive_fa(ti); break;
+	case HISTORICAL_DATA: receive_historical_data(ti); break;
+	case SCANNER_PARAMETERS: receive_scanner_parameters(ti); break;
+	case SCANNER_DATA: receive_scanner_data(ti); break;
+	case CURRENT_TIME: receive_current_time(ti); break;
+	case REAL_TIME_BARS: receive_realtime_bars(ti); break;
+	default: valid = 0; break;
+    }
+
+    return valid ? 0 : -1;
+}
+
 static void event_loop(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
@@ -1393,13 +1435,17 @@ static int init_winsock()
 }
 #endif
 
-int tws_connect(void *tws, const char host[], unsigned short port, int clientid)
+
+int tws_connect(void *tws, const char host[], unsigned short port, int clientid, resolve_name_t resolve_func)
 {
     tws_instance_t *ti = tws;
     const char *hostname;
-    struct hostent *h;
-    struct sockaddr_in addr;
-    long lval;
+    unsigned char peer[16];
+    struct {
+	struct sockaddr_in  addr;
+	struct sockaddr_in6 addr6;
+    } u;
+    long lval, peer_len = sizeof peer;
     int val, err;
     
     if(ti->connected) {
@@ -1410,8 +1456,12 @@ int tws_connect(void *tws, const char host[], unsigned short port, int clientid)
     if(init_winsock())
         goto connect_fail;
 #endif
+
+    hostname = host ? host : "127.0.0.1";
+    if((*resolve_func)(hostname, peer, &peer_len) < 0)
+	goto connect_fail;
     
-    ti->fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
+    ti->fd = socket(4 == peer_len ? PF_INET : PF_INET6, SOCK_STREAM, IPPROTO_IP);
 #ifdef WINDOWS
     err = ti->fd == INVALID_SOCKET;
 #else
@@ -1421,20 +1471,27 @@ int tws_connect(void *tws, const char host[], unsigned short port, int clientid)
     connect_fail:
         err = CONNECT_FAIL; goto out;
     }
-    
-    hostname = host ? host : "127.0.0.1";
-    /* use this instead of getaddrinfo since old headers might not have it */
-    h = gethostbyname(hostname); /* beware: not thread safe, may cause corruption */
-    if(!h)
-        goto connect_fail;
 
-    memset(&addr, 0, sizeof addr);
-    addr.sin_family = PF_INET;
-    memcpy((void *) &addr.sin_addr, h->h_addr_list[0], sizeof addr.sin_addr);
-    addr.sin_port = htons(port);
-    if(connect(ti->fd, (struct sockaddr *) &addr, sizeof addr) < 0) goto connect_fail;
-    if(send_int(ti, TWSCLIENT_VERSION)) goto connect_fail;
-    if(read_int(ti, &val)) goto connect_fail;
+    memset(&u, 0, sizeof u);
+    if(4 == peer_len) {
+	u.addr.sin_family = PF_INET;
+	u.addr.sin_port = htons(port);
+	memcpy((void *) &u.addr.sin_addr, peer, peer_len);
+    } else { /* must be 16 */
+	u.addr6.sin6_family = PF_INET6;
+	u.addr6.sin6_port = htons(port);
+	memcpy((void *) &u.addr6.sin6_addr, peer, peer_len);
+    }
+
+
+    if(connect(ti->fd, (struct sockaddr *) &u, 4 == peer_len ? sizeof u.addr : sizeof u.addr6) < 0) 
+	goto connect_fail;
+
+    if(send_int(ti, TWSCLIENT_VERSION))
+	goto connect_fail;
+
+    if(read_int(ti, &val))
+	goto connect_fail;
 
     if(val < 1) {
         err = NO_VALID_ID; goto out;
@@ -1443,18 +1500,30 @@ int tws_connect(void *tws, const char host[], unsigned short port, int clientid)
     ti->server_version = val;
     if(ti->server_version >= 20) {
         lval = sizeof ti->connect_time;
-        if(read_line(ti, ti->connect_time, &lval) < 0) goto connect_fail;
+        if(read_line(ti, ti->connect_time, &lval) < 0)
+	    goto connect_fail;
     }
 
     if(ti->server_version >= 3)
-        if(send_int(ti, clientid)) goto connect_fail;
+        if(send_int(ti, clientid))
+	    goto connect_fail;
 
-    if((*ti->start_thread)(event_loop, ti) < 0) goto connect_fail;
+    if(ti->start_thread)
+	if((*ti->start_thread)(event_loop, ti) < 0) 
+	    goto connect_fail;
+
     ti->connected = 1;
     err = 0;
 out:
-    if(err) tws_destroy(ti);
+    if(err)
+	tws_destroy(ti);
+
     return err;
+}
+
+int tws_connected(void *tws)
+{
+    return ((tws_instance_t *) tws)->connected;
 }
 
 void  tws_disconnect(void *tws)

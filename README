@@ -26,8 +26,9 @@
 
     c) write a thread starter routine according to the documentation
        of your thread library which will be used to start the event
-       loop that drives the callbacks.  See mythread_starter() example
-       routine in example.c.
+       loop that drives the callbacks. Also write a DNS resolution
+       function that suits your OS. See mythread_starter() and
+       resolve_name() sample routines in example.c.
 
     d) create 1 or more tws client instances and match callbacks to
        instances by setting the unique variable "opaque" in
@@ -88,11 +89,21 @@
     dedicated receiving thread but such an implementation is not
     portable, nor does it benefit from multiple CPUs.
 
+    As of cvs tag CL37_RC2 it has become possible to handle all TWS 
+    requests and events from within the same thread or from externally
+    spawned threads whose creation the user has no control over 
+    (e.g. threads spawned by third party libraries).
+
+    This API implementation does not support an asynchronous programming
+    model and in my opinion it's not worth the effort to make that possible.
+    Instead it would be much more desirable for IB to make SCTP/IP the
+    underlying transport protocol.
+
     The current API does not support correct thread cancellation since
     no particular thread library/implementation can be assumed.
-    However the good news are that the tws reader thread doesn't own
+    However the good news is that the tws reader thread doesn't own
     any resources (the callbacks implementation by the API user may
-    change that though) which makes async cancellation easier to get
+    change that though) which makes async cancellation easy to get
     right. Write your own cancellation code if necessary.  Callback
     implementations must not block very long because the TWS feed
     needs to be processed quickly.
