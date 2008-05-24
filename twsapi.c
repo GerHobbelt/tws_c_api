@@ -1013,7 +1013,7 @@ static void receive_scanner_data(void *tws)
 {
     tr_contract_details_t cdetails;
     tws_instance_t *ti = (tws_instance_t *) tws;
-    char *distance = alloc_string(ti), *benchmark = alloc_string(ti), *projection = alloc_string(ti), *legs_str = 0;
+    char *distance = alloc_string(ti), *benchmark = alloc_string(ti), *projection = alloc_string(ti), *legs_str;
     long lval, j;
     int ival, version, rank, ticker_id, num_elements;
 
@@ -1024,7 +1024,9 @@ static void receive_scanner_data(void *tws)
     read_int(ti, &ival), num_elements = ival;
 
     for(j = 0; j < num_elements; j++) {
+	legs_str = 0;
         read_int(ti, &ival), rank = ival;
+
         if(version >= 3) {
             read_int(ti, &cdetails.d_summary.s_conid);
         }
@@ -1050,13 +1052,15 @@ static void receive_scanner_data(void *tws)
 
         if(ti->connected)
             event_scanner_data(ti->opaque, ticker_id, rank, &cdetails, distance, benchmark, projection, legs_str);
+
+	if(legs_str)
+	    free_string(ti, legs_str);
     }
 
     if(ti->connected)
         event_scanner_data_end(ti->opaque, ticker_id);
 
     destroy_contract_details(ti, &cdetails);
-    if(legs_str) free_string(ti, legs_str);
     free_string(ti, distance);
     free_string(ti, benchmark);
     free_string(ti, projection);
