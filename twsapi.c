@@ -3,6 +3,7 @@
 
 #ifdef WINDOWS
 #include <winsock2.h>
+#include <WS2tcpip.h>
 typedef SOCKET socket_t;
 #define close closesocket
 #define strcasecmp(x,y) _stricmp(x,y)
@@ -1024,7 +1025,7 @@ static void receive_scanner_data(void *tws)
     read_int(ti, &ival), num_elements = ival;
 
     for(j = 0; j < num_elements; j++) {
-	legs_str = 0;
+        legs_str = 0;
         read_int(ti, &ival), rank = ival;
 
         if(version >= 3) {
@@ -1053,8 +1054,8 @@ static void receive_scanner_data(void *tws)
         if(ti->connected)
             event_scanner_data(ti->opaque, ticker_id, rank, &cdetails, distance, benchmark, projection, legs_str);
 
-	if(legs_str)
-	    free_string(ti, legs_str);
+        if(legs_str)
+            free_string(ti, legs_str);
     }
 
     if(ti->connected)
@@ -1112,33 +1113,33 @@ int tws_event_process(void *tws)
     read_int(ti, &msgid);
   
     switch(msgid) {
-	case TICK_PRICE: receive_tick_price(ti); break;
-	case TICK_SIZE: receive_tick_size(ti); break;
-	case TICK_OPTION_COMPUTATION: receive_tick_option_computation(ti); break;
-	case TICK_GENERIC: receive_tick_generic(ti); break;
-	case TICK_STRING: receive_tick_string(ti); break;
-	case TICK_EFP: receive_tick_efp(ti); break;
-	case ORDER_STATUS: receive_order_status(ti); break;
-	case ACCT_VALUE: receive_acct_value(ti); break;
-	case PORTFOLIO_VALUE: receive_portfolio_value(ti); break;
-	case ACCT_UPDATE_TIME: receive_acct_update_time(ti); break;
-	case ERR_MSG: receive_err_msg(ti); break;
-	case OPEN_ORDER: receive_open_order(ti); break;
-	case NEXT_VALID_ID: receive_next_valid_id(ti); break;
-	case CONTRACT_DATA: receive_contract_data(ti); break;
-	case BOND_CONTRACT_DATA: receive_bond_contract_data(ti); break;
-	case EXECUTION_DATA: receive_execution_data(ti); break;
-	case MARKET_DEPTH: receive_market_depth(ti); break;
-	case MARKET_DEPTH_L2: receive_market_depth_l2(ti); break;
-	case NEWS_BULLETINS: receive_news_bulletins(ti); break;
-	case MANAGED_ACCTS: receive_managed_accts(ti); break;
-	case RECEIVE_FA: receive_fa(ti); break;
-	case HISTORICAL_DATA: receive_historical_data(ti); break;
-	case SCANNER_PARAMETERS: receive_scanner_parameters(ti); break;
-	case SCANNER_DATA: receive_scanner_data(ti); break;
-	case CURRENT_TIME: receive_current_time(ti); break;
-	case REAL_TIME_BARS: receive_realtime_bars(ti); break;
-	default: valid = 0; break;
+        case TICK_PRICE: receive_tick_price(ti); break;
+        case TICK_SIZE: receive_tick_size(ti); break;
+        case TICK_OPTION_COMPUTATION: receive_tick_option_computation(ti); break;
+        case TICK_GENERIC: receive_tick_generic(ti); break;
+        case TICK_STRING: receive_tick_string(ti); break;
+        case TICK_EFP: receive_tick_efp(ti); break;
+        case ORDER_STATUS: receive_order_status(ti); break;
+        case ACCT_VALUE: receive_acct_value(ti); break;
+        case PORTFOLIO_VALUE: receive_portfolio_value(ti); break;
+        case ACCT_UPDATE_TIME: receive_acct_update_time(ti); break;
+        case ERR_MSG: receive_err_msg(ti); break;
+        case OPEN_ORDER: receive_open_order(ti); break;
+        case NEXT_VALID_ID: receive_next_valid_id(ti); break;
+        case CONTRACT_DATA: receive_contract_data(ti); break;
+        case BOND_CONTRACT_DATA: receive_bond_contract_data(ti); break;
+        case EXECUTION_DATA: receive_execution_data(ti); break;
+        case MARKET_DEPTH: receive_market_depth(ti); break;
+        case MARKET_DEPTH_L2: receive_market_depth_l2(ti); break;
+        case NEWS_BULLETINS: receive_news_bulletins(ti); break;
+        case MANAGED_ACCTS: receive_managed_accts(ti); break;
+        case RECEIVE_FA: receive_fa(ti); break;
+        case HISTORICAL_DATA: receive_historical_data(ti); break;
+        case SCANNER_PARAMETERS: receive_scanner_parameters(ti); break;
+        case SCANNER_DATA: receive_scanner_data(ti); break;
+        case CURRENT_TIME: receive_current_time(ti); break;
+        case REAL_TIME_BARS: receive_realtime_bars(ti); break;
+        default: valid = 0; break;
     }
 
     return valid ? 0 : -1;
@@ -1201,7 +1202,7 @@ static void event_loop(void *tws)
 /* caller supplies start_thread method */
 void *tws_create(start_thread_t start_thread, void *opaque, external_func_t myfunc)
 {
-    tws_instance_t *ti = calloc(1, sizeof *ti);
+    tws_instance_t *ti = (tws_instance_t *) calloc(1, sizeof *ti);
     if(ti) {
         ti->fd = (socket_t) ~0;
         ti->start_thread = start_thread;
@@ -1217,6 +1218,23 @@ void tws_destroy(void *tws_instance)
     tws_instance_t *ti = (tws_instance_t *) tws_instance;
 
     if(ti->fd != (socket_t) ~0) close(ti->fd);
+
+    /* this is a naive and primitive implementation in order not to
+     * utilize more sophisticated native synchronization functions
+     */
+
+    while(ti->connected) {
+#ifdef TWS_DEBUG
+        printf("tws_destroy: waiting for event loop to end\n");
+#endif
+
+#ifdef unix
+        sleep(1);
+#else /* windows */
+        Sleep(1000);
+#endif  
+    }
+
     free(tws_instance);
 }
 
@@ -1293,7 +1311,7 @@ static int receive(int fd, void *buf, size_t buflen)
 #ifdef unix
     r = read(fd, buf, buflen); /* workaround for recv not being cancellable on FreeBSD*/
 #else
-    r = recv(fd, buf, buflen, 0);
+    r = recv(fd, (char *) buf, buflen, 0);
 #endif
     return r;
 }
@@ -1442,12 +1460,12 @@ static int init_winsock()
 
 int tws_connect(void *tws, const char host[], unsigned short port, int clientid, resolve_name_t resolve_func)
 {
-    tws_instance_t *ti = tws;
+    tws_instance_t *ti = (tws_instance_t *) tws;
     const char *hostname;
     unsigned char peer[16];
     struct {
-	struct sockaddr_in  addr;
-	struct sockaddr_in6 addr6;
+        struct sockaddr_in  addr;
+        struct sockaddr_in6 addr6;
     } u;
     long lval, peer_len = sizeof peer;
     int val, err;
@@ -1463,7 +1481,7 @@ int tws_connect(void *tws, const char host[], unsigned short port, int clientid,
 
     hostname = host ? host : "127.0.0.1";
     if((*resolve_func)(hostname, peer, &peer_len) < 0)
-	goto connect_fail;
+        goto connect_fail;
     
     ti->fd = socket(4 == peer_len ? PF_INET : PF_INET6, SOCK_STREAM, IPPROTO_IP);
 #ifdef WINDOWS
@@ -1478,24 +1496,24 @@ int tws_connect(void *tws, const char host[], unsigned short port, int clientid,
 
     memset(&u, 0, sizeof u);
     if(4 == peer_len) {
-	u.addr.sin_family = PF_INET;
-	u.addr.sin_port = htons(port);
-	memcpy((void *) &u.addr.sin_addr, peer, peer_len);
+        u.addr.sin_family = PF_INET;
+        u.addr.sin_port = htons(port);
+        memcpy((void *) &u.addr.sin_addr, peer, peer_len);
     } else { /* must be 16 */
-	u.addr6.sin6_family = PF_INET6;
-	u.addr6.sin6_port = htons(port);
-	memcpy((void *) &u.addr6.sin6_addr, peer, peer_len);
+        u.addr6.sin6_family = PF_INET6;
+        u.addr6.sin6_port = htons(port);
+        memcpy((void *) &u.addr6.sin6_addr, peer, peer_len);
     }
 
 
     if(connect(ti->fd, (struct sockaddr *) &u, 4 == peer_len ? sizeof u.addr : sizeof u.addr6) < 0) 
-	goto connect_fail;
+        goto connect_fail;
 
     if(send_int(ti, TWSCLIENT_VERSION))
-	goto connect_fail;
+        goto connect_fail;
 
     if(read_int(ti, &val))
-	goto connect_fail;
+        goto connect_fail;
 
     if(val < 1) {
         err = NO_VALID_ID; goto out;
@@ -1505,22 +1523,22 @@ int tws_connect(void *tws, const char host[], unsigned short port, int clientid,
     if(ti->server_version >= 20) {
         lval = sizeof ti->connect_time;
         if(read_line(ti, ti->connect_time, &lval) < 0)
-	    goto connect_fail;
+            goto connect_fail;
     }
 
     if(ti->server_version >= 3)
         if(send_int(ti, clientid))
-	    goto connect_fail;
+            goto connect_fail;
 
     if(ti->start_thread)
-	if((*ti->start_thread)(event_loop, ti) < 0) 
-	    goto connect_fail;
+        if((*ti->start_thread)(event_loop, ti) < 0) 
+            goto connect_fail;
 
     ti->connected = 1;
     err = 0;
 out:
     if(err)
-	tws_destroy(ti);
+        tws_destroy(ti);
 
     return err;
 }
@@ -1537,7 +1555,7 @@ void  tws_disconnect(void *tws)
 
 int tws_req_scanner_parameters(void *tws)
 {
-    tws_instance_t *ti = tws;
+    tws_instance_t *ti = (tws_instance_t *) tws;
 
     if(ti->server_version < 24) return UPDATE_TWS;
     
@@ -1548,7 +1566,8 @@ int tws_req_scanner_parameters(void *tws)
 
 int tws_req_scanner_subscription(void *tws, int ticker_id, tr_scanner_subscription_t *s)
 {
-    tws_instance_t *ti = tws;
+    tws_instance_t *ti = (tws_instance_t *) tws;
+
     if(ti->server_version < 24) return UPDATE_TWS;
     
     send_int(ti, REQ_SCANNER_SUBSCRIPTION);
@@ -1586,7 +1605,8 @@ int tws_req_scanner_subscription(void *tws, int ticker_id, tr_scanner_subscripti
 
 int tws_cancel_scanner_subscription(void *tws, int ticker_id)
 {
-    tws_instance_t *ti = tws;
+    tws_instance_t *ti = (tws_instance_t *) tws;
+
     if(ti->server_version < 24) return UPDATE_TWS;
 
     send_int(ti, CANCEL_SCANNER_SUBSCRIPTION);
@@ -1853,7 +1873,7 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
                 cl = &contract->c_comboleg[j];
                 
                 if(cl->co_short_sale_slot != 0 ||
-                    cl->co_designated_location[0] != '\0') {
+                   cl->co_designated_location[0] != '\0') {
 #ifdef TWS_DEBUG
                     printf("tws_place_order does not support SSHORT flag for combo legs\n");
 #endif
@@ -1956,7 +1976,7 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
         send_int(ti, order->o_oca_type);
 
         if(ti->server_version < 38)
-           send_int(ti, 0); /* deprecated: o_rth_only */
+            send_int(ti, 0); /* deprecated: o_rth_only */
 
         send_str(ti, order->o_rule80a);
         send_str(ti, order->o_settling_firm);
