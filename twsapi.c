@@ -1530,11 +1530,12 @@ int tws_connect(void *tws, const char host[], unsigned short port, int clientid,
         if(send_int(ti, clientid))
             goto connect_fail;
 
-    if(ti->start_thread)
+    if(ti->start_thread) {
+        ti->connected = 1;
         if((*ti->start_thread)(event_loop, ti) < 0) 
             goto connect_fail;
+    }
 
-    ti->connected = 1;
     err = 0;
 out:
     if(err)
