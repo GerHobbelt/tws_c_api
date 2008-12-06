@@ -5,8 +5,8 @@
 
     The C API tracks Unix releases even though they are updated less
     frequently because the newest beta releases are sometimes
-    unreliable.  This API implements client functionality version 37.
-    It has been tested against TWS server version 39.  It is released
+    unreliable.  This API implements client functionality version 38.
+    It has been tested against TWS server version 43.  It is released
     as is, without warranty of any kind.  Be advised that it may
     contain bugs and I can't be held responsible for any trading
     losses you incur as a result of them.  It is my hope that by

@@ -68,7 +68,7 @@ void event_update_portfolio(void *opaque, const tr_contract_t *contract, int pos
                             double mkt_price, double mkt_value, double average_cost,
                             double unrealized_pnl, double realized_pnl, const char account_name[])
 {
-    printf("update_portfolio: %p, sym=%s, position=%d, mkr_price=%.4lf, mkt_value=%.4lf, avg_cost=%.4lf, unrealized_pnl=%.4lf, realized pnl=%.4lf name=%s\n",
+    printf("update_portfolio: %p, sym=%s, position=%d, mkt_price=%.4lf, mkt_value=%.4lf, avg_cost=%.4lf, unrealized_pnl=%.4lf, realized pnl=%.4lf name=%s\n",
            opaque, contract->c_symbol, position, mkt_price, mkt_value, average_cost, unrealized_pnl, realized_pnl, account_name);
 }
 
@@ -86,15 +86,15 @@ void event_next_valid_id(void *opaque, long order_id)
      * Well behaved human and automatic TWS clients shall increment
      * this order_id atomically and cooperatively
      */
-     printf("next_valid_id for order placement %ld\n", order_id);
+    printf("next_valid_id for order placement %ld\n", order_id);
 }
 
-void event_contract_details(void *opaque, const tr_contract_details_t *contract_details)
+void event_contract_details(void *opaque, int req_id, const tr_contract_details_t *contract_details)
 {
 
 }
 
-void event_bond_contract_details(void *opaque, const tr_contract_details_t *contract_details)
+void event_bond_contract_details(void *opaque, int req_id, const tr_contract_details_t *contract_details)
 {
 
 }
@@ -149,7 +149,7 @@ void event_scanner_parameters(void *opaque, const char xml[])
 void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[], const char legs_str[])
 {
     printf("scanner_data: opaque=%p, ticker_id=%d, rank=%d, distance=%s, benchmark=%s, projection=%s\n",
-	   opaque, ticker_id, rank, distance, benchmark, projection);
+           opaque, ticker_id, rank, distance, benchmark, projection);
     printf("scanner_data details: sym=%s, sectype=%s, expiry=%s, strike=%.3lf, right=%s, exch=%s, currency=%s, local_sym=%s, market_name=%s, trading_class=%s\n", cd->d_summary.s_symbol, cd->d_summary.s_sectype, cd->d_summary.s_expiry, cd->d_summary.s_strike, cd->d_summary.s_right, cd->d_summary.s_exchange, cd->d_summary.s_currency, cd->d_summary.s_local_symbol, cd->d_market_name, cd->d_trading_class);
 
     /* it seems that NYSE traded stocks have different market_name and trading_class from NASDAQ */
@@ -159,11 +159,21 @@ void event_scanner_data_end(void *opaque, int ticker_id)
 {
 }
 
+void event_current_time(void *opaque, long time)
+{
+}
+
 void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long volume, double wap, int count)
 {
     printf("realtime_bar: %p reqid=%d time=%ld, ohlc=%.4lf/%.4lf/%.4lf/%.4lf, vol=%ld, wap=%.4lf, count=%d\n", opaque, reqid, time, open, high, low, close, volume, wap, count);
 }
 
-void event_current_time(void *opaque, long time)
+void event_fundamental_data(void *opaque, int reqid, const char data[])
 {
+
+}
+
+void event_contract_details_end(void *opaque, int reqid)
+{
+
 }

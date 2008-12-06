@@ -484,6 +484,11 @@ static void receive_portfolio_value(tws_instance_t *ti)
     lval = sizeof(tws_string_t), read_line(ti, contract.c_expiry, &lval);
     read_double(ti, &contract.c_strike);
     lval = sizeof(tws_string_t), read_line(ti, contract.c_right, &lval);
+    if(version >= 7) {
+        lval = sizeof(tws_string_t), read_line(ti, contract.c_multiplier, &lval);
+        lval = sizeof(tws_string_t), read_line(ti, contract.c_primary_exch, &lval);
+    }
+
     lval = sizeof(tws_string_t), read_line(ti, contract.c_currency, &lval);
     if(version >= 2)
         lval = sizeof(tws_string_t), read_line(ti, contract.c_local_symbol, &lval);
@@ -501,6 +506,9 @@ static void receive_portfolio_value(tws_instance_t *ti)
     
     if(version >= 4)
         lval = sizeof(tws_string_t), read_line(ti, account_name, &lval);
+
+    if(version == 6 && ti->server_version == 39)
+        lval = sizeof(tws_string_t), read_line(ti, contract.c_primary_exch, &lval);
     
     if(ti->connected)
         event_update_portfolio(ti->opaque, &contract, position,
@@ -549,13 +557,15 @@ static void receive_err_msg(tws_instance_t *ti)
 
 static void receive_open_order(tws_instance_t *ti)
 {
-    tr_contract_t contract;
+    tr_contract_t contract;    
     tr_order_t order;
     tr_order_status_t ost;
+    under_comp_t  und;
     long lval;
     int ival, version;
 
     init_contract(ti, &contract);
+    contract.c_undercomp = &und;
     init_order(ti, &order);
     init_order_status(ti, &ost);
   
@@ -686,14 +696,29 @@ static void receive_open_order(tws_instance_t *ti)
     }
 
     if(version >= 15) {
-        read_int_max(ti, &order.o_scale_num_components);
-        read_int_max(ti, &order.o_scale_component_size);
+        if (version >= 20) {
+            read_int_max(ti, &order.o_scale_init_level_size);
+            read_int_max(ti, &order.o_scale_subs_level_size);
+        } else {
+            read_int_max(ti, &ival); /* unused */
+            read_int_max(ti, &order.o_scale_init_level_size);
+        }
+
         read_double_max(ti, &order.o_scale_price_increment);
     }
     
     if(version >= 19) {
         lval = sizeof(tws_string_t); read_line(ti, order.o_clearing_account, &lval);
         lval = sizeof(tws_string_t); read_line(ti, order.o_clearing_intent, &lval);
+    }
+
+    if(version >= 20) {
+        read_int(ti, &ival);
+        if (!!ival) {
+            read_int(ti, &ival), contract.c_undercomp->u_conid = ival;
+            read_double(ti, &contract.c_undercomp->u_delta);
+            read_double(ti, &contract.c_undercomp->u_price);
+        }
     }
     
     if(version >= 16) {
@@ -732,10 +757,13 @@ static void receive_contract_data(tws_instance_t *ti)
 {
     tr_contract_details_t cdetails;
     long lval;
-    int version;
+    int version, req_id = -1;
 
     init_contract_details(ti, &cdetails);
     read_int(ti, &version);
+
+    if(version >= 3)
+        read_int(ti, &req_id);
     
     lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_symbol, &lval);
     lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_sectype, &lval);
@@ -756,7 +784,7 @@ static void receive_contract_data(tws_instance_t *ti)
         read_int(ti, &cdetails.d_price_magnifier);
 
     if(ti->connected)
-        event_contract_details(ti->opaque, &cdetails);
+        event_contract_details(ti->opaque, req_id, &cdetails);
 
     destroy_contract_details(ti, &cdetails);
 }
@@ -765,10 +793,14 @@ static void receive_bond_contract_data(tws_instance_t *ti)
 {
     tr_contract_details_t cdetails;
     long lval;
-    int ival, version;
+    int ival, version, req_id = -1;
 
     init_contract_details(ti, &cdetails);
     read_int(ti, &ival), version = ival;
+
+    if(version >= 3)
+        read_int(ti, &ival), req_id = ival;
+
     lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_symbol, &lval);
     lval = sizeof(tws_string_t), read_line(ti, cdetails.d_summary.s_sectype, &lval);
     lval = sizeof(tws_string_t), read_line(ti, cdetails.d_cusip, &lval);
@@ -801,7 +833,7 @@ static void receive_bond_contract_data(tws_instance_t *ti)
 
 
     if(ti->connected)
-        event_bond_contract_details(ti->opaque, &cdetails);
+        event_bond_contract_details(ti->opaque, req_id, &cdetails);
 
     destroy_contract_details(ti, &cdetails);
 }
@@ -847,7 +879,12 @@ static void receive_execution_data(tws_instance_t *ti)
     
     if(version >= 4)
         read_int(ti, &exec.e_liquidation);
-    
+
+    if (version >= 6) {
+        read_int(ti, &exec.e_cum_qty);
+        read_double(ti, &exec.e_avg_price);
+    }
+
     if(ti->connected)
         event_exec_details(ti->opaque, orderid, &contract, &exec);
 
@@ -1067,6 +1104,19 @@ static void receive_scanner_data(void *tws)
     free_string(ti, projection);
 }
 
+static void receive_current_time(void *tws)
+{
+    tws_instance_t *ti = (tws_instance_t *) tws;
+    long time;
+    int ival;
+    
+    read_int(ti, &ival /*version unused */);
+    read_long(ti, &time);
+
+    if(ti->connected)
+        event_current_time(ti->opaque, time);
+}
+
 static void receive_realtime_bars(void *tws)
 {    
     tws_instance_t *ti = (tws_instance_t *) tws;
@@ -1089,17 +1139,31 @@ static void receive_realtime_bars(void *tws)
         event_realtime_bar(ti->opaque, reqid, time, open, high, low, close, volume, wap, count);
 }
 
-static void receive_current_time(void *tws)
-{
+static void receive_fundamental_data(void *tws)
+{    
     tws_instance_t *ti = (tws_instance_t *) tws;
-    long time;
-    int ival;
-    
-    read_int(ti, &ival /*version unused */);
-    read_long(ti, &time);
+    int ival, req_id;
+    long lval = sizeof ti->mempool;
+    char *data = (char *) &ti->mempool[0];
+
+    read_int(ti, &ival); /* version ignored */
+    read_int(ti, &ival), req_id = ival;
+    read_line(ti, data, &lval);
 
     if(ti->connected)
-        event_current_time(ti->opaque, time);
+        event_fundamental_data(ti->opaque, req_id, data);
+}
+
+static void receive_contract_data_end(void *tws)
+{
+    tws_instance_t *ti = (tws_instance_t *) tws;
+    int ival, req_id;
+
+    read_int(ti, &ival); /* version ignored */
+    read_int(ti, &ival), req_id = ival;
+
+    if(ti->connected)
+        event_contract_details_end(ti->opaque, req_id);
 }
 
 /* allows for reading events from within the same thread or an externally
@@ -1139,58 +1203,27 @@ int tws_event_process(void *tws)
         case SCANNER_DATA: receive_scanner_data(ti); break;
         case CURRENT_TIME: receive_current_time(ti); break;
         case REAL_TIME_BARS: receive_realtime_bars(ti); break;
+        case FUNDAMENTAL_DATA: receive_fundamental_data(ti); break;
+        case CONTRACT_DATA_END: receive_contract_data_end(ti); break;
         default: valid = 0; break;
     }
 
+#ifdef TWS_DEBUG
+    printf("\nreceived id=%d, name=%s\n", msgid,
+           valid ? tws_incoming_msg_names[msgid-1] : "invalid id");
+#endif
     return valid ? 0 : -1;
 }
 
 static void event_loop(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
-    int msgid, valid;
 
     ti->started = 1;
     (*ti->extfunc)(0); /* indicate "startup" to callee */
 
     do {
-        read_int(ti, &msgid);
-        valid = 1;
-      
-        switch(msgid) {
-            case TICK_PRICE: receive_tick_price(ti); break;
-            case TICK_SIZE: receive_tick_size(ti); break;
-            case TICK_OPTION_COMPUTATION: receive_tick_option_computation(ti); break;
-            case TICK_GENERIC: receive_tick_generic(ti); break;
-            case TICK_STRING: receive_tick_string(ti); break;
-            case TICK_EFP: receive_tick_efp(ti); break;
-            case ORDER_STATUS: receive_order_status(ti); break;
-            case ACCT_VALUE: receive_acct_value(ti); break;
-            case PORTFOLIO_VALUE: receive_portfolio_value(ti); break;
-            case ACCT_UPDATE_TIME: receive_acct_update_time(ti); break;
-            case ERR_MSG: receive_err_msg(ti); break;
-            case OPEN_ORDER: receive_open_order(ti); break;
-            case NEXT_VALID_ID: receive_next_valid_id(ti); break;
-            case CONTRACT_DATA: receive_contract_data(ti); break;
-            case BOND_CONTRACT_DATA: receive_bond_contract_data(ti); break;
-            case EXECUTION_DATA: receive_execution_data(ti); break;
-            case MARKET_DEPTH: receive_market_depth(ti); break;
-            case MARKET_DEPTH_L2: receive_market_depth_l2(ti); break;
-            case NEWS_BULLETINS: receive_news_bulletins(ti); break;
-            case MANAGED_ACCTS: receive_managed_accts(ti); break;
-            case RECEIVE_FA: receive_fa(ti); break;
-            case HISTORICAL_DATA: receive_historical_data(ti); break;
-            case SCANNER_PARAMETERS: receive_scanner_parameters(ti); break;
-            case SCANNER_DATA: receive_scanner_data(ti); break;
-            case CURRENT_TIME: receive_current_time(ti); break;
-            case REAL_TIME_BARS: receive_realtime_bars(ti); break;
-            default: valid = 0; break;
-        }
-
-#ifdef TWS_DEBUG
-        printf("\nreceived id=%d, name=%s\n", msgid,
-               valid ? tws_incoming_msg_names[msgid-1] : "invalid id");
-#endif
+        tws_event_process(ti);
     } while(ti->connected);
 
     (*ti->extfunc)(1); /* indicate termination to callee */
@@ -1646,10 +1679,19 @@ int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract, const ch
         printf("tws_req_mkt_data does not support snapshot market data requests\n");
 #endif
         return UPDATE_TWS;
-    } 
+    }
+
+    if(ti->server_version < MIN_SERVER_VER_UNDER_COMP) {
+        if(contract->c_undercomp) {
+#ifdef TWS_DEBUG
+            printf("tws_req_mkt_data does not support delta neutral orders\n");
+#endif
+            return UPDATE_TWS;
+        }
+    }
 
     send_int(ti, REQ_MKT_DATA);
-    send_int(ti, 7 /* version */);
+    send_int(ti, 8 /* version */);
     send_int(ti, ticker_id);
 
     send_str(ti, contract->c_symbol);
@@ -1672,6 +1714,16 @@ int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract, const ch
 
     if(ti->server_version >= 8 && !strcasecmp(contract->c_sectype, "BAG"))
         send_combolegs(ti, contract, 0);
+
+    if (ti->server_version >= MIN_SERVER_VER_UNDER_COMP) {
+        if(contract->c_undercomp) {
+            send_int(ti, 1);
+            send_int(ti, contract->c_undercomp->u_conid);
+            send_double(ti, &contract->c_undercomp->u_delta);
+            send_double(ti, &contract->c_undercomp->u_price);
+        } else
+            send_int(ti, 0);
+    }
 
     if(ti->server_version >= 31)
         send_str(ti, generic_tick_list);
@@ -1733,7 +1785,7 @@ int tws_cancel_historical_data(void *tws, int ticker_id)
     return ti->connected ? 0 : FAIL_SEND_CANSCANNER;
 }
 
-int tws_req_contract_details(void *tws, tr_contract_t *contract)
+int tws_req_contract_details(void *tws, int reqid, tr_contract_t *contract)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 
@@ -1743,7 +1795,10 @@ int tws_req_contract_details(void *tws, tr_contract_t *contract)
 
     /* send req mkt data msg */
     send_int(ti, REQ_CONTRACT_DATA);
-    send_int(ti, 4 /*VERSION*/);
+    send_int(ti, 5 /*VERSION*/);
+
+    if(ti->server_version >= MIN_SERVER_VER_CONTRACT_DATA_CHAIN)
+        send_int(ti, reqid);
 
     if(ti->server_version >= MIN_SERVER_VER_CONTRACT_CONID)
         send_int(ti, contract->c_conid);
@@ -1854,8 +1909,7 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
     int vol26 = 0;
 
     if(ti->server_version < MIN_SERVER_VER_SCALE_ORDERS) {
-        if(order->o_scale_num_components != INTEGER_MAX_VALUE ||
-           order->o_scale_component_size != INTEGER_MAX_VALUE ||
+        if(order->o_scale_init_level_size != INTEGER_MAX_VALUE ||
            DBL_NOTMAX(order->o_scale_price_increment)) {
 #ifdef TWS_DEBUG
             printf("tws_place_order: It does not support Scale orders\n");
@@ -1892,8 +1946,26 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
         }
     }
 
+    if(ti->server_version < MIN_SERVER_VER_UNDER_COMP) {
+        if(contract->c_undercomp) {
+#ifdef TWS_DEBUG
+            printf("tws_place_order does not support delta-neutral orders\n");
+#endif
+            return UPDATE_TWS;
+        }
+    }
+
+    if(ti->server_version < MIN_SERVER_VER_SCALE_ORDERS2) {
+        if(order->o_scale_subs_level_size != INTEGER_MAX_VALUE) {
+#ifdef TWS_DEBUG
+            printf("tws_place_order does not support Subsequent Level Size for Scale orders\n");
+#endif
+            return UPDATE_TWS;
+        }
+    }
+
     send_int(ti, PLACE_ORDER);
-    send_int(ti, 25 /*VERSION*/);
+    send_int(ti, 26 /*VERSION*/);
     send_int(ti, (int) id);
     
     /* send contract fields */
@@ -2022,8 +2094,14 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
         send_double_max(ti, &order->o_trail_stop_price);
 
     if(ti->server_version >= MIN_SERVER_VER_SCALE_ORDERS) {
-        send_int_max(ti, order->o_scale_num_components);
-        send_int_max(ti, order->o_scale_component_size);
+        if(ti->server_version >= MIN_SERVER_VER_SCALE_ORDERS2) {
+            send_int_max(ti, order->o_scale_init_level_size);
+            send_int_max(ti, order->o_scale_subs_level_size);
+        } else {
+            send_str(ti, "");
+            send_int_max(ti, order->o_scale_init_level_size);
+        }
+
         send_double_max(ti, &order->o_scale_price_increment);
     }
     
@@ -2031,7 +2109,17 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
         send_str(ti, order->o_clearing_account);
         send_str(ti, order->o_clearing_intent);
     }
-    
+
+    if(ti->server_version >= MIN_SERVER_VER_UNDER_COMP) {
+        if(contract->c_undercomp) {
+            send_int(ti, 1);
+            send_int(ti, contract->c_undercomp->u_conid);
+            send_double(ti, &contract->c_undercomp->u_delta);
+            send_double(ti, &contract->c_undercomp->u_price);
+        } else
+            send_int(ti, 0);
+    }
+
     if(ti->server_version >= MIN_SERVER_VER_WHAT_IF_ORDERS)
         send_int(ti, order->o_whatif);
     
@@ -2214,6 +2302,47 @@ int tws_req_current_time(void *tws)
     return ti->connected ? 0 : FAIL_SEND_REQCURRTIME;
 }
 
+int tws_req_fundamental_data(void *tws, int reqid, tr_contract_t *contract, char report_type[])
+{
+    tws_instance_t *ti = (tws_instance_t *) tws;
+
+    if(ti->server_version < MIN_SERVER_VER_FUNDAMENTAL_DATA) {
+#ifdef TWS_DEBUG
+        printf("tws_req_fundamental_data does not support fundamental data requests");
+#endif
+        return UPDATE_TWS;
+    }
+
+    send_int(ti, REQ_FUNDAMENTAL_DATA);
+    send_int(ti, 1 /* version */);
+    send_int(ti, reqid);
+    send_str(ti, contract->c_symbol);
+    send_str(ti, contract->c_sectype);
+    send_str(ti, contract->c_exchange);
+    send_str(ti, contract->c_primary_exch);
+    send_str(ti, contract->c_currency);
+    send_str(ti, contract->c_local_symbol);
+    send_str(ti, report_type);
+
+    return ti->connected ? 0 : FAIL_SEND_REQFUNDDATA;
+    
+}
+
+int tws_cancel_fundamental_data(void *tws, int reqid)
+{
+    tws_instance_t *ti = (tws_instance_t *) tws;
+
+    if(ti->server_version < MIN_SERVER_VER_FUNDAMENTAL_DATA) {
+        printf("tws_cancel_fundamental data does not support fundamental data requests.");
+        return UPDATE_TWS;
+    }
+
+    send_int(ti, CANCEL_FUNDAMENTAL_DATA);
+    send_int(ti, 1 /*version*/);
+    send_int(ti, reqid);
+
+    return ti->connected ? 0 : FAIL_SEND_CANFUNDDATA;
+}
 
 int tws_request_realtime_bars(void *tws, int ticker_id, tr_contract_t *c, int bar_size, const char what_to_show[], int use_rth)
 {

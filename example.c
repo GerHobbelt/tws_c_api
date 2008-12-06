@@ -191,9 +191,9 @@ int main(int argc, char *argv[])
     c.c_currency = "USD";
     c.c_local_symbol = "";
 
-    tws_req_historical_data(ti, 2, &c, /* MAKE date current or retrieval will fail */ "20080111 13:26:44", "1 D", "1 hour", "TRADES", 0, 1); 
+    tws_req_historical_data(ti, 2, &c, /* make date current or retrieval may fail */ "20081205 13:26:44", "1 D", "1 hour", "TRADES", 0, 1); 
     /* now request live data for QQQQ */
-    tws_req_mkt_data(ti, 3, &c, "100,101,104,106,162,165,221,225", 0);
+    tws_req_mkt_data(ti, 3, &c, "47,100,101,104,105,106,107,165,221,225,232,233,236,256,258", 0);
 
 #if 0  /* flip it to 1, recompile and run at your own risk */
     /* let's place a market order to buy 1 share of QQQQ */
@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
         o.o_volatility = o.o_delta_neutral_aux_price = DBL_MAX;
         o.o_volatility_type = o.o_reference_price_type = ~(1U<< 31);
         o.o_trail_stop_price = DBL_MAX;
-        o.o_scale_num_components =  o.o_scale_component_size = ~(1U<< 31);
+        o.o_scale_init_level_size =  o.o_scale_subs_level_size = ~(1U<< 31);
         o.o_scale_price_increment = DBL_MAX;
         o.o_tif = o.o_oca_group = o.o_account = o.o_open_close = "";
         o.o_orderref = o.o_good_after_time = o.o_good_till_date = "";
