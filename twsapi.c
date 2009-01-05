@@ -572,7 +572,7 @@ static void receive_open_order(tws_instance_t *ti)
     read_int(ti, &ival), version = ival;
     read_int(ti, &order.o_orderid);
 
-    if(version >- 17)
+    if(version >= 17)
         read_int(ti, &contract.c_conid);
 
     lval = sizeof(tws_string_t), read_line(ti, contract.c_symbol, &lval);
