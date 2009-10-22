@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 /* public C API */
-#define TWSCLIENT_VERSION 38
+#define TWSCLIENT_VERSION 46
 
     typedef struct under_comp {
         double u_price;
@@ -21,6 +21,7 @@ extern "C" {
         char  *s_expiry;
         char  *s_right;
         char  *s_exchange;
+        char  *s_primary_exch;
         char  *s_currency;
         char  *s_local_symbol;
         char  *s_multiplier;
@@ -45,7 +46,16 @@ extern "C" {
         char *                     d_next_option_date;
         char *                     d_next_option_type;
         char *                     d_notes;
+        char *                     d_long_name;
+        char *                     d_contract_month;
+        char *                     d_industry;
+        char *                     d_category;
+        char *                     d_subcategory;
+        char *                     d_timezone_id;
+        char *                     d_trading_hours;
+        char *                     d_liquid_hours;
         int                        d_price_magnifier;
+        int                        d_under_conid;
         unsigned                   d_convertible: 1;
         unsigned                   d_callable: 1;
         unsigned                   d_putable: 1;
@@ -75,13 +85,20 @@ extern "C" {
         char *         c_local_symbol;
         char *         c_multiplier;
         char *         c_combolegs_descrip;
+        char *         c_secid_type;
+        char *         c_secid;
         tr_comboleg_t *c_comboleg;
         long           c_num_combolegs;
         int            c_conid;
         unsigned       c_include_expired:1;
     } tr_contract_t;
 
-    typedef struct tr_order {
+    struct tag_value {
+        char *t_tag;
+        char *t_val;
+    };
+
+    typedef struct tr_order {   
         double   o_discretionary_amt;
         double   o_lmt_price;
         double   o_aux_price;
@@ -97,6 +114,7 @@ extern "C" {
         double   o_trail_stop_price;
         double   o_basis_points;
         double   o_scale_price_increment;
+        char *   o_algo_strategy;
         char *   o_good_after_time;
         char *   o_good_till_date;
         char *   o_fagroup;
@@ -116,6 +134,8 @@ extern "C" {
         char *   o_delta_neutral_order_type;
         char *   o_clearing_account;
         char *   o_clearing_intent;
+        struct tag_value *o_tvector; /* array of length o_tval_count, API user responsible for alloc/free */
+        int      o_tval_count;       /* how many tag values are in o_tvector, 0 if unused */
         int      o_orderid;
         int      o_total_quantity;
         int      o_origin;
@@ -152,6 +172,7 @@ extern "C" {
         unsigned o_sweep_to_fill: 1;
         unsigned o_continuous_update: 1;
         unsigned o_whatif: 1;
+        unsigned o_not_held: 1;
     } tr_order_t;
 
     typedef struct tr_order_status {
@@ -266,7 +287,7 @@ extern "C" {
     int    tws_cancel_order(void *tws, long order_id);
     int    tws_req_open_orders(void *tws);
     int    tws_req_account_updates(void *tws, int subscribe, const char acct_code[]);
-    int    tws_req_executions(void *tws, tr_exec_filter_t *filter);
+    int    tws_req_executions(void *tws, int reqid, tr_exec_filter_t *filter);
     int    tws_req_ids(void *tws, int num_ids);
     int    tws_req_contract_details(void *tws, int reqid, tr_contract_t *contract);    
     int    tws_req_mkt_depth(void *tws, int ticker_id, tr_contract_t *contract, int num_rows);
@@ -327,6 +348,11 @@ extern "C" {
     void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long volume, double wap, int count);
     void event_fundamental_data(void *opaque, int reqid, const char data[]);
     void event_contract_details_end(void *opaque, int reqid);
+    void event_open_order_end(void *opaque);
+    void event_delta_neutral_validation(void *opaque, int reqid, under_comp_t *und);
+    void event_acct_download_end(void *opaque, char acct_name[]);
+    void event_exec_details_end(void *opaque, int reqid);
+    void event_tick_snapshot_end(void *opaque, int reqid);
 
 /*outgoing message IDs */
     enum tws_outgoing_ids {
@@ -372,36 +398,46 @@ extern "C" {
 #define  MIN_SERVER_VER_UNDER_COMP  40
 #define  MIN_SERVER_VER_CONTRACT_DATA_CHAIN  40
 #define  MIN_SERVER_VER_SCALE_ORDERS2  40
+#define  MIN_SERVER_VER_ALGO_ORDERS 41
+#define  MIN_SERVER_VER_EXECUTION_DATA_CHAIN 42
+#define  MIN_SERVER_VER_NOT_HELD 44
+#define  MIN_SERVER_VER_SEC_ID_TYPE 45
+
 
     enum tws_incoming_ids {
         TICK_PRICE = 1,
-        TICK_SIZE =2,
-        ORDER_STATUS =3,
-        ERR_MSG =4,
-        OPEN_ORDER =5,
-        ACCT_VALUE =6,
-        PORTFOLIO_VALUE =7,
-        ACCT_UPDATE_TIME =8,
-        NEXT_VALID_ID =9,
-        CONTRACT_DATA =10,
-        EXECUTION_DATA =11,
-        MARKET_DEPTH =12,
-        MARKET_DEPTH_L2 =13,
-        NEWS_BULLETINS =14,
-        MANAGED_ACCTS =15,
-        RECEIVE_FA =16,
-        HISTORICAL_DATA =17,
-        BOND_CONTRACT_DATA =18,
-        SCANNER_PARAMETERS =19,
-        SCANNER_DATA =20,
-        TICK_OPTION_COMPUTATION =21,
-        TICK_GENERIC =45,
-        TICK_STRING =46,
-        TICK_EFP =47,
-        CURRENT_TIME =49,
+        TICK_SIZE = 2,
+        ORDER_STATUS = 3,
+        ERR_MSG = 4,
+        OPEN_ORDER = 5,
+        ACCT_VALUE = 6,
+        PORTFOLIO_VALUE = 7,
+        ACCT_UPDATE_TIME = 8,
+        NEXT_VALID_ID = 9,
+        CONTRACT_DATA = 10,
+        EXECUTION_DATA = 11,
+        MARKET_DEPTH = 12,
+        MARKET_DEPTH_L2 = 13,
+        NEWS_BULLETINS = 14,
+        MANAGED_ACCTS = 15,
+        RECEIVE_FA = 16,
+        HISTORICAL_DATA = 17,
+        BOND_CONTRACT_DATA = 18,
+        SCANNER_PARAMETERS = 19,
+        SCANNER_DATA = 20,
+        TICK_OPTION_COMPUTATION = 21,
+        TICK_GENERIC = 45,
+        TICK_STRING = 46,
+        TICK_EFP = 47,
+        CURRENT_TIME = 49,
         REAL_TIME_BARS = 50,
         FUNDAMENTAL_DATA = 51,
-        CONTRACT_DATA_END = 52
+        CONTRACT_DATA_END = 52,
+        OPEN_ORDER_END = 53,
+        ACCT_DOWNLOAD_END = 54,
+        EXECUTION_DATA_END = 55,
+        DELTA_NEUTRAL_VALIDATION = 56,
+        TICK_SNAPSHOT_END = 57
     };
 
 

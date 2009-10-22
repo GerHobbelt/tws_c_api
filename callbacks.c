@@ -177,3 +177,28 @@ void event_contract_details_end(void *opaque, int reqid)
 {
 
 }
+
+void event_open_order_end(void *opaque)
+{
+
+}
+
+void event_delta_neutral_validation(void *opaque, int reqid, under_comp_t *und)
+{
+
+}
+
+void event_acct_download_end(void *opaque, char acct_name[])
+{
+
+}
+
+void event_exec_details_end(void *opaque, int reqid)
+{
+
+}
+
+void event_tick_snapshot_end(void *opaque, int reqid)
+{
+
+}

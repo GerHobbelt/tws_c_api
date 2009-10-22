@@ -190,12 +190,14 @@ int main(int argc, char *argv[])
     c.c_primary_exch = "SUPERSOES";
     c.c_currency = "USD";
     c.c_local_symbol = "";
+    c.c_secid_type = "";
+    c.c_secid = "";
 
-    tws_req_historical_data(ti, 2, &c, /* make date current or retrieval may fail */ "20081205 13:26:44", "1 D", "1 hour", "TRADES", 0, 1); 
+    tws_req_historical_data(ti, 2, &c, /* make date current or retrieval may fail */ "20091005 13:26:44", "1 D", "1 hour", "TRADES", 0, 1); 
     /* now request live data for QQQQ */
-    tws_req_mkt_data(ti, 3, &c, "47,100,101,104,105,106,107,165,221,225,232,233,236,256,258", 0);
+    tws_req_mkt_data(ti, 3, &c, "100,101,104,105,106,107,165,225,232,233,236,258", 0);
 
-#if 0  /* flip it to 1, recompile and run at your own risk */
+#if 1  /* flip it to 1, recompile and run at your own risk */
     /* let's place a market order to buy 1 share of QQQQ */
     do {
         tr_order_t o;
@@ -222,6 +224,7 @@ int main(int argc, char *argv[])
         o.o_fagroup = o.o_famethod = o.o_fapercentage = o.o_faprofile = "";
         o.o_designated_location = o.o_rule80a = o.o_settling_firm = "";
         o.o_delta_neutral_order_type = o.o_clearing_account = o.o_clearing_intent = "";
+        o.o_algo_strategy = "";
 
         /* see comment in function event_next_valid_id() before placing the order */
         tws_place_order(ti, 1 /* change order_id */, &c, &o);
