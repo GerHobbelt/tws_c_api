@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
     /* now request live data for QQQQ */
     tws_req_mkt_data(ti, 3, &c, "100,101,104,105,106,107,165,225,232,233,236,258", 0);
 
-#if 1  /* flip it to 1, recompile and run at your own risk */
+#if 0  /* flip it to 1, recompile and run at your own risk */
     /* let's place a market order to buy 1 share of QQQQ */
     do {
         tr_order_t o;
