@@ -32,7 +32,7 @@ typedef int socket_t;
 #define ROUND_UP_POW2(num, pow2) (((num) + (pow2)-1) & ~((pow2)-1))
 #define INTEGER_MAX_VALUE ((int) ~(1U<<(8*sizeof(int) -1)))
 #define DBL_NOTMAX(d) (fabs((d) - DBL_MAX) > DBL_EPSILON)
-#define IS_EMPTY(str)  ((str)[0] != '\0')
+#define IS_EMPTY(str)  ((str)[0] == '\0')
 
 typedef struct {
     char str[512]; /* maximum conceivable string length */
