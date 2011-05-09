@@ -19,7 +19,7 @@ void event_tick_size(void *opaque, int ticker_id, long type, int size)
            opaque, ticker_id, type, size);
 }
 
-void event_tick_option_computation(void *opaque, int ticker_id, int type, double implied_vol, double delta, double model_price, double pr_dividend)
+void event_tick_option_computation(void *opaque, int ticker_id, int type, double implied_vol, double delta, double opt_price, double pv_dividend, double gamma, double vega, double theta, double und_price)
 {
 }
 

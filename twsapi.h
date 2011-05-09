@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 /* public C API */
-#define TWSCLIENT_VERSION 46
+#define TWSCLIENT_VERSION 48
 
     typedef struct under_comp {
         double u_price;
@@ -63,34 +63,39 @@ extern "C" {
     } tr_contract_details_t;
 
     typedef struct tr_comboleg {
-        char *co_action; /* BUY, SELL */
+        char *co_action; /* BUY/SELL/SSHORT/SSHORTX */
         char *co_exchange;
         char *co_designated_location; /* set to "" if unused, as usual */
         int   co_conid;
         int   co_ratio;
+#define COMBOLEG_SAME    0     /* open/close leg value is same as combo */
+#define COMBOLEG_OPEN    1
+#define COMBOLEG_CLOSE   2
+#define COMBOLEG_UNKNOWN 3
         int   co_open_close;
-        int   co_short_sale_slot; /* 1 = clearing broker, 2 = third party */
+        int   co_short_sale_slot;    /* 1 = clearing broker, 2 = third party */
+        int   co_exempt_code;        /* set to -1 if you do not use it */
     } tr_comboleg_t;
 
     typedef struct tr_contract {
         under_comp_t  *c_undercomp;
-        double         c_strike;
-        char *         c_symbol;
-        char *         c_sectype;
+        double         c_strike;                            /* strike price for options */
+        char *         c_symbol;                            /* underlying symbol */
+        char *         c_sectype;                           /* security type */
         char *         c_exchange;
-        char *         c_primary_exch;
-        char *         c_expiry;
-        char *         c_currency;
-        char *         c_right;
-        char *         c_local_symbol;
+        char *         c_primary_exch;                      /* for SMART orders, specify an actual exchange where the contract trades, e.g. ISLAND.  Pick a non-aggregate (ie not the SMART exchange) exchange that the contract trades on.  DO NOT SET TO SMART. */
+        char *         c_expiry;                            /* expiration for futures and options */
+        char *         c_currency;                          /* currency, e.g. USD */
+        char *         c_right;                             /* put or call (P or C) */
+        char *         c_local_symbol;                      /* local symbol for futures or options, e.g. ESZN for ES DEC09 contract  */
         char *         c_multiplier;
-        char *         c_combolegs_descrip;
-        char *         c_secid_type;
+        char *         c_combolegs_descrip;                 /* received in open order version 14 and up for all combos */
+        char *         c_secid_type;                        /* CUSIP;SEDOL;ISIN;RIC */
         char *         c_secid;
         tr_comboleg_t *c_comboleg;
         long           c_num_combolegs;
-        int            c_conid;
-        unsigned       c_include_expired:1;
+        int            c_conid;                             /* contract id, returned from TWS */
+        unsigned       c_include_expired: 1;                /* for contract requests, specifies that even expired contracts should be returned.  Can not be set to true for orders. */
     } tr_contract_t;
 
     struct tag_value {
@@ -98,80 +103,81 @@ extern "C" {
         char *t_val;
     };
 
-    typedef struct tr_order {   
-        double   o_discretionary_amt;
-        double   o_lmt_price;
-        double   o_aux_price;
-        double   o_percent_offset;
-        double   o_nbbo_price_cap;
-        double   o_starting_price;
-        double   o_stock_ref_price;
-        double   o_delta;
-        double   o_stock_range_lower;
-        double   o_stock_range_upper;
-        double   o_volatility;
+    typedef struct tr_order {
+        double   o_discretionary_amt;                       /* SMART routing only: amount you are willing to pay above your specified limit price */
+        double   o_lmt_price;                               /* Basic Order Field: limit price  */
+        double   o_aux_price;                               /* Basic Order Field: stop price, trailing amount, or offset amount  */
+        double   o_percent_offset;                          /* Advanced order field: the offset amount for Relative (REL) orders, specified as a percent; specify either this OR the offset amount in m_auxPrice */
+        double   o_nbbo_price_cap;                          /* SMART routing only: see 'm_firmQuoteOnly' comment */
+        double   o_starting_price;                          /* For BOX option-pegged-to-stock orders only */
+        double   o_stock_ref_price;                         /* For BOX option-pegged-to-stock orders only */
+        double   o_delta;                                   /* For BOX option-pegged-to-stock orders only */
+        double   o_stock_range_lower;                       /* For Pegged-to-stock or Volatility orders only: if stock price moves below this price, order will be canceled */
+        double   o_stock_range_upper;                       /* For Pegged-to-stock or Volatility orders only: if stock price moves above this price, order will be canceled */
+        double   o_volatility;                              /* For Volatility orders only: volatility (percent) */
         double   o_delta_neutral_aux_price;
-        double   o_trail_stop_price;
+        double   o_trail_stop_price;                        /* Advanced order field: initial stop price for trailing stop (TRAIL) orders */
         double   o_basis_points;
         double   o_scale_price_increment;
         char *   o_algo_strategy;
-        char *   o_good_after_time;
-        char *   o_good_till_date;
-        char *   o_fagroup;
-        char *   o_famethod;
-        char *   o_fapercentage;
-        char *   o_faprofile;
-        char *   o_action;
-        char *   o_order_type;
-        char *   o_tif;
-        char *   o_oca_group;
-        char *   o_account;
-        char *   o_open_close;
-        char *   o_orderref;
-        char *   o_designated_location;
-        char *   o_rule80a;
+        char *   o_good_after_time;                         /* Advanced order field: format: YYYYMMDD HH:MM:SS {time zone}  e.g. 20060505 08:00:00 EST */
+        char *   o_good_till_date;                          /* Advanced order field: format: YYYYMMDD HH:MM:SS {time zone}  e.g. 20060505 08:00:00 EST */
+        char *   o_fagroup;                                 /* For Financial advisors (FA) only: Advisor group, e.g. "All" */
+        char *   o_famethod;                                /* For Financial advisors (FA) only: Advisor method: PctChange, AvailableEquity, NetLiq, or EqualQuantity */
+        char *   o_fapercentage;                            /* For Financial advisors (FA) only: Advisor percentage, used when the method is set to PctChange */
+        char *   o_faprofile;                               /* For Financial advisors (FA) only: Advisor profile */
+        char *   o_action;                                  /* Basic Order Field: specify BUY or SELL; non-cleared customers can specify SSHORT */
+        char *   o_order_type;                              /* Basic Order Field: order type, e.g. LMT, MKT, STOP, TRAIL, REL */
+        char *   o_tif;                                     /* Advanced order field: Time in force, e.g. DAY, GTC */
+        char *   o_oca_group;                               /* Advanced order field: OCA group name (OCA = "one cancels all") */
+        char *   o_account;                                 /* Clearing info: IB account; can be left blank for users with only a single account   */
+        char *   o_open_close;                              /* For non-cleared (i.e. institutional) customers only: open/close flag: O=Open, C=Close */
+        char *   o_orderref;                                /* Advanced order field: order reference, enter any free-form text */
+        char *   o_designated_location;                     /* For non-cleared (i.e. institutional) customers only: specifies where the shares are held; set only when m_shortSaleSlot=2 */
+        char *   o_rule80a;                                 /* Advanced order field: Individual = 'I', Agency = 'A', AgentOtherMember = 'W', IndividualPTIA = 'J', AgencyPTIA = 'U', AgentOtherMemberPTIA = 'M', IndividualPT = 'K', AgencyPT = 'Y', AgentOtherMemberPT = 'N' */
         char *   o_settling_firm;
         char *   o_delta_neutral_order_type;
-        char *   o_clearing_account;
-        char *   o_clearing_intent;
-        struct tag_value *o_tvector; /* array of length o_tval_count, API user responsible for alloc/free */
+        char *   o_clearing_account;                        /* Clearing info: True beneficiary of the order */
+        char *   o_clearing_intent;                         /* Clearing info: "" (Default), "IB", "Away", "PTA" (PostTrade) */
+        struct tag_value *o_tvector; /* 'm_algoParams': array of length o_tval_count, API user responsible for alloc/free */
         int      o_tval_count;       /* how many tag values are in o_tvector, 0 if unused */
-        int      o_orderid;
-        int      o_total_quantity;
-        int      o_origin;
+        int      o_orderid;                                 /* Basic Order Field: order id generated by API client */
+        int      o_total_quantity;                          /* Basic Order Field: order size */
+        int      o_origin;                                  /* For non-cleared (i.e. institutional) customers only: origin: 0=Customer, 1=Firm */
 #define CUSTOMER 0
 #define FIRM 1
-        int      o_clientid;
-        int      o_permid;
-        int      o_parentid;
-        int      o_display_size;
-        int      o_trigger_method;
-        int      o_min_qty;
-        int      o_volatility_type;
-        int      o_reference_price_type;
+        int      o_clientid;                                /* Basic Order Field: client id of the API client that submitted the order */
+        int      o_permid;                                  /* Basic Order Field: TWS order ID (not specified by API) */
+        int      o_parentid;                                /* Advanced order field: order id of parent order, to associate attached stop, trailing stop, or bracket orders with parent order (Auto STP, TRAIL)  */
+        int      o_display_size;                            /* Advanced order field: the portion of the order that will be visible to the world */
+        int      o_trigger_method;                          /* Advanced order field: for stop orders:  0=Default, 1=Double_Bid_Ask, 2=Last, 3=Double_Last, 4=Bid_Ask, 7=Last_or_Bid_Ask, 8=Mid-point */
+        int      o_min_qty;                                 /* Advanced order field: no partial fills less than the size specified here */
+        int      o_volatility_type;                         /* For Volatility orders only: volatility type: 1=daily, 2=annual */
+        int      o_reference_price_type;                    /* For Volatility orders only: what to use as the current stock price: 1=bid/ask average, 2 = bid or ask */
         int      o_basis_points_type;
         int      o_scale_subs_level_size;
         int      o_scale_init_level_size;
-        unsigned o_oca_type:3;
+        int      o_exempt_code;                    /* set to -1 if you do not use it */
+        unsigned o_oca_type: 3;                             /* Advanced order field: OCA group type  1 = CANCEL_WITH_BLOCK, 2 = REDUCE_WITH_BLOCK, 3 = REDUCE_NON_BLOCK */
 #define CANCEL_WITH_BLOCK 1
 #define REDUCE_WITH_BLOCK 2
 #define REDUCE_NON_BLOCK 3
-        unsigned o_auction_strategy:3;
+        unsigned o_auction_strategy: 3;                     /* For BOX option-pegged-to-stock and Volatility orders only: 1=AUCTION_MATCH, 2=AUCTION_IMPROVEMENT, 3=AUCTION_TRANSPARENT */
 #define AUCTION_MATCH 1
 #define AUCTION_IMPROVEMENT 2
 #define AUCTION_TRANSPARENT 3
-        unsigned o_short_sale_slot:2; /*1 or 2 */
-        unsigned o_override_percentage_constraints:1;
-        unsigned o_firm_quote_only:1;
-        unsigned o_etrade_only:1;
-        unsigned o_all_or_none:1;
-        unsigned o_outside_rth: 1; /* ignore_rth disappeared */
-        unsigned o_hidden: 1;
-        unsigned o_transmit: 1;
-        unsigned o_block_order: 1;
-        unsigned o_sweep_to_fill: 1;
-        unsigned o_continuous_update: 1;
-        unsigned o_whatif: 1;
+        unsigned o_short_sale_slot: 2;                      /* For non-cleared (i.e. institutional) customers only: specify only if m_action is "SSHORT": 1 if you hold the shares, 2 if they will be delivered from elsewhere */
+        unsigned o_override_percentage_constraints: 1;      /* Advanced order field: set true to override normal percentage constraint checks */
+        unsigned o_firm_quote_only: 1;                      /* SMART routing only: if true, specifies that order should be routed to exchanges showing a "firm" quote, but not if the exchange is off the NBBO by more than the 'm_nbboPriceCap' amount */
+        unsigned o_etrade_only: 1;
+        unsigned o_all_or_none: 1;                          /* Advanced order field: if set to true, there can be no partial fills for the order */
+        unsigned o_outside_rth: 1;                          /* Advanced order field: if true, order could fill or trigger anytime; if false, order will fill or trigger only during regular trading hours */
+        unsigned o_hidden: 1;                               /* Advanced order field: if true, order will be hidden, and will not be reflected in the market data or deep book */
+        unsigned o_transmit: 1;                             /* Advanced order field: if false, order will be created in TWS but not transmitted */
+        unsigned o_block_order: 1;                          /* Advanced order field: block order, for ISE option orders only */
+        unsigned o_sweep_to_fill: 1;                        /* Advanced order field: for SMART orders, specifies that orders should be split and sent to multiple exchanges at the same time */
+        unsigned o_continuous_update: 1;                    /* For Volatility orders only: if true, price will be continuously recalculated after order submission */
+        unsigned o_whatif: 1;                               /* if true, the order will not be submitted, but margin info will be returned */
         unsigned o_not_held: 1;
     } tr_order_t;
 
@@ -220,7 +226,7 @@ extern "C" {
         double scan_coupon_rate_below;
         double scan_market_cap_above;
         double scan_market_cap_below;
-        char  *scan_exclude_convertible;        
+        char  *scan_exclude_convertible;
         char  *scan_instrument;
         char  *scan_location_code;
         char  *scan_maturity_date_above;
@@ -237,6 +243,69 @@ extern "C" {
         int    scan_average_option_volume_above;
     } tr_scanner_subscription_t;
 
+    typedef enum tr_tick_type {
+        UNDEFINED = -1,
+        BID_SIZE   = 0,
+        BID        = 1,
+        ASK        = 2,
+        ASK_SIZE   = 3,
+        LAST       = 4,
+        LAST_SIZE  = 5,
+        HIGH       = 6,
+        LOW        = 7,
+        VOLUME     = 8,
+        CLOSE      = 9,
+        BID_OPTION = 10,
+        ASK_OPTION = 11,
+        LAST_OPTION = 12,
+        MODEL_OPTION = 13,
+        OPEN         = 14,
+        LOW_13_WEEK  = 15,
+        HIGH_13_WEEK = 16,
+        LOW_26_WEEK  = 17,
+        HIGH_26_WEEK = 18,
+        LOW_52_WEEK  = 19,
+        HIGH_52_WEEK = 20,
+        AVG_VOLUME   = 21,
+        OPEN_INTEREST = 22,
+        OPTION_HISTORICAL_VOL = 23,
+        OPTION_IMPLIED_VOL = 24,
+        OPTION_BID_EXCH = 25,
+        OPTION_ASK_EXCH = 26,
+        OPTION_CALL_OPEN_INTEREST = 27,
+        OPTION_PUT_OPEN_INTEREST = 28,
+        OPTION_CALL_VOLUME = 29,
+        OPTION_PUT_VOLUME = 30,
+        INDEX_FUTURE_PREMIUM = 31,
+        BID_EXCH = 32,
+        ASK_EXCH = 33,
+        AUCTION_VOLUME = 34,
+        AUCTION_PRICE = 35,
+        AUCTION_IMBALANCE = 36,
+        MARK_PRICE = 37,
+        BID_EFP_COMPUTATION  = 38,
+        ASK_EFP_COMPUTATION  = 39,
+        LAST_EFP_COMPUTATION = 40,
+        OPEN_EFP_COMPUTATION = 41,
+        HIGH_EFP_COMPUTATION = 42,
+        LOW_EFP_COMPUTATION = 43,
+        CLOSE_EFP_COMPUTATION = 44,
+        LAST_TIMESTAMP = 45,
+        SHORTABLE = 46,
+        FUNDAMENTAL_RATIOS = 47,
+        RT_VOLUME = 48,
+        HALTED = 49,
+        BID_YIELD = 50,
+        ASK_YIELD = 51,
+        LAST_YIELD = 52,
+        CUST_OPTION_COMPUTATION = 53,
+        TRADE_COUNT = 54,
+        TRADE_RATE = 55,
+        VOLUME_RATE = 56,
+        LAST_RTH_TRADE = 57
+    } tr_tick_type_t;
+
+
 /* what the heck are these? */
 #define OPT_UNKNOWN  "?"
 #define OPT_BROKER_DEALER  "b"
@@ -249,6 +318,7 @@ extern "C" {
 #define GROUPS 1
 #define PROFILES 2
 #define ALIASES 3
+
     typedef void (*tws_func_t)(void *arg);
 
     /* must return 0 on success, -1 on failure */
@@ -265,7 +335,7 @@ extern "C" {
     typedef int (*resolve_name_t)(const void *name /*IN*/, void *addr /*OUT*/, long *addr_len /*IN,OUT*/);
     /* returns -1 on failure, 0 otherwise, addr_len 4 means ipv4, 16 means ipv6 */
 
-    /* creates new tws client instance, starts reader thread and 
+    /* creates new tws client instance, starts reader thread and
      * and records opaque user defined pointer to be supplied in all callbacks
      */
     void  *tws_create(start_thread_t start_thread, void *opaque, external_func_t myfunc);
@@ -289,7 +359,7 @@ extern "C" {
     int    tws_req_account_updates(void *tws, int subscribe, const char acct_code[]);
     int    tws_req_executions(void *tws, int reqid, tr_exec_filter_t *filter);
     int    tws_req_ids(void *tws, int num_ids);
-    int    tws_req_contract_details(void *tws, int reqid, tr_contract_t *contract);    
+    int    tws_req_contract_details(void *tws, int reqid, tr_contract_t *contract);
     int    tws_req_mkt_depth(void *tws, int ticker_id, tr_contract_t *contract, int num_rows);
     int    tws_cancel_mkt_depth(void *tws, int ticker_id);
     int    tws_req_news_bulletins(void *tws, int all_msgs);
@@ -301,6 +371,13 @@ extern "C" {
     int    tws_request_fa(void *tws, long fa_data_type);
     int    tws_replace_fa(void *tws, long fa_data_type, const char cxml[]);
     int    tws_req_current_time(void *tws);
+    int    tws_req_fundamental_data(void *tws, int reqid, tr_contract_t *contract, char report_type[]);
+    int    tws_cancel_fundamental_data(void *tws, int reqid);
+    int    tws_calculate_implied_volatility(void *tws, int reqid, tr_contract_t *contract, double option_price, double under_price);
+    int    tws_cancel_calculate_implied_volatility(void *tws, int reqid);
+    int    tws_calculate_option_price(void *tws, int reqid, tr_contract_t *contract, double volatility, double under_price);
+    int    tws_cancel_calculate_option_price(void *tws, int reqid);
+    int    tws_req_global_cancel(void *tws);
     int    tws_request_realtime_bars(void *tws, int ticker_id, tr_contract_t *c, int bar_size, const char what_to_show[], int use_rth);
     int    tws_cancel_realtime_bars(void *tws, int ticker_id);
     /**** 2 auxilliary routines */
@@ -311,7 +388,7 @@ extern "C" {
     void event_tick_price(void *opaque, int ticker_id, long field, double price,
                           int can_auto_execute);
     void event_tick_size(void *opaque, int ticker_id, long field, int size);
-    void event_tick_option_computation(void *opaque, int ticker_id, int type, double implied_vol, double delta, double model_price, double pr_dividend);
+    void event_tick_option_computation(void *opaque, int ticker_id, int type, double implied_vol, double delta, double opt_price, double pv_dividend, double gamma, double vega, double theta, double und_price);
     void event_tick_generic(void *opaque, int ticker_id, int type, double value);
     void event_tick_string(void *opaque, int ticker_id, int type, const char value[]);
     void event_tick_efp(void *opaque, int ticker_id, int tick_type, double basis_points, const char formatted_basis_points[], double implied_futures_price, int hold_days, const char future_expiry[], double dividend_impact, double dividends_to_expiry);
@@ -354,7 +431,7 @@ extern "C" {
     void event_exec_details_end(void *opaque, int reqid);
     void event_tick_snapshot_end(void *opaque, int reqid);
 
-/*outgoing message IDs */
+/* outgoing message IDs */
     enum tws_outgoing_ids {
         REQ_MKT_DATA = 1,
         CANCEL_MKT_DATA = 2,
@@ -385,7 +462,12 @@ extern "C" {
         REQ_REAL_TIME_BARS = 50,
         CANCEL_REAL_TIME_BARS = 51,
         REQ_FUNDAMENTAL_DATA = 52,
-        CANCEL_FUNDAMENTAL_DATA = 53
+        CANCEL_FUNDAMENTAL_DATA = 53,
+        REQ_CALC_IMPLIED_VOLAT = 54,
+        REQ_CALC_OPTION_PRICE = 55,
+        CANCEL_CALC_IMPLIED_VOLAT = 56,
+        CANCEL_CALC_OPTION_PRICE = 57,
+        REQ_GLOBAL_CANCEL = 58
     };
 
 #define  MIN_SERVER_VER_SCALE_ORDERS  35
@@ -402,6 +484,15 @@ extern "C" {
 #define  MIN_SERVER_VER_EXECUTION_DATA_CHAIN 42
 #define  MIN_SERVER_VER_NOT_HELD 44
 #define  MIN_SERVER_VER_SEC_ID_TYPE 45
+#define  MIN_SERVER_VER_PLACE_ORDER_CONID 46
+#define  MIN_SERVER_VER_REQ_MKT_DATA_CONID 47
+#define  MIN_SERVER_VER_REQ_CALC_IMPLIED_VOLAT 49
+#define  MIN_SERVER_VER_REQ_CALC_OPTION_PRICE 50
+#define  MIN_SERVER_VER_CANCEL_CALC_IMPLIED_VOLAT 50
+#define  MIN_SERVER_VER_CANCEL_CALC_OPTION_PRICE 50
+#define  MIN_SERVER_VER_SSHORTX_OLD 51
+#define  MIN_SERVER_VER_SSHORTX 52
+#define  MIN_SERVER_VER_REQ_GLOBAL_CANCEL 53
 
 
     enum tws_incoming_ids {
@@ -457,7 +548,7 @@ extern "C" {
         FAIL_SEND_EXEC,
         FAIL_SEND_CORDER,
         FAIL_SEND_OORDER,
-        UNKNOWN_CONTRACT,  
+        UNKNOWN_CONTRACT,
         FAIL_SEND_REQCONTRACT,
         FAIL_SEND_REQMKTDEPTH,
         FAIL_SEND_CANMKTDEPTH,
@@ -471,23 +562,28 @@ extern "C" {
         FAIL_SEND_CANRTBARS,
         FAIL_SEND_REQCURRTIME,
         FAIL_SEND_REQFUNDDATA,
-        FAIL_SEND_CANFUNDDATA
+        FAIL_SEND_CANFUNDDATA,
+        FAIL_SEND_REQCALCIMPLIEDVOLAT,
+        FAIL_SEND_CANCALCIMPLIEDVOLAT,
+        FAIL_SEND_REQCALCOPTIONPRICE,
+        FAIL_SEND_CANCALCOPTIONPRICE,
+        FAIL_SEND_REQGLOBALCANCEL
     };
 
     struct twsclient_errmsg {
         long err_code;
-        char *err_msg;
+        const char *err_msg;
     };
 
 #ifdef TWSAPI_GLOBALS
     struct twsclient_errmsg twsclient_err_indication[] = {
-        /* these correspond to enum twsclient_error_codes, save for code -1 
+        /* these correspond to enum twsclient_error_codes, save for code -1
          * usage: if(err_code >= 0) puts(twsclient_err_indication[err_code]);
          */
         { 0, "No error" },
         { 501, "Already connected." },
         { 502, "Couldn't connect to TWS.  Confirm that \"Enable ActiveX and Socket Clients\" is enabled on the TWS \"Configure->API\" menu." },
-        { 503, "The TWS is out of date and must be upgraded."} , 
+        { 503, "The TWS is out of date and must be upgraded."} ,
         { 504,  "Not connected" },
         { 505, "Fatal Error: Unknown message id."},
         { 510, "Request Market Data Sending Error - "},
@@ -513,10 +609,17 @@ extern "C" {
         { 530, "Cancel Real-time Bar Data Sending Error - "},
         { 531, "Request Current Time Sending Error - "},
         { 532, "Request Fundamental Data Sending Error - "},
-        { 533, "Cancel Fundamental Data Sending Error - "}
+        { 533, "Cancel Fundamental Data Sending Error - "},
+        /* since TWS API 9.64: */
+        { 534, "Request Calculate Implied Volatility Sending Error - "},
+        { 535, "Request Calculate Option Price Sending Error - "},
+        { 536, "Cancel Calculate Implied Volatility Sending Error - "},
+        { 537, "Cancel Calculate Option Price Sending Error - "},
+        /* since TWS API 9.65: */
+        { 538, "Request Global Cancel Sending Error - "}
     };
 
-    char *tws_incoming_msg_names[] = {
+    const char *tws_incoming_msg_names[] = {
         "tick_price", "tick_size", "order_status", "err_msg", "open_order",
         "acct_value", "portfolio_value", "acct_update_time", "next_valid_id",
         "contract_data", "execution_data", "market_depth", "market_depth_l2",
@@ -531,17 +634,82 @@ extern "C" {
         "current_time", "realtime_bars"
     };
 
-    char *fa_msg_name[] = { "GROUPS", "PROFILES", "ALIASES" };
+    /* map tr_tick_type_t to 'descriptive' string */
+    const char *tws_tick_type_names[] = {
+        "bidSize",
+        "bidPrice",
+        "askPrice",
+        "askSize",
+        "lastPrice",
+        "lastSize",
+        "high",
+        "low",
+        "volume",
+        "close",
+        "bidOptComp",
+        "askOptComp",
+        "lastOptComp",
+        "modelOptComp",
+        "open",
+        "13WeekLow",
+        "13WeekHigh",
+        "26WeekLow",
+        "26WeekHigh",
+        "52WeekLow",
+        "52WeekHigh",
+        "AvgVolume",
+        "OpenInterest",
+        "OptionHistoricalVolatility",
+        "OptionImpliedVolatility",
+        "OptionBidExchStr",
+        "OptionAskExchStr",
+        "OptionCallOpenInterest",
+        "OptionPutOpenInterest",
+        "OptionCallVolume",
+        "OptionPutVolume",
+        "IndexFuturePremium",
+        "bidExch",
+        "askExch",
+        "auctionVolume",
+        "auctionPrice",
+        "auctionImbalance",
+        "markPrice",
+        "bidEFP",
+        "askEFP",
+        "lastEFP",
+        "openEFP",
+        "highEFP",
+        "lowEFP",
+        "closeEFP",
+        "lastTimestamp",
+        "shortable",
+        "fundamentals",
+        "RTVolume",
+        "halted",
+        "bidYield",
+        "askYield",
+        "lastYield",
+        "custOptComp",
+        "trades",
+        "trades/min",
+        "volume/min",
+        "lastRTHTrade"
+    };
+
+    const char *fa_msg_name[] = { "GROUPS", "PROFILES", "ALIASES" };
     static const unsigned int d_nan[2] = {~0U, ~(1U<<31)};
-    double *dNAN = (double *)(void *) d_nan;
+    const const double *dNAN = (const double *)(const void *) d_nan;
 #else
     extern struct twsclient_errmsg twsclient_err_indication[];
-    extern char *tws_incoming_msg_names[];
-    extern char *fa_msg_name[];
-    extern double *dNAN;
+    extern const char *tws_incoming_msg_names[];
+    extern const char *tws_tick_type_names[];
+    extern const char *fa_msg_name[];
+    extern const double *dNAN;
 #endif /* TWSAPI_GLOBALS */
 
-#define fa_msg_type_name(x) (((x)>= GROUPS && (x) <= ALIASES) ? fa_msg_name[x] : 0)
+#define fa_msg_type_name(x) (((x) >= GROUPS && (x) <= ALIASES) ? fa_msg_name[x] : 0)
+#define tick_type_name(x) (((x) >= BID_SIZE && (x) < sizeof(tws_tick_type_names) / sizeof(tws_tick_type_names[0])) ? tws_tick_type_names[x] : 0)
+
 #define MODEL_OPTION 13
 
 #ifdef __cplusplus

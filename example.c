@@ -38,8 +38,8 @@ static int mythread_starter(tws_func_t func, void *arg)
     err = pthread_create(&thr, 0, (void *(*)(void *)) func, arg);
 #else
     /* if using _beginthreadex: beware of stack leak if func expected to
-     * use Pascal calling convention but declaration of func in another 
-     * unit conveys C calling convention, wrap pascal func in C func if 
+     * use Pascal calling convention but declaration of func in another
+     * unit conveys C calling convention, wrap pascal func in C func if
      * this is the case. Also cleanup is more complex for _beginthreadex.
      */
     err =  _beginthread(func, 2*8192, arg);
@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
         goto usage;
 
     /* 'no_thread' here could also mean that an externally spawned thread
-     * that we did not create will handle IO from TWS, somehow we may happen 
+     * that we did not create will handle IO from TWS, somehow we may happen
      * to run in the context of that thread
      */
     ti = tws_create(no_thread ? TWS_NO_THREAD : mythread_starter, (void *) 0x12345, tws_thread_status);
@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
     c.c_secid_type = "";
     c.c_secid = "";
 
-    tws_req_historical_data(ti, 2, &c, /* make date current or retrieval may fail */ "20091005 13:26:44", "1 D", "1 hour", "TRADES", 0, 1); 
+    tws_req_historical_data(ti, 2, &c, /* make date current or retrieval may fail */ "20091005 13:26:44", "1 D", "1 hour", "TRADES", 0, 1);
     /* now request live data for QQQQ */
     tws_req_mkt_data(ti, 3, &c, "100,101,104,105,106,107,165,225,232,233,236,258", 0);
 
@@ -203,6 +203,7 @@ int main(int argc, char *argv[])
         tr_order_t o;
 
         memset(&o, 0, sizeof o);
+        o.o_exempt_code = -1;
 
         o.o_action = "BUY";
         o.o_total_quantity = 1;
