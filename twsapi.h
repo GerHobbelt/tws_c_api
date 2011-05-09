@@ -326,16 +326,20 @@ extern "C" {
      * state == 0 indicates startup, state == 1 indicates termination, state == 2 indicates thread termination pending
      */
 
-    /* user must specify the send / recv and close callbacks to transmit, receive and close the network connection to TWS */
+    /*
+     * user must specify the send / recv and close callbacks to transmit, receive and close the network connection to TWS
+     */
     typedef int tws_transmit_func_t(void *arg, const void *buf, unsigned int buflen);
     typedef int tws_receive_func_t(void *arg, void *buf, unsigned int max_bufsize);
+    /* 'flush()' marks the end of the outgoing message: it should be transmitted ASAP */
+    typedef int tws_flush_func_t(void *arg);
     /* close callback is invoked on error or when tws_disconnect is invoked */
     typedef int tws_close_func_t(void *arg);
 
     /* creates new tws client instance and
      * and records opaque user defined pointer to be supplied in all callbacks
      */
-    void  *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_close_func_t *close);
+    void  *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_close_func_t *close);
     /* only call once you've made sure tws_connected() == false */
     void   tws_destroy(void *tws_instance);
     int    tws_connected(void *tws_instance); /* true=1 or false=0 */
