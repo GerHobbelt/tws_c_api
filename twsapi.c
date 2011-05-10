@@ -61,7 +61,7 @@ static int read_double_max(tws_instance_t *ti, double *val);
 static int read_long(tws_instance_t *ti, long *val);
 static int read_int(tws_instance_t *ti, int *val);
 static int read_int_max(tws_instance_t *ti, int *val);
-static int read_line(tws_instance_t *ti, char *line, long *len);
+static int read_line(tws_instance_t *ti, char *line, size_t *len);
 
 /* access to these strings is single threaded
  * replace plain bitops with atomic test_and_set_bit/clear_bit + memory barriers
@@ -98,6 +98,70 @@ static void free_string(tws_instance_t *ti, void *ptr)
 
     ti->bitmask[index] &= ~bits;
 }
+
+/*
+Make sure to mark the used string space as allocated; given the way the mempool is used,
+we can alloc a single string to find the start of the free space in the mempool, when
+the loaded string data spans multiple string buffers, we must mark all of them as allocated
+to prevent alloc requests inside event handlers to fail.
+*/
+static void mark_stringspace_alloced(tws_instance_t *ti, void *start_ptr, size_t str_len)
+{
+    unsigned int j = (unsigned int) ((tws_string_t *) start_ptr - &ti->mempool[0]);
+    unsigned int cnt = (unsigned int)((str_len + sizeof(ti->mempool[0]) - 1) / sizeof(ti->mempool[0]));
+    unsigned int index;
+    unsigned long bits;
+
+    cnt += j;
+    for( ; cnt > 0 && j < MAX_TWS_STRINGS; j++, cnt--) {
+        index = j / WORD_SIZE_IN_BITS;
+
+        bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
+        ti->bitmask[index] |= bits;
+    }
+    if (cnt > 0) {
+#ifdef TWS_DEBUG
+        printf("mark_stringspace_alloced: ran out of strings, will crash shortly\n");
+#endif
+    }
+}
+
+static void mark_stringspace_freed(tws_instance_t *ti, void *start_ptr, size_t str_len)
+{
+    unsigned long j = (unsigned long) ((tws_string_t *) start_ptr - &ti->mempool[0]);
+    unsigned int cnt = (unsigned int)((str_len + sizeof(ti->mempool[0]) - 1) / sizeof(ti->mempool[0]));
+    unsigned int index;
+    unsigned long bits;
+
+    cnt += j;
+    for( ; cnt > 0 && j < MAX_TWS_STRINGS; j++, cnt--) {
+        index = j / WORD_SIZE_IN_BITS;
+
+        bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
+        ti->bitmask[index] &= ~bits;
+    }
+}
+
+static size_t get_stringspace_length(tws_instance_t *ti, void *start_ptr)
+{
+    unsigned int j = (unsigned int) ((tws_string_t *) start_ptr - &ti->mempool[0]);
+    unsigned int index;
+    unsigned long bits;
+    size_t cnt = 1;
+
+    /* skip the allocated string itself: see how much is still available beyond this space: */
+    for(++j; j < MAX_TWS_STRINGS; j++, cnt++) {
+        index = j / WORD_SIZE_IN_BITS;
+
+        bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
+        if(ti->bitmask[index] & bits) {
+            break;
+        }
+    }
+
+    return cnt * sizeof(ti->mempool[0]);
+}
+
 
 static void init_contract(tws_instance_t *ti, tr_contract_t *c)
 {
@@ -423,23 +487,31 @@ static void receive_tick_generic(tws_instance_t *ti)
 
 static void receive_tick_string(tws_instance_t *ti)
 {
-    long lval = sizeof ti->mempool;
-    char *value = (char *) &ti->mempool[0];
+    size_t ticker_value_size;
+    char *value;
     int ival, ticker_id, tick_type;
 
     read_int(ti, &ival /*version */); /* ignored */
     read_int(ti, &ival), ticker_id = ival;
     read_int(ti, &ival), tick_type = ival;
-    read_line(ti, value, &lval);
-    if(ti->connected)
+
+    value = alloc_string(ti);
+    ticker_value_size = get_stringspace_length(ti, value);
+    read_line(ti, value, &ticker_value_size);
+    mark_stringspace_alloced(ti, value, ticker_value_size);
+
+    if(ti->connected) {
         event_tick_string(ti->opaque, ticker_id, tick_type, value);
+    }
+
+    mark_stringspace_freed(ti, value, ticker_value_size);
 }
 
 static void receive_tick_efp(tws_instance_t *ti)
 {
     double basis_points, implied_futures_price, dividend_impact, dividends_to_expiry;
     char *formatted_basis_points = alloc_string(ti), *future_expiry = alloc_string(ti);
-    long lval;
+    size_t lval;
     int ival, ticker_id, tick_type, hold_days;
 
     read_int(ti, &ival /*version unused */);
@@ -464,7 +536,7 @@ static void receive_tick_efp(tws_instance_t *ti)
 static void receive_order_status(tws_instance_t *ti)
 {
     double avg_fill_price, last_fill_price = 0.0;
-    long lval;
+    size_t lval;
     char *status = alloc_string(ti), *why_held = alloc_string(ti);
     int ival, version, id, filled, remaining, permid = 0, parentid = 0, clientid = 0;
 
@@ -503,7 +575,7 @@ static void receive_acct_value(tws_instance_t *ti)
 {
     char *key = alloc_string(ti), *val = alloc_string(ti), *cur = alloc_string(ti),
         *account_name = alloc_string(ti);
-    long lval;
+    size_t lval;
     int ival, version;
 
     read_int(ti, &ival), version = ival;
@@ -528,7 +600,7 @@ static void receive_portfolio_value(tws_instance_t *ti)
     double market_price, market_value, average_cost = 0.0, unrealized_pnl = 0.0,
         realized_pnl = 0.0;
     tr_contract_t contract;
-    long lval;
+    size_t lval;
     char *account_name = alloc_string(ti);
     int ival, version, position;
 
@@ -582,7 +654,7 @@ static void receive_portfolio_value(tws_instance_t *ti)
 static void receive_acct_update_time(tws_instance_t *ti)
 {
     char *timestamp = alloc_string(ti);
-    long lval;
+    size_t lval;
     int ival;
 
     read_int(ti, &ival); /* version unused */
@@ -597,7 +669,7 @@ static void receive_acct_update_time(tws_instance_t *ti)
 static void receive_err_msg(tws_instance_t *ti)
 {
     char *msg = alloc_string(ti);
-    long lval;
+    size_t lval;
     int ival, version, id = 0, error_code = 0;
 
     read_int(ti, &ival), version = ival;
@@ -621,7 +693,7 @@ static void receive_open_order(tws_instance_t *ti)
     tr_order_t order;
     tr_order_status_t ost;
     under_comp_t  und;
-    long lval;
+    size_t lval;
     int ival, version;
 
     init_contract(ti, &contract);
@@ -857,7 +929,7 @@ static void receive_next_valid_id(tws_instance_t *ti)
 static void receive_contract_data(tws_instance_t *ti)
 {
     tr_contract_details_t cdetails;
-    long lval;
+    size_t lval;
     int version, req_id = -1;
 
     init_contract_details(ti, &cdetails);
@@ -912,7 +984,7 @@ static void receive_contract_data(tws_instance_t *ti)
 static void receive_bond_contract_data(tws_instance_t *ti)
 {
     tr_contract_details_t cdetails;
-    long lval;
+    size_t lval;
     int ival, version, req_id = -1;
 
     init_contract_details(ti, &cdetails);
@@ -964,7 +1036,7 @@ static void receive_execution_data(tws_instance_t *ti)
 {
     tr_contract_t contract;
     tr_execution_t exec;
-    long lval;
+    size_t lval;
     int ival, version, orderid, reqid = -1;
 
     init_contract(ti, &contract);
@@ -1041,7 +1113,7 @@ static void receive_market_depth_l2(tws_instance_t *ti)
 {
     double price;
     char *mkt_maker = alloc_string(ti);
-    long lval;
+    size_t lval;
     int ival, id, position, operation, side, size;
 
     read_int(ti, &ival); /*version*/
@@ -1054,9 +1126,10 @@ static void receive_market_depth_l2(tws_instance_t *ti)
     read_double(ti, &price);
     read_int(ti, &ival), size = ival;
 
-    if(ti->connected)
+    if(ti->connected) {
         event_update_mkt_depth_l2(ti->opaque, id, position, mkt_maker,
                                   operation, side, price, size);
+    }
 
     free_string(ti, mkt_maker);
 }
@@ -1064,27 +1137,32 @@ static void receive_market_depth_l2(tws_instance_t *ti)
 static void receive_news_bulletins(tws_instance_t *ti)
 {
     char *msg, originating_exch[60];
-    long lval;
+    size_t msg_size;
+    size_t lval;
     int ival, newsmsgid, newsmsgtype;
 
     read_int(ti, &ival); /*version*/
     read_int(ti, &ival), newsmsgid = ival;
     read_int(ti, &ival), newsmsgtype = ival;
 
-    lval = sizeof ti->mempool;
-    msg = (char *) &ti->mempool[0];
+    msg = alloc_string(ti);
+    msg_size = get_stringspace_length(ti, msg);
+    read_line(ti, msg, &msg_size); /* news message */
+    mark_stringspace_alloced(ti, msg, msg_size);
 
-    read_line(ti, msg, &lval); /* news message */
     lval = sizeof originating_exch, read_line(ti, originating_exch, &lval);
 
-    if(ti->connected)
+    if(ti->connected) {
         event_update_news_bulletin(ti->opaque, newsmsgid, newsmsgtype,
                                    msg, originating_exch);
+    }
+
+    mark_stringspace_freed(ti, msg, msg_size);
 }
 
 static void receive_managed_accts(tws_instance_t *ti)
 {
-    long lval;
+    size_t lval;
     char *acct_list = alloc_string(ti);
     int ival;
 
@@ -1099,28 +1177,38 @@ static void receive_managed_accts(tws_instance_t *ti)
 
 static void receive_fa(tws_instance_t *ti)
 {
-    long lval = sizeof ti->mempool;
-    char *xml = (char *) &ti->mempool[0];
+    size_t xml_size;
+    char *xml;
     int ival, fadata_type;
 
     read_int(ti, &ival); /*version*/
     read_int(ti, &ival), fadata_type = ival;
-    read_line(ti, xml, &lval); /* xml */
-    if(ti->connected)
+
+    xml = alloc_string(ti);
+    xml_size = get_stringspace_length(ti, xml);
+    read_line(ti, xml, &xml_size); /* xml */
+    mark_stringspace_alloced(ti, xml, xml_size);
+
+    if(ti->connected) {
         event_receive_fa(ti->opaque, fadata_type, xml);
+    }
+    mark_stringspace_freed(ti, xml, xml_size);
 }
 
 static void receive_historical_data(void *tws)
 {
     double open, high, low, close, wap;
     tws_instance_t *ti = (tws_instance_t *) tws;
-    long j, lval, index;
+    int j;
+    size_t lval;
+    size_t index;
     int ival, version, reqid, item_count, volume, gaps, bar_count;
     char date[60], has_gaps[10], completion[60];
 
     read_int(ti, &ival), version = ival;
     read_int(ti, &ival), reqid = ival;
-    memcpy(completion, "finished-", index = sizeof "finished-" -1);
+    index = sizeof "finished-" - 1;
+    memcpy(completion, "finished-", index);
 
     if(version >=2) {
         lval = sizeof completion -1 - index;
@@ -1164,14 +1252,22 @@ static void receive_historical_data(void *tws)
 static void receive_scanner_parameters(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
-    long lval = sizeof ti->mempool;
-    char *xml = (char *) &ti->mempool[0];
+    size_t xml_size;
+    char *xml;
     int ival;
 
     read_int(ti, &ival); /*version*/
-    read_line(ti, xml, &lval);
-    if(ti->connected)
+
+    xml = alloc_string(ti);
+    xml_size = get_stringspace_length(ti, xml);
+    read_line(ti, xml, &xml_size);
+    mark_stringspace_alloced(ti, xml, xml_size);
+
+    if(ti->connected) {
         event_scanner_parameters(ti->opaque, xml);
+    }
+
+    mark_stringspace_freed(ti, xml, xml_size);
 }
 
 static void receive_scanner_data(void *tws)
@@ -1179,7 +1275,8 @@ static void receive_scanner_data(void *tws)
     tr_contract_details_t cdetails;
     tws_instance_t *ti = (tws_instance_t *) tws;
     char *distance = alloc_string(ti), *benchmark = alloc_string(ti), *projection = alloc_string(ti), *legs_str;
-    long lval, j;
+    size_t lval;
+    int j;
     int ival, version, rank, ticker_id, num_elements;
 
     init_contract_details(ti, &cdetails);
@@ -1270,15 +1367,22 @@ static void receive_fundamental_data(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
     int ival, req_id;
-    long lval = sizeof ti->mempool;
-    char *data = (char *) &ti->mempool[0];
+    size_t data_size;
+    char *data;
 
     read_int(ti, &ival); /* version ignored */
     read_int(ti, &ival), req_id = ival;
-    read_line(ti, data, &lval);
 
-    if(ti->connected)
+    data = alloc_string(ti);
+    data_size = get_stringspace_length(ti, data);
+    read_line(ti, data, &data_size);
+    mark_stringspace_alloced(ti, data, data_size);
+
+    if(ti->connected) {
         event_fundamental_data(ti->opaque, req_id, data);
+    }
+
+    mark_stringspace_freed(ti, data, data_size);
 }
 
 static void receive_contract_data_end(void *tws)
@@ -1307,7 +1411,7 @@ static void receive_acct_download_end(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
     char acct_name[200];
-    long lval = sizeof acct_name;
+    size_t lval = sizeof acct_name;
     int ival;
 
     read_int(ti, &ival); /* version ignored */
@@ -1568,9 +1672,9 @@ out: return nread;
 }
 
 /* return -1 on error, 0 if successful, updates *len on success */
-static int read_line(tws_instance_t *ti, char *line, long *len)
+static int read_line(tws_instance_t *ti, char *line, size_t *len)
 {
-    long j;
+    size_t j;
     int nread = -1, err = -1;
 
     line[0] = '\0';
@@ -1617,7 +1721,7 @@ out:
 static int read_double(tws_instance_t *ti, double *val)
 {
     char line[5* sizeof *val];
-    long len = sizeof line;
+    size_t len = sizeof line;
     int err = read_line(ti, line, &len);
 
     *val = err < 0 ? *dNAN : atof(line);
@@ -1627,7 +1731,7 @@ static int read_double(tws_instance_t *ti, double *val)
 static int read_double_max(tws_instance_t *ti, double *val)
 {
     char line[5* sizeof *val];
-    long len = sizeof line;
+    size_t len = sizeof line;
     int err = read_line(ti, line, &len);
 
     if(err < 0)
@@ -1642,7 +1746,7 @@ static int read_double_max(tws_instance_t *ti, double *val)
 static int read_int(tws_instance_t *ti, int *val)
 {
     char line[3* sizeof *val];
-    long len = sizeof line;
+    size_t len = sizeof line;
     int err = read_line(ti, line, &len);
 
     /* return an impossibly large negative number on error to fail careless callers*/
@@ -1653,7 +1757,7 @@ static int read_int(tws_instance_t *ti, int *val)
 static int read_int_max(tws_instance_t *ti, int *val)
 {
     char line[3* sizeof *val];
-    long len = sizeof line;
+    size_t len = sizeof line;
     int err = read_line(ti, line, &len);
 
     if(err < 0)
@@ -1668,7 +1772,7 @@ static int read_int_max(tws_instance_t *ti, int *val)
 static int read_long(tws_instance_t *ti, long *val)
 {
     char line[3* sizeof *val];
-    long len = sizeof line;
+    size_t len = sizeof line;
     int err = read_line(ti, line, &len);
 
     /* return an impossibly large negative number on error to fail careless callers*/
