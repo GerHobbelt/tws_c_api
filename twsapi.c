@@ -419,12 +419,12 @@ static void receive_tick_size(tws_instance_t *ti)
 static void receive_tick_option_computation(tws_instance_t *ti)
 {
     double implied_vol, delta;
-    double opt_price;
-    double pv_dividend;
-    double gamma;
-    double vega;
-    double theta;
-    double und_price;
+    double opt_price = DBL_MAX;
+    double pv_dividend = DBL_MAX;
+    double gamma = DBL_MAX;
+    double vega = DBL_MAX;
+    double theta = DBL_MAX;
+    double und_price = DBL_MAX;
     int ival, ticker_id, tick_type;
     int version;
 
