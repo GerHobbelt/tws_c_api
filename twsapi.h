@@ -698,7 +698,7 @@ extern "C" {
 
     const char *fa_msg_name[] = { "GROUPS", "PROFILES", "ALIASES" };
     static const unsigned int d_nan[2] = {~0U, ~(1U<<31)};
-    const const double *dNAN = (const double *)(const void *) d_nan;
+    const double *dNAN = (const double *)(const void *) d_nan;
 #else
     extern struct twsclient_errmsg twsclient_err_indication[];
     extern const char *tws_incoming_msg_names[];
