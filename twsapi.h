@@ -268,8 +268,8 @@ extern "C" {
         HIGH_52_WEEK = 20,
         AVG_VOLUME   = 21,
         OPEN_INTEREST = 22,
-        OPTION_HISTORICAL_VOL = 23,
-        OPTION_IMPLIED_VOL = 24,
+        OPTION_HISTORICAL_VOL = 23, // volatility
+        OPTION_IMPLIED_VOL = 24,    // volatility
         OPTION_BID_EXCH = 25,
         OPTION_ASK_EXCH = 26,
         OPTION_CALL_OPEN_INTEREST = 27,
@@ -634,7 +634,10 @@ extern "C" {
         "msg40", "msg41", "msg42", "msg43", "msg44",
         /* end of place holders */
         "tick_generic", "tick_string", "tick_efp", "msg48",
-        "current_time", "realtime_bars"
+        "current_time", "realtime_bars",
+        "fundamental_data", 
+        "contract_data_end", "open_order_end", "acct_download_end", "execution_data_end",
+        "delta_neutral_validation", "tick_snapshot_end"
     };
 
     /* map tr_tick_type_t to 'descriptive' string */
