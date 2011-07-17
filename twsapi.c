@@ -1388,11 +1388,15 @@ static void receive_tick_snapshot_end(void *tws)
 int tws_event_process(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
-    int msgid, valid = 1;
+    int ival;
+    int valid = 1;
+    enum tws_incoming_ids msgcode;
 
-    read_int(ti, &msgid);
+    read_int(ti, &ival);
+    msgcode = (enum tws_incoming_ids)ival;
 
-    switch(msgid) {
+    switch(msgcode) 
+    {
         case TICK_PRICE: receive_tick_price(ti); break;
         case TICK_SIZE: receive_tick_size(ti); break;
         case TICK_OPTION_COMPUTATION: receive_tick_option_computation(ti); break;
@@ -1430,8 +1434,8 @@ int tws_event_process(void *tws)
     }
 
 #ifdef TWS_DEBUG
-    printf("\nreceived id=%d, name=%s\n", msgid,
-           valid ? tws_incoming_msg_names[msgid-1] : "invalid id");
+    printf("\nreceived id=%d, name=%s\n", (int)msgcode,
+           valid ? tws_incoming_msg_names[msgcode - 1] : "invalid id");
 #endif
     return valid ? 0 : -1;
 }
