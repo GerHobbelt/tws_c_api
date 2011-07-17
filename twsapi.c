@@ -85,6 +85,10 @@ static char *alloc_string(tws_instance_t *ti)
 #ifdef TWS_DEBUG
     printf("alloc_string: ran out of strings, will crash shortly\n");
 #endif
+
+    // close the connection when we run out of pool memory to prevent the currently processed message from making it through to the handler
+    tws_disconnect(ti);
+
     return 0;
 }
 
