@@ -539,7 +539,7 @@ extern "C" {
 /* ERROR codes */
     enum twsclient_error_codes {
         NO_VALID_ID = -1,
-        NO_ERROR, /* thanks to Gino for pointing out that 0 is special */
+        NO_TWS_ERROR, /* thanks to Gino for pointing out that 0 is special */
         ALREADY_CONNECTED,
         CONNECT_FAIL,
         UPDATE_TWS,
