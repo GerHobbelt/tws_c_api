@@ -302,7 +302,8 @@ extern "C" {
         TRADE_COUNT = 54,
         TRADE_RATE = 55,
         VOLUME_RATE = 56,
-        LAST_RTH_TRADE = 57
+        LAST_RTH_TRADE = 57,
+        RT_HISTORICAL_VOL = 58    // realtime historical volatility -- according to the IB API docs at http://www.interactivebrokers.com/php/apiUsersGuide/apiguide/tables/generic_tick_types.htm
     } tr_tick_type_t;
 
 
@@ -699,7 +700,8 @@ extern "C" {
         "trades",
         "trades/min",
         "volume/min",
-        "lastRTHTrade"
+        "lastRTHTrade",
+        "RTHistoricalVolatility"
     };
 
     const char *fa_msg_name[] = { "GROUPS", "PROFILES", "ALIASES" };
