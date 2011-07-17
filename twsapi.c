@@ -59,6 +59,7 @@ static int read_long(tws_instance_t *ti, long *val);
 static int read_int(tws_instance_t *ti, int *val);
 static int read_int_max(tws_instance_t *ti, int *val);
 static int read_line(tws_instance_t *ti, char *line, size_t *len);
+static int read_line_of_arbitrary_length(tws_instance_t *ti, char **val);
 
 /* access to these strings is single threaded
  * replace plain bitops with atomic test_and_set_bit/clear_bit + memory barriers
@@ -100,70 +101,6 @@ static void free_string(tws_instance_t *ti, void *ptr)
 
     ti->bitmask[index] &= ~bits;
 }
-
-/*
-Make sure to mark the used string space as allocated; given the way the mempool is used,
-we can alloc a single string to find the start of the free space in the mempool, when
-the loaded string data spans multiple string buffers, we must mark all of them as allocated
-to prevent alloc requests inside event handlers to fail.
-*/
-static void mark_stringspace_alloced(tws_instance_t *ti, void *start_ptr, size_t str_len)
-{
-    unsigned int j = (unsigned int) ((tws_string_t *) start_ptr - &ti->mempool[0]);
-    unsigned int cnt = (unsigned int)((str_len + sizeof(ti->mempool[0]) - 1) / sizeof(ti->mempool[0]));
-    unsigned int index;
-    unsigned long bits;
-
-    cnt += j;
-    for( ; cnt > 0 && j < MAX_TWS_STRINGS; j++, cnt--) {
-        index = j / WORD_SIZE_IN_BITS;
-
-        bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
-        ti->bitmask[index] |= bits;
-    }
-    if (cnt > 0) {
-#ifdef TWS_DEBUG
-        printf("mark_stringspace_alloced: ran out of strings, will crash shortly\n");
-#endif
-    }
-}
-
-static void mark_stringspace_freed(tws_instance_t *ti, void *start_ptr, size_t str_len)
-{
-    unsigned long j = (unsigned long) ((tws_string_t *) start_ptr - &ti->mempool[0]);
-    unsigned int cnt = (unsigned int)((str_len + sizeof(ti->mempool[0]) - 1) / sizeof(ti->mempool[0]));
-    unsigned int index;
-    unsigned long bits;
-
-    cnt += j;
-    for( ; cnt > 0 && j < MAX_TWS_STRINGS; j++, cnt--) {
-        index = j / WORD_SIZE_IN_BITS;
-
-        bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
-        ti->bitmask[index] &= ~bits;
-    }
-}
-
-static size_t get_stringspace_length(tws_instance_t *ti, void *start_ptr)
-{
-    unsigned int j = (unsigned int) ((tws_string_t *) start_ptr - &ti->mempool[0]);
-    unsigned int index;
-    unsigned long bits;
-    size_t cnt = 1;
-
-    /* skip the allocated string itself: see how much is still available beyond this space: */
-    for(++j; j < MAX_TWS_STRINGS; j++, cnt++) {
-        index = j / WORD_SIZE_IN_BITS;
-
-        bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
-        if(ti->bitmask[index] & bits) {
-            break;
-        }
-    }
-
-    return cnt * sizeof(ti->mempool[0]);
-}
-
 
 static void init_contract(tws_instance_t *ti, tr_contract_t *c)
 {
@@ -489,24 +426,20 @@ static void receive_tick_generic(tws_instance_t *ti)
 
 static void receive_tick_string(tws_instance_t *ti)
 {
-    size_t ticker_value_size;
-    char *value;
+    char *ticker_value;
     int ival, ticker_id, tick_type;
 
     read_int(ti, &ival /*version */); /* ignored */
     read_int(ti, &ival), ticker_id = ival;
     read_int(ti, &ival), tick_type = ival;
 
-    value = alloc_string(ti);
-    ticker_value_size = get_stringspace_length(ti, value);
-    read_line(ti, value, &ticker_value_size);
-    mark_stringspace_alloced(ti, value, ticker_value_size);
+    read_line_of_arbitrary_length(ti, &ticker_value);
 
     if(ti->connected) {
-        event_tick_string(ti->opaque, ticker_id, tick_type, value);
+        event_tick_string(ti->opaque, ticker_id, tick_type, ticker_value);
     }
 
-    mark_stringspace_freed(ti, value, ticker_value_size);
+    free(ticker_value);
 }
 
 static void receive_tick_efp(tws_instance_t *ti)
@@ -1139,7 +1072,6 @@ static void receive_market_depth_l2(tws_instance_t *ti)
 static void receive_news_bulletins(tws_instance_t *ti)
 {
     char *msg, originating_exch[60];
-    size_t msg_size;
     size_t lval;
     int ival, newsmsgid, newsmsgtype;
 
@@ -1147,10 +1079,7 @@ static void receive_news_bulletins(tws_instance_t *ti)
     read_int(ti, &ival), newsmsgid = ival;
     read_int(ti, &ival), newsmsgtype = ival;
 
-    msg = alloc_string(ti);
-    msg_size = get_stringspace_length(ti, msg);
-    read_line(ti, msg, &msg_size); /* news message */
-    mark_stringspace_alloced(ti, msg, msg_size);
+    read_line_of_arbitrary_length(ti, &msg); /* news message */
 
     lval = sizeof originating_exch, read_line(ti, originating_exch, &lval);
 
@@ -1159,7 +1088,7 @@ static void receive_news_bulletins(tws_instance_t *ti)
                                    msg, originating_exch);
     }
 
-    mark_stringspace_freed(ti, msg, msg_size);
+    free(msg);
 }
 
 static void receive_managed_accts(tws_instance_t *ti)
@@ -1179,22 +1108,19 @@ static void receive_managed_accts(tws_instance_t *ti)
 
 static void receive_fa(tws_instance_t *ti)
 {
-    size_t xml_size;
     char *xml;
     int ival, fadata_type;
 
     read_int(ti, &ival); /*version*/
     read_int(ti, &ival), fadata_type = ival;
 
-    xml = alloc_string(ti);
-    xml_size = get_stringspace_length(ti, xml);
-    read_line(ti, xml, &xml_size); /* xml */
-    mark_stringspace_alloced(ti, xml, xml_size);
+    read_line_of_arbitrary_length(ti, &xml); /* xml */
 
     if(ti->connected) {
         event_receive_fa(ti->opaque, fadata_type, xml);
     }
-    mark_stringspace_freed(ti, xml, xml_size);
+
+    free(xml);
 }
 
 static void receive_historical_data(void *tws)
@@ -1254,22 +1180,18 @@ static void receive_historical_data(void *tws)
 static void receive_scanner_parameters(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
-    size_t xml_size;
     char *xml;
     int ival;
 
     read_int(ti, &ival); /*version*/
 
-    xml = alloc_string(ti);
-    xml_size = get_stringspace_length(ti, xml);
-    read_line(ti, xml, &xml_size);
-    mark_stringspace_alloced(ti, xml, xml_size);
+    read_line_of_arbitrary_length(ti, &xml);
 
     if(ti->connected) {
         event_scanner_parameters(ti->opaque, xml);
     }
 
-    mark_stringspace_freed(ti, xml, xml_size);
+    free(xml);
 }
 
 static void receive_scanner_data(void *tws)
@@ -1369,22 +1291,18 @@ static void receive_fundamental_data(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
     int ival, req_id;
-    size_t data_size;
     char *data;
 
     read_int(ti, &ival); /* version ignored */
     read_int(ti, &ival), req_id = ival;
 
-    data = alloc_string(ti);
-    data_size = get_stringspace_length(ti, data);
-    read_line(ti, data, &data_size);
-    mark_stringspace_alloced(ti, data, data_size);
+    read_line_of_arbitrary_length(ti, &data);
 
     if(ti->connected) {
         event_fundamental_data(ti->opaque, req_id, data);
     }
 
-    mark_stringspace_freed(ti, data, data_size);
+    free(data);
 }
 
 static void receive_contract_data_end(void *tws)
@@ -1713,6 +1631,79 @@ out:
     return err;
 }
 
+/*
+When fetching a parameter string value of arbitrary length, we return a pointer to
+space allocated on the heap (we do NOT use the string memory pool as that one is 
+size limited and too small for several messages.
+
+We don't want to take a risk like that any more, so we fix this by allowing arbitrary
+string length for this parameter type only.
+*/
+static int read_line_of_arbitrary_length(tws_instance_t *ti, char **val)
+{
+    size_t j;
+    // guestimate reasonable initial buffer size: we expect large inputs so we start pretty big:
+    size_t alloc_size = 65536;
+    char *line;
+    int nread = -1, err = -1;
+
+    *val = NULL;
+
+    line = malloc(alloc_size);
+    if (line == NULL) {
+#ifdef TWS_DEBUG
+        printf("read_line_of_arbitrary_length: going out 0, heap alloc failure\n");
+#endif
+        goto out;
+    }
+
+    line[0] = '\0';
+    for(j = 0; ; j++) {
+        if (j + 1 >= alloc_size) {
+            alloc_size += 65536;
+            line = realloc(line, alloc_size);
+            if (line == NULL) {
+#ifdef TWS_DEBUG
+                printf("read_line_of_arbitrary_length: going out 1, heap alloc failure\n");
+#endif
+                goto out;
+            }
+        }
+        nread = read_char(ti);
+        if(nread < 0) {
+#ifdef TWS_DEBUG
+            printf("read_line: going out 1, nread=%d\n", nread);
+#endif
+            goto out;
+        }
+        line[j] = (char) nread;
+        if(line[j] == '\0')
+            break;
+    }
+
+#ifdef TWS_DEBUG
+    printf("read_line: i read %s\n", line);
+#endif
+    *val = line;
+    err = 0;
+out:
+    if(err < 0) {
+        if(nread <= 0) {
+            tws_disconnect(ti);
+        } else {
+#ifdef TWS_DEBUG
+            printf("read_line: corruption happened (string longer than max)\n");
+#endif
+            // also close the connection in buffer overflow conditions; the next element fetch will be corrupt anyway and this way we prevent nasty surprises downrange.
+            tws_disconnect(ti);
+        }
+        // and free the allocated buffer when an error occurred: it is NOT passed back to the caller
+        free(line);
+        //assert(*val == NULL);
+    }
+
+    return err;
+}
 
 static int read_double(tws_instance_t *ti, double *val)
 {
