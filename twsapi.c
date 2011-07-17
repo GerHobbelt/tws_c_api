@@ -2995,3 +2995,16 @@ const char *tws_connection_time(void *tws)
     tws_instance_t *ti = (tws_instance_t *) tws;
     return ti->connected ? ti->connect_time : 0;
 }
+
+const struct twsclient_errmsg *tws_strerror(int errcode)
+{
+    static const struct twsclient_errmsg unknown_err = {
+        500, "Unknown TWS failure code." 
+    };
+
+    if (errcode >= 0 && errcode < sizeof(twsclient_err_indication) / sizeof(twsclient_err_indication[0]))
+    {
+         return &twsclient_err_indication[errcode];
+    }
+    return &unknown_err;
+}

@@ -713,6 +713,9 @@ extern "C" {
     extern const double *dNAN;
 #endif /* TWSAPI_GLOBALS */
 
+    const struct twsclient_errmsg *tws_strerror(int errcode);
+
+
 #define fa_msg_type_name(x) (((x) >= GROUPS && (x) <= ALIASES) ? fa_msg_name[x] : 0)
 #define tick_type_name(x) (((x) >= BID_SIZE && (x) < sizeof(tws_tick_type_names) / sizeof(tws_tick_type_names[0])) ? tws_tick_type_names[x] : 0)
 
