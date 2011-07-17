@@ -2,18 +2,13 @@
 #include "twsapi.h"
 
 #if defined(WINDOWS) || defined(_WIN32)
-#include <winsock2.h>
-#include <WS2tcpip.h>
 #include <string.h>
 #include <limits.h>
-typedef SOCKET socket_t;
-#define close closesocket
 #if defined(_MSC_VER)
 #define strcasecmp(x,y) _stricmp(x,y)
 #define strncasecmp(x,y,z) _strnicmp(x,y,z)
 #endif
 #else /* unix assumed */
-typedef int socket_t;
 #endif
 
 #ifdef unix
@@ -21,8 +16,6 @@ typedef int socket_t;
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #endif
 
 #include <float.h>
@@ -44,14 +37,18 @@ typedef struct {
 
 typedef struct tws_instance {
     void *opaque;
-    start_thread_t start_thread;
-    external_func_t extfunc;
-    socket_t fd;
+    tws_transmit_func_t *transmit;
+    tws_receive_func_t *receive;
+    tws_flush_func_t *flush;
+    tws_close_func_t *close;
+
     char connect_time[60]; /* server reported time */
+    unsigned char tx_buf[512]; /* buffer up to 512 chars at a time for transmission */
+    unsigned int tx_buf_next; /* index of next empty char slot in tx_buf */
     unsigned char buf[240]; /* buffer up to 240 chars at a time */
     unsigned int buf_next, buf_last; /* index of next, last chars in buf */
     unsigned int server_version;
-    volatile unsigned int connected, started;
+    volatile unsigned int connected;
     tws_string_t mempool[MAX_TWS_STRINGS];
     unsigned long bitmask[WORDS_NEEDED(MAX_TWS_STRINGS, WORD_SIZE_IN_BITS)];
 } tws_instance_t;
@@ -84,6 +81,7 @@ static char *alloc_string(tws_instance_t *ti)
             return ti->mempool[j].str;
         }
     }
+
 #ifdef TWS_DEBUG
     printf("alloc_string: ran out of strings, will crash shortly\n");
 #endif
@@ -1516,32 +1514,16 @@ int tws_event_process(void *tws)
     return valid ? 0 : -1;
 }
 
-static void event_loop(void *tws)
-{
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
-    ti->started = 1;
-    (*ti->extfunc)(0); /* indicate "startup" to callee */
-
-    do {
-        tws_event_process(ti);
-    } while(ti->connected);
-
-    (*ti->extfunc)(1); /* indicate termination to callee */
-#ifdef TWS_DEBUG
-    printf("reader thread exiting\n");
-#endif
-}
-
 /* caller supplies start_thread method */
-void *tws_create(start_thread_t start_thread, void *opaque, external_func_t myfunc)
+void *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_close_func_t *close)
 {
     tws_instance_t *ti = (tws_instance_t *) calloc(1, sizeof *ti);
     if(ti) {
-        ti->fd = (socket_t) ~0;
-        ti->start_thread = start_thread;
         ti->opaque = opaque;
-        ti->extfunc = myfunc;
+        ti->transmit = transmit;
+        ti->receive = receive;
+        ti->flush = flush;
+        ti->close = close;
     }
 
     return ti;
@@ -1549,27 +1531,60 @@ void *tws_create(start_thread_t start_thread, void *opaque, external_func_t myfu
 
 void tws_destroy(void *tws_instance)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws_instance;
+    free(tws_instance);
+}
 
-    if(ti->fd != (socket_t) ~0) close(ti->fd);
+/* perform output buffering */
+static int send_blob(tws_instance_t *ti, const char *src, size_t srclen)
+{
+    size_t len = sizeof(ti->tx_buf) - ti->tx_buf_next;
+    int err = 0;
 
-    /* this is a naive and primitive implementation in order not to
-     * utilize more sophisticated native synchronization functions
-     */
-
-    while(ti->connected) {
-#ifdef TWS_DEBUG
-        printf("tws_destroy: waiting for event loop to end\n");
-#endif
-
-#ifdef unix
-        sleep(1);
-#else /* windows */
-        Sleep(1000);
-#endif
+    while (len < srclen) {
+        err = (ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
+        if(err) {
+            tws_disconnect(ti);
+            return err;
+        }
+        len = sizeof(ti->tx_buf);
+        if (len > srclen) {
+            len = srclen;
+        }
+        memcpy(ti->tx_buf, src, len);
+        srclen -= len;
+        src += len;
+        ti->tx_buf_next = len;
     }
 
-    free(tws_instance);
+    if (srclen > 0)
+    {
+        memcpy(ti->tx_buf + ti->tx_buf_next, src, srclen);
+        ti->tx_buf_next += srclen;
+    }
+
+    return err;
+}
+
+static int flush_message(tws_instance_t *ti)
+{
+    int err = 0;
+
+    if (ti->tx_buf_next > 0) {
+        err = (ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
+        if(err) {
+            tws_disconnect(ti);
+            goto out;
+        }
+    }
+    /* now that all lingering message data has been transmitted, signal end of message by requesting a TX/flush: */
+    err = ti->flush(ti->opaque);
+    if(err) {
+        tws_disconnect(ti);
+        goto out;
+    }
+    ti->tx_buf_next = 0;
+out:
+    return err;
 }
 
 /* return 1 on error, 0 if successful, it's all right to block
@@ -1577,33 +1592,23 @@ void tws_destroy(void *tws_instance)
  */
 static int send_str(tws_instance_t *ti, const char str[])
 {
-    long len = (long) strlen(str) + 1;
-    int err = len != send(ti->fd, str, len, 0);
+    int len = (int)strlen(str) + 1;
+    int err = send_blob(ti, str, len);
 
-    if(err) {
-        close(ti->fd);
-        ti->connected = 0;
-    }
     return err;
 }
 
 static int send_double(tws_instance_t *ti, double val)
 {
     char buf[10*sizeof val];
-    long len;
+    int len;
     int err = 1;
 
     len = sprintf(buf, "%.7lf", val);
     if(len++ < 0)
         goto out;
 
-    if(len != send(ti->fd, buf, len, 0)) {
-        close(ti->fd);
-        ti->connected = 0;
-        goto out;
-    }
-
-    err = 0;
+    err = send_blob(ti, buf, len);
 out:
     return err;
 }
@@ -1612,19 +1617,14 @@ out:
 static int send_int(tws_instance_t *ti, int val)
 {
     char buf[5*(sizeof val)/2 + 2];
-    long len;
+    int len;
     int err = 1;
 
     len = sprintf(buf, "%d", val);
     if(len++ < 0)
         goto out;
 
-    if(len != send(ti->fd, buf, len, 0)) {
-        close(ti->fd);
-        ti->connected = 0;
-        goto out;
-    }
-    err = 0;
+    err = send_blob(ti, buf, len);
 out:
     return err;
 }
@@ -1639,17 +1639,6 @@ static int send_double_max(tws_instance_t *ti, double val)
     return DBL_NOTMAX(val) ? send_double(ti, val) : send_str(ti, "");
 }
 
-static int receive(int fd, void *buf, size_t buflen)
-{
-    int r;
-#ifdef unix
-    r = read(fd, buf, buflen); /* workaround for recv not being cancellable on FreeBSD*/
-#else
-    r = recv(fd, (char *) buf, buflen, 0);
-#endif
-    return r;
-}
-
 /* returns 1 char at a time, kernel not entered most of the time
  * return -1 on error or EOF
  */
@@ -1658,7 +1647,7 @@ static int read_char(tws_instance_t *ti)
     int nread;
 
     if(ti->buf_next == ti->buf_last) {
-        nread = receive(ti->fd, ti->buf, sizeof ti->buf);
+        nread = ti->receive(ti->opaque, ti->buf, (unsigned int)sizeof ti->buf);
         if(nread <= 0) {
             nread = -1;
             goto out;
@@ -1668,7 +1657,8 @@ static int read_char(tws_instance_t *ti)
     }
 
     nread = ti->buf[ti->buf_next++];
-out: return nread;
+out:
+    return nread;
 }
 
 /* return -1 on error, 0 if successful, updates *len on success */
@@ -1706,17 +1696,19 @@ static int read_line(tws_instance_t *ti, char *line, size_t *len)
 out:
     if(err < 0) {
         if(nread <= 0) {
-            close(ti->fd);
-            ti->connected = 0;
+            tws_disconnect(ti);
         } else {
 #ifdef TWS_DEBUG
             printf("read_line: corruption happened (string longer than max)\n");
 #endif
+            // also close the connection in buffer overflow conditions; the next element fetch will be corrupt anyway and this way we prevent nasty surprises downrange.
+            tws_disconnect(ti);
         }
     }
 
     return err;
 }
+
 
 static int read_double(tws_instance_t *ti, double *val)
 {
@@ -1780,7 +1772,8 @@ static int read_long(tws_instance_t *ti, long *val)
     return err;
 }
 
-#ifdef WINDOWS
+#if 0
+#if defined(WINDOWS) || defined(_WIN32)
 /* returns 1 on error, 0 if successful */
 static int init_winsock()
 {
@@ -1790,64 +1783,29 @@ static int init_winsock()
     return !!WSAStartup(wVersionRequested, &wsaData );
 }
 #endif
+#endif
 
-
-int tws_connect(void *tws, const char host[], unsigned short port, int clientid, resolve_name_t resolve_func)
+int tws_connect(void *tws, int client_id)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
-    const char *hostname;
-    unsigned char peer[16];
-    struct {
-        struct sockaddr_in  addr;
-        struct sockaddr_in6 addr6;
-    } u;
-    long lval, peer_len = sizeof peer;
+    size_t lval;
     int val, err;
 
     if(ti->connected) {
         err = ALREADY_CONNECTED; goto out;
     }
 
-#ifdef WINDOWS
-    if(init_winsock())
-        goto connect_fail;
-#endif
+    /* WARNING: reset the output buffer to NIL fill when we send a connect message: this flushes any data lingering from a previously failed transmit on a previous connect */
+    ti->tx_buf_next = 0;
 
-    hostname = host ? host : "127.0.0.1";
-    if((*resolve_func)(hostname, peer, &peer_len) < 0)
-        goto connect_fail;
-
-    ti->fd = socket(4 == peer_len ? PF_INET : PF_INET6, SOCK_STREAM, IPPROTO_IP);
-#ifdef WINDOWS
-    err = ti->fd == INVALID_SOCKET;
-#else
-    err = ti->fd < 0;
-#endif
-    if(err) {
-    connect_fail:
+    if(send_int(ti, TWSCLIENT_VERSION)) {
         err = CONNECT_FAIL; goto out;
     }
+    flush_message(ti);
 
-    memset(&u, 0, sizeof u);
-    if(4 == peer_len) {
-        u.addr.sin_family = PF_INET;
-        u.addr.sin_port = htons(port);
-        memcpy((void *) &u.addr.sin_addr, peer, peer_len);
-    } else { /* must be 16 */
-        u.addr6.sin6_family = PF_INET6;
-        u.addr6.sin6_port = htons(port);
-        memcpy((void *) &u.addr6.sin6_addr, peer, peer_len);
+    if(read_int(ti, &val)) {
+        err = CONNECT_FAIL; goto out;
     }
-
-
-    if(connect(ti->fd, (struct sockaddr *) &u, 4 == peer_len ? sizeof u.addr : sizeof u.addr6) < 0)
-        goto connect_fail;
-
-    if(send_int(ti, TWSCLIENT_VERSION))
-        goto connect_fail;
-
-    if(read_int(ti, &val))
-        goto connect_fail;
 
     if(val < 1) {
         err = NO_VALID_ID; goto out;
@@ -1856,24 +1814,24 @@ int tws_connect(void *tws, const char host[], unsigned short port, int clientid,
     ti->server_version = val;
     if(ti->server_version >= 20) {
         lval = sizeof ti->connect_time;
-        if(read_line(ti, ti->connect_time, &lval) < 0)
-            goto connect_fail;
+        if(read_line(ti, ti->connect_time, &lval) < 0) {
+            err = CONNECT_FAIL; goto out;
+        }
     }
 
-    if(ti->server_version >= 3)
-        if(send_int(ti, clientid))
-            goto connect_fail;
+    if(ti->server_version >= 3) {
+        if(send_int(ti, client_id)) {
+            err = CONNECT_FAIL; goto out;
+        }
+        flush_message(ti);
+    }
 
     ti->connected = 1;
-    if(ti->start_thread)
-        if((*ti->start_thread)(event_loop, ti) < 0)
-            goto connect_fail;
-
     err = 0;
 out:
-    if(err)
+    if(err) {
         tws_destroy(ti);
-
+    }
     return err;
 }
 
@@ -1884,7 +1842,12 @@ int tws_connected(void *tws)
 
 void  tws_disconnect(void *tws)
 {
-    close(((tws_instance_t *) tws)->fd);
+    tws_instance_t *ti = (tws_instance_t *) tws;
+
+    if (ti->connected) {
+        ti->close(ti->opaque);
+    }
+    ti->connected = 0;
 }
 
 int tws_req_scanner_parameters(void *tws)
@@ -1895,6 +1858,9 @@ int tws_req_scanner_parameters(void *tws)
 
     send_int(ti, REQ_SCANNER_PARAMETERS);
     send_int(ti, 1 /*VERSION*/);
+
+    flush_message(ti);
+
     return ti->connected ? 0: FAIL_SEND_REQSCANNERPARAMETERS;
 }
 
@@ -1934,6 +1900,8 @@ int tws_req_scanner_subscription(void *tws, int ticker_id, tr_scanner_subscripti
     if(ti->server_version >= 27)
         send_str(ti, s->scan_stock_type_filter);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_REQSCANNER;
 }
 
@@ -1946,6 +1914,9 @@ int tws_cancel_scanner_subscription(void *tws, int ticker_id)
     send_int(ti, CANCEL_SCANNER_SUBSCRIPTION);
     send_int(ti, 1 /*VERSION*/);
     send_int(ti, ticker_id);
+
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_CANSCANNER;
 }
 
@@ -2048,6 +2019,8 @@ int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract, const ch
     if(ti->server_version >= MIN_SERVER_VER_SNAPSHOT_MKT_DATA)
         send_int(ti, !!snapshot);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_REQMKT;
 }
 
@@ -2087,6 +2060,9 @@ int tws_req_historical_data(void *tws, int ticker_id, tr_contract_t *contract, c
         send_int(ti, format_date);
 
     send_combolegs(ti, contract, 0);
+
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_REQMKT;
 }
 
@@ -2099,6 +2075,9 @@ int tws_cancel_historical_data(void *tws, int ticker_id)
     send_int(ti, CANCEL_HISTORICAL_DATA);
     send_int(ti, 1 /*VERSION*/);
     send_int(ti, ticker_id);
+
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_CANSCANNER;
 }
 
@@ -2149,6 +2128,8 @@ int tws_req_contract_details(void *tws, int reqid, tr_contract_t *contract)
         send_str(ti, contract->c_secid);
     }
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_REQCONTRACT;
 }
 
@@ -2178,6 +2159,8 @@ int tws_req_mkt_depth(void *tws, int ticker_id, tr_contract_t *contract, int num
     if(ti->server_version >= 19)
         send_int(ti, num_rows);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_REQMKTDEPTH;
 }
 
@@ -2188,6 +2171,9 @@ int tws_cancel_mkt_data(void *tws, int ticker_id)
     send_int(ti, CANCEL_MKT_DATA);
     send_int(ti, 1 /*VERSION*/);
     send_int(ti, ticker_id);
+
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_CANMKT;
 }
 
@@ -2202,6 +2188,8 @@ int tws_cancel_mkt_depth(void *tws, int ticker_id)
     send_int(ti, CANCEL_MKT_DEPTH);
     send_int(ti, 1 /*VERSION*/);
     send_int(ti, ticker_id);
+
+    flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_CANMKTDEPTH;
 }
@@ -2229,6 +2217,8 @@ int tws_exercise_options(void *tws, int ticker_id, tr_contract_t *contract, int 
     send_int(ti, exercise_quantity);
     send_str(ti, account);
     send_int(ti, override);
+
+    flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_REQMKT;
 }
@@ -2545,6 +2535,8 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
     if(ti->server_version >= MIN_SERVER_VER_WHAT_IF_ORDERS)
         send_int(ti, order->o_whatif);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_ORDER;
 }
 
@@ -2559,6 +2551,8 @@ int tws_req_account_updates(void *tws, int subscribe, const char acct_code[])
     /* Send the account code. This will only be used for FA clients */
     if(ti->server_version >= 9)
         send_str(ti, acct_code);
+
+    flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_ACCT;
 }
@@ -2585,6 +2579,8 @@ int tws_req_executions(void *tws, int reqid, tr_exec_filter_t *filter)
         send_str(ti, filter->f_side);
     }
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_EXEC;
 }
 
@@ -2596,6 +2592,8 @@ int tws_cancel_order(void *tws, long order_id)
     send_int(ti, 1 /*VERSION*/);
     send_int(ti, (int) order_id);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_ORDER;
 }
 
@@ -2605,6 +2603,8 @@ int tws_req_open_orders(void *tws)
 
     send_int(ti, REQ_OPEN_ORDERS);
     send_int(ti, 1 /*VERSION*/);
+
+    flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_OORDER;
 }
@@ -2617,6 +2617,8 @@ int tws_req_ids(void *tws, int numids)
     send_int(ti, 1 /* VERSION */);
     send_int(ti, numids);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_CORDER;
 }
 
@@ -2628,6 +2630,8 @@ int tws_req_news_bulletins(void *tws, int allmsgs)
     send_int(ti, 1 /*VERSION*/);
     send_int(ti, allmsgs);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_CORDER;
 }
 
@@ -2637,6 +2641,8 @@ int tws_cancel_news_bulletins(void *tws)
 
     send_int(ti, CANCEL_NEWS_BULLETINS);
     send_int(ti, 1 /*VERSION*/);
+
+    flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_CORDER;
 }
@@ -2649,6 +2655,8 @@ int tws_set_server_log_level(void *tws, int level)
     send_int(ti, 1 /*VERSION*/);
     send_int(ti, level);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_SERVER_LOG_LEVEL;
 }
 
@@ -2660,15 +2668,20 @@ int tws_req_auto_open_orders(void *tws, int auto_bind)
     send_int(ti, 1 /*VERSION*/);
     send_int(ti, auto_bind);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_OORDER;
 }
 
 int tws_req_all_open_orders(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
+
     /* send req all open orders msg */
     send_int(ti, REQ_ALL_OPEN_ORDERS);
     send_int(ti, 1 /*VERSION*/);
+
+    flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_OORDER;
 }
@@ -2676,9 +2689,12 @@ int tws_req_all_open_orders(void *tws)
 int tws_req_managed_accts(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
+
     /* send req FA managed accounts msg */
     send_int(ti, REQ_MANAGED_ACCTS);
     send_int(ti, 1 /*VERSION*/);
+
+    flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_OORDER;
 }
@@ -2686,6 +2702,7 @@ int tws_req_managed_accts(void *tws)
 int tws_request_fa(void *tws, long fa_data_type)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
+
     /* This feature is only available for versions of TWS >= 13 */
     if(ti->server_version < 13)
         return UPDATE_TWS;
@@ -2693,6 +2710,8 @@ int tws_request_fa(void *tws, long fa_data_type)
     send_int(ti, REQ_FA);
     send_int(ti, 1 /*VERSION*/);
     send_int(ti, (int) fa_data_type);
+
+    flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_FA_REQUEST;
 }
@@ -2710,6 +2729,8 @@ int tws_replace_fa(void *tws, long fa_data_type, const char xml[])
     send_int(ti, (int) fa_data_type);
     send_str(ti, xml);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_FA_REPLACE;
 }
 
@@ -2723,6 +2744,8 @@ int tws_req_current_time(void *tws)
 
     send_int(ti, REQ_CURRENT_TIME);
     send_int(ti, 1 /*VERSION*/);
+
+    flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_REQCURRTIME;
 }
@@ -2749,8 +2772,9 @@ int tws_req_fundamental_data(void *tws, int reqid, tr_contract_t *contract, char
     send_str(ti, contract->c_local_symbol);
     send_str(ti, report_type);
 
-    return ti->connected ? 0 : FAIL_SEND_REQFUNDDATA;
+    flush_message(ti);
 
+    return ti->connected ? 0 : FAIL_SEND_REQFUNDDATA;
 }
 
 int tws_cancel_fundamental_data(void *tws, int reqid)
@@ -2767,6 +2791,8 @@ int tws_cancel_fundamental_data(void *tws, int reqid)
     send_int(ti, CANCEL_FUNDAMENTAL_DATA);
     send_int(ti, 1 /*version*/);
     send_int(ti, reqid);
+
+    flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_CANFUNDDATA;
 }
@@ -2804,6 +2830,8 @@ int tws_calculate_implied_volatility(void *tws, int reqid, tr_contract_t *contra
     send_double(ti, option_price);
     send_double(ti, under_price);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_REQCALCIMPLIEDVOLAT;
 }
 
@@ -2822,6 +2850,8 @@ int tws_cancel_calculate_implied_volatility(void *tws, int reqid)
     send_int(ti, CANCEL_CALC_IMPLIED_VOLAT);
     send_int(ti, 1 /*version*/);
     send_int(ti, reqid);
+
+    flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_CANCALCIMPLIEDVOLAT;
 }
@@ -2858,6 +2888,8 @@ int tws_calculate_option_price(void *tws, int reqid, tr_contract_t *contract, do
     send_double(ti, volatility);
     send_double(ti, under_price);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_REQCALCOPTIONPRICE;
 }
 
@@ -2877,6 +2909,8 @@ int tws_cancel_calculate_option_price(void *tws, int reqid)
     send_int(ti, 1 /*version*/);
     send_int(ti, reqid);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_CANCALCOPTIONPRICE;
 }
 
@@ -2894,6 +2928,8 @@ int tws_req_global_cancel(void *tws)
     // send request global cancel msg
     send_int(ti, REQ_GLOBAL_CANCEL);
     send_int(ti, 1 /*version*/);
+
+    flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_REQGLOBALCANCEL;
 }
@@ -2924,6 +2960,8 @@ int tws_request_realtime_bars(void *tws, int ticker_id, tr_contract_t *c, int ba
     send_str(ti, what_to_show);
     send_int(ti, use_rth);
 
+    flush_message(ti);
+
     return ti->connected ? 0 : FAIL_SEND_REQRTBARS;
 }
 
@@ -2937,6 +2975,8 @@ int tws_cancel_realtime_bars(void *tws, int ticker_id)
     send_int(ti, CANCEL_REAL_TIME_BARS);
     send_int(ti, 1 /*VERSION*/);
     send_int(ti, ticker_id);
+
+    flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_CANRTBARS;
 }

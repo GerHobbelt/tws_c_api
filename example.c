@@ -17,14 +17,14 @@
 #include <float.h>
 #include <math.h>
 
-static void tws_thread_status(int arg)
+static void tws_thread_status(int state, void *tws)
 {
     /* the real reason for having this func
      * is so that array_of_threads[NAME_OF_THIS_ONE] can be set to
      * pthread_self() on startup and 0 on termination, so that
      * the top level thread can cancel one or all if it wants to
      */
-    printf("tws reader thread %s\n", arg ? "terminated" : "started");
+    printf("tws reader thread %s\n", arg == 2 ? "termination pending" : arg == 1 ? "terminated" : "started");
 }
 
 static int mythread_starter(tws_func_t func, void *arg)
