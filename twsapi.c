@@ -315,7 +315,10 @@ static void destroy_execution(tws_instance_t *ti, tr_execution_t *exec)
 static void receive_tick_price(tws_instance_t *ti)
 {
     double price;
-    int ival, version, ticker_id, tick_type, size = 0, can_auto_execute = 0, size_tick_type;
+    int ival, version, ticker_id;
+	tr_tick_type_t tick_type;
+	int size = 0, can_auto_execute = 0;
+	tr_tick_type_t size_tick_type;
 
     read_int(ti, &ival), version = ival;
     read_int(ti, &ival), ticker_id = ival;
@@ -336,10 +339,10 @@ static void receive_tick_price(tws_instance_t *ti)
             case BID:  size_tick_type = BID_SIZE; break;
             case ASK:  size_tick_type = ASK_SIZE; break;
             case LAST: size_tick_type = LAST_SIZE; break;
-            default: size_tick_type = -1; break; /* not a tick */
+            default: size_tick_type = UNDEFINED; break; /* not a tick */
         }
 
-        if(size_tick_type != -1)
+        if(size_tick_type != UNDEFINED)
             if(ti->connected)
                 event_tick_size(ti->opaque, ticker_id, size_tick_type, size);
     }
@@ -348,7 +351,9 @@ static void receive_tick_price(tws_instance_t *ti)
 
 static void receive_tick_size(tws_instance_t *ti)
 {
-    int ival, ticker_id, tick_type, size;
+    int ival, ticker_id;
+	tr_tick_type_t tick_type;
+	int size;
 
     read_int(ti, &ival); /* version unused */
     read_int(ti, &ival), ticker_id = ival;
@@ -368,7 +373,8 @@ static void receive_tick_option_computation(tws_instance_t *ti)
     double vega = DBL_MAX;
     double theta = DBL_MAX;
     double und_price = DBL_MAX;
-    int ival, ticker_id, tick_type;
+    int ival, ticker_id;
+	tr_tick_type_t tick_type;
     int version;
 
     read_int(ti, &ival), version = ival;
@@ -418,7 +424,8 @@ static void receive_tick_option_computation(tws_instance_t *ti)
 static void receive_tick_generic(tws_instance_t *ti)
 {
     double value;
-    int ival, ticker_id, tick_type;
+    int ival, ticker_id;
+	tr_tick_type_t tick_type;
 
     read_int(ti, &ival /*version */); /* ignored */
     read_int(ti, &ival), ticker_id = ival;
@@ -432,7 +439,8 @@ static void receive_tick_string(tws_instance_t *ti)
 {
     char *str;
     char *ticker_value;
-    int ival, ticker_id, tick_type;
+    int ival, ticker_id;
+	tr_tick_type_t tick_type;
 
     read_int(ti, &ival /*version */); /* ignored */
     read_int(ti, &ival), ticker_id = ival;
@@ -455,7 +463,9 @@ static void receive_tick_efp(tws_instance_t *ti)
     double basis_points, implied_futures_price, dividend_impact, dividends_to_expiry;
     char *formatted_basis_points = alloc_string(ti), *future_expiry = alloc_string(ti);
     size_t lval;
-    int ival, ticker_id, tick_type, hold_days;
+    int ival, ticker_id;
+	tr_tick_type_t tick_type;
+	int hold_days;
 
     read_int(ti, &ival /*version unused */);
     read_int(ti, &ival); ticker_id = ival;
@@ -635,7 +645,7 @@ static void receive_open_order(tws_instance_t *ti)
     tr_contract_t contract;
     tr_order_t order;
     tr_order_status_t ost;
-    under_comp_t  und;
+    under_comp_t und;
     size_t lval;
     int ival, version;
 
@@ -819,7 +829,7 @@ static void receive_open_order(tws_instance_t *ti)
             if (param_count > 0) {
                 order.o_tvector = calloc(param_count, sizeof *order.o_tvector);
                 if(order.o_tvector) {
-                    long j;
+                    int j;
                     for (j = 0; j < param_count; j++) {
                         lval = sizeof(tws_string_t); read_line(ti, order.o_tvector[j].t_tag, &lval);
                         lval = sizeof(tws_string_t); read_line(ti, order.o_tvector[j].t_val, &lval);
@@ -1146,39 +1156,28 @@ static void receive_historical_data(void *tws)
     tws_instance_t *ti = (tws_instance_t *) tws;
     int j;
     size_t lval;
-    size_t index;
     int ival, version, reqid, item_count, volume, gaps, bar_count;
-    char date[60], has_gaps[10], completion[60];
+    char *date = alloc_string(ti), *has_gaps = alloc_string(ti), *completion_from = alloc_string(ti), *completion_to = alloc_string(ti);
 
     read_int(ti, &ival), version = ival;
     read_int(ti, &ival), reqid = ival;
-    index = sizeof "finished-" - 1;
-    memcpy(completion, "finished-", index);
 
-    if(version >=2) {
-        lval = sizeof completion -1 - index;
-        if(!read_line(ti, &completion[index], &lval)) {
-            index += lval;
-            completion[index] = '-';
-            completion[++index] = '\0';
-
-            lval = sizeof completion -1 - index;
-            if(!read_line(ti, &completion[index], &lval))
-                completion[index+lval+1] = '\0';
-        }
+    if(version >= 2) {
+        lval = sizeof(tws_string_t); read_line(ti, completion_from, &lval);
+        lval = sizeof(tws_string_t); read_line(ti, completion_to, &lval);
     }
     read_int(ti, &ival), item_count = ival;
 
     for(j = 0; j < item_count; j++) {
-        lval = sizeof date; read_line(ti, date, &lval);
+        lval = sizeof(tws_string_t); read_line(ti, date, &lval);
         read_double(ti, &open);
         read_double(ti, &high);
         read_double(ti, &low);
         read_double(ti, &close);
         read_int(ti, &ival), volume = ival;
         read_double(ti, &wap);
-        lval = sizeof has_gaps; read_line(ti, has_gaps, &lval);
-        gaps = !strncasecmp(has_gaps, "false", 4) ? 0 : 1;
+        lval = sizeof(tws_string_t); read_line(ti, has_gaps, &lval);
+        gaps = !!strncasecmp(has_gaps, "false", 5);
 
         if(version >= 3)
             read_int(ti, &ival), bar_count = ival;
@@ -1191,7 +1190,12 @@ static void receive_historical_data(void *tws)
     }
     /* send end of dataset marker */
     if(ti->connected)
-        event_historical_data(ti->opaque, reqid, completion, 0.0, 0.0, 0.0, 0.0, 0, -1, 0.0, 0);
+        event_historical_data_end(ti->opaque, reqid, completion_from, completion_to);
+
+	free_string(ti, date);
+	free_string(ti, has_gaps);
+	free_string(ti, completion_from);
+	free_string(ti, completion_to);
 }
 
 static void receive_scanner_parameters(void *tws)
@@ -1965,7 +1969,7 @@ int tws_cancel_scanner_subscription(void *tws, int ticker_id)
 
 static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, int send_open_close)
 {
-    long j;
+    int j;
 
     send_int(ti, contract->c_num_combolegs);
     for(j = 0; j < contract->c_num_combolegs; j++) {
@@ -1988,7 +1992,7 @@ static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, int send
     }
 }
 
-int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract, const char generic_tick_list[], long snapshot)
+int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract, const char generic_tick_list[], int snapshot)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 
@@ -2266,7 +2270,7 @@ int tws_exercise_options(void *tws, int ticker_id, tr_contract_t *contract, int 
     return ti->connected ? 0 : FAIL_SEND_REQMKT;
 }
 
-int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *order)
+int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *order)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
     int vol26 = 0, version;
@@ -2284,7 +2288,7 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
     if(ti->server_version < MIN_SERVER_VER_SSHORT_COMBO_LEGS) {
         if(contract->c_num_combolegs) {
             tr_comboleg_t *cl;
-            long j;
+            int j;
 
             for (j = 0; j < contract->c_num_combolegs; j++) {
                 cl = &contract->c_comboleg[j];
@@ -2391,7 +2395,7 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
     send_int(ti, PLACE_ORDER);
     version = ti->server_version < MIN_SERVER_VER_NOT_HELD ? 27 : 31;
     send_int(ti, version);
-    send_int(ti, (int) id);
+    send_int(ti, id);
 
     /* send contract fields */
     if (ti->server_version >= MIN_SERVER_VER_PLACE_ORDER_CONID) {
@@ -2566,7 +2570,7 @@ int tws_place_order(void *tws, long id, tr_contract_t *contract, tr_order_t *ord
         if(!IS_EMPTY(order->o_algo_strategy)) {
             send_int(ti, order->o_tval_count);
             if(order->o_tval_count > 0) {
-                long j;
+                int j;
                 for(j = 0; j < order->o_tval_count; j++) {
                     send_str(ti, order->o_tvector[j].t_tag);
                     send_str(ti, order->o_tvector[j].t_val);
@@ -2627,13 +2631,13 @@ int tws_req_executions(void *tws, int reqid, tr_exec_filter_t *filter)
     return ti->connected ? 0 : FAIL_SEND_EXEC;
 }
 
-int tws_cancel_order(void *tws, long order_id)
+int tws_cancel_order(void *tws, int order_id)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
     /* send cancel order msg */
     send_int(ti, CANCEL_ORDER);
     send_int(ti, 1 /*VERSION*/);
-    send_int(ti, (int) order_id);
+    send_int(ti, order_id);
 
     flush_message(ti);
 
@@ -2742,7 +2746,7 @@ int tws_req_managed_accts(void *tws)
     return ti->connected ? 0 : FAIL_SEND_OORDER;
 }
 
-int tws_request_fa(void *tws, long fa_data_type)
+int tws_request_fa(void *tws, int fa_data_type)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 
@@ -2752,14 +2756,14 @@ int tws_request_fa(void *tws, long fa_data_type)
 
     send_int(ti, REQ_FA);
     send_int(ti, 1 /*VERSION*/);
-    send_int(ti, (int) fa_data_type);
+    send_int(ti, fa_data_type);
 
     flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_FA_REQUEST;
 }
 
-int tws_replace_fa(void *tws, long fa_data_type, const char xml[])
+int tws_replace_fa(void *tws, int fa_data_type, const char xml[])
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 
@@ -2769,7 +2773,7 @@ int tws_replace_fa(void *tws, long fa_data_type, const char xml[])
 
     send_int(ti, REPLACE_FA );
     send_int(ti, 1 /*VERSION*/);
-    send_int(ti, (int) fa_data_type);
+    send_int(ti, fa_data_type);
     send_str(ti, xml);
 
     flush_message(ti);
