@@ -40,6 +40,7 @@ typedef struct tws_instance {
     tws_transmit_func_t *transmit;
     tws_receive_func_t *receive;
     tws_flush_func_t *flush;
+    tws_open_func_t *open;
     tws_close_func_t *close;
 
     char connect_time[60]; /* server reported time */
@@ -60,6 +61,8 @@ static int read_int(tws_instance_t *ti, int *val);
 static int read_int_max(tws_instance_t *ti, int *val);
 static int read_line(tws_instance_t *ti, char *line, size_t *len);
 static int read_line_of_arbitrary_length(tws_instance_t *ti, char **val, size_t initial_space);
+
+static void reset_io_buffers(tws_instance_t *ti);
 
 /* access to these strings is single threaded
  * replace plain bitops with atomic test_and_set_bit/clear_bit + memory barriers
@@ -99,11 +102,14 @@ static char *alloc_string(tws_instance_t *ti)
 
 static void free_string(tws_instance_t *ti, void *ptr)
 {
-    unsigned int j = (unsigned int) ((tws_string_t *) ptr - &ti->mempool[0]);
-    unsigned int index = j / WORD_SIZE_IN_BITS;
-    unsigned long bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
+	if (ptr)
+	{
+		unsigned int j = (unsigned int) ((tws_string_t *) ptr - &ti->mempool[0]);
+		unsigned int index = j / WORD_SIZE_IN_BITS;
+		unsigned long bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
 
-    ti->bitmask[index] &= ~bits;
+		ti->bitmask[index] &= ~bits;
+	}
 }
 
 static void init_contract(tws_instance_t *ti, tr_contract_t *c)
@@ -1478,22 +1484,28 @@ int tws_event_process(void *tws)
 }
 
 /* caller supplies start_thread method */
-void *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_close_func_t *close)
+void *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_open_func_t *open, tws_close_func_t *close)
 {
     tws_instance_t *ti = (tws_instance_t *) calloc(1, sizeof *ti);
-    if(ti) {
+    if(ti)
+	{
         ti->opaque = opaque;
         ti->transmit = transmit;
         ti->receive = receive;
         ti->flush = flush;
+		ti->open = open;
         ti->close = close;
-    }
+
+		reset_io_buffers(ti);
+	}
 
     return ti;
 }
 
 void tws_destroy(void *tws_instance)
 {
+	tws_disconnect(tws_instance);
+
     free(tws_instance);
 }
 
@@ -1503,27 +1515,29 @@ static int send_blob(tws_instance_t *ti, const char *src, size_t srclen)
     size_t len = sizeof(ti->tx_buf) - ti->tx_buf_next;
     int err = 0;
 
-    while (len < srclen) {
-        err = ((int)ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
-        if(err) {
-            tws_disconnect(ti);
-            return err;
-        }
-        len = sizeof(ti->tx_buf);
-        if (len > srclen) {
-            len = srclen;
-        }
-        memcpy(ti->tx_buf, src, len);
-        srclen -= len;
-        src += len;
-        ti->tx_buf_next = len;
-    }
+	if (ti->connected) {
+		while (len < srclen) {
+			err = ((int)ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
+			if(err) {
+				tws_disconnect(ti);
+				return err;
+			}
+			len = sizeof(ti->tx_buf);
+			if (len > srclen) {
+				len = srclen;
+			}
+			memcpy(ti->tx_buf, src, len);
+			srclen -= len;
+			src += len;
+			ti->tx_buf_next = len;
+		}
 
-    if (srclen > 0)
-    {
-        memcpy(ti->tx_buf + ti->tx_buf_next, src, srclen);
-        ti->tx_buf_next += srclen;
-    }
+		if (srclen > 0)
+		{
+			memcpy(ti->tx_buf + ti->tx_buf_next, src, srclen);
+			ti->tx_buf_next += srclen;
+		}
+	}
 
     return err;
 }
@@ -1532,19 +1546,21 @@ static int flush_message(tws_instance_t *ti)
 {
     int err = 0;
 
-    if (ti->tx_buf_next > 0) {
-        err = ((int)ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
-        if(err) {
-            tws_disconnect(ti);
-            goto out;
-        }
-    }
-    /* now that all lingering message data has been transmitted, signal end of message by requesting a TX/flush: */
-    err = ti->flush(ti->opaque);
-    if(err) {
-        tws_disconnect(ti);
-        goto out;
-    }
+	if (ti->connected) {
+		if (ti->tx_buf_next > 0) {
+			err = ((int)ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
+			if(err) {
+				tws_disconnect(ti);
+				goto out;
+			}
+		}
+		/* now that all lingering message data has been transmitted, signal end of message by requesting a TX/flush: */
+		err = ti->flush(ti->opaque);
+		if(err) {
+			tws_disconnect(ti);
+			goto out;
+		}
+	}
     ti->tx_buf_next = 0;
 out:
     return err;
@@ -1610,17 +1626,22 @@ static int read_char(tws_instance_t *ti)
 {
     int nread;
 
-    if(ti->buf_next == ti->buf_last) {
-        nread = ti->receive(ti->opaque, ti->buf, (unsigned int)sizeof ti->buf);
-        if(nread <= 0) {
-            nread = -1;
-            goto out;
-        }
-        ti->buf_last = nread;
-        ti->buf_next = 0;
-    }
+	if (ti->connected) {
+		if(ti->buf_next == ti->buf_last) {
+			nread = ti->receive(ti->opaque, ti->buf, (unsigned int)sizeof ti->buf);
+			if(nread <= 0) {
+				nread = -1;
+				goto out;
+			}
+			ti->buf_last = nread;
+			ti->buf_next = 0;
+		}
 
-    nread = ti->buf[ti->buf_next++];
+		nread = ti->buf[ti->buf_next++];
+	}
+	else {
+		nread = -1;
+	}
 out:
     return nread;
 }
@@ -1630,6 +1651,13 @@ static int read_line(tws_instance_t *ti, char *line, size_t *len)
 {
     size_t j;
     int nread = -1, err = -1;
+
+	if (line == NULL) {
+#ifdef TWS_DEBUG
+		printf("read_line: line buffer is NULL\n");
+#endif
+        goto out;
+	}
 
     line[0] = '\0';
     for(j = 0; j < *len; j++) {
@@ -1659,15 +1687,13 @@ static int read_line(tws_instance_t *ti, char *line, size_t *len)
     err = 0;
 out:
     if(err < 0) {
-        if(nread <= 0) {
-            tws_disconnect(ti);
-        } else {
+        if(nread > 0) {
 #ifdef TWS_DEBUG
             printf("read_line: corruption happened (string longer than max)\n");
 #endif
-            // also close the connection in buffer overflow conditions; the next element fetch will be corrupt anyway and this way we prevent nasty surprises downrange.
-            tws_disconnect(ti);
-        }
+		}
+        // always close the connection in buffer overflow / error conditions; the next element fetch will be corrupt anyway and this way we prevent nasty surprises downrange.
+        tws_disconnect(ti);
     }
 
     return err;
@@ -1745,16 +1771,15 @@ static int read_line_of_arbitrary_length(tws_instance_t *ti, char **val, size_t 
     err = 0;
 out:
     if(err < 0) {
-        if(nread <= 0) {
-            tws_disconnect(ti);
-        } else {
+        if(nread > 0) {
 #ifdef TWS_DEBUG
             printf("read_line: corruption happened (string longer than max)\n");
 #endif
-            // also close the connection in buffer overflow conditions; the next element fetch will be corrupt anyway and this way we prevent nasty surprises downrange.
-            tws_disconnect(ti);
-        }
-        // and free the allocated buffer when an error occurred: it is NOT passed back to the caller
+		}
+        // always close the connection in buffer overflow conditions; the next element fetch will be corrupt anyway and this way we prevent nasty surprises downrange.
+        tws_disconnect(ti);
+
+		// and free the allocated buffer when an error occurred: it is NOT passed back to the caller
 		if (malloced && line)
 		{
 			free(line);
@@ -1827,18 +1852,15 @@ static int read_long(tws_instance_t *ti, long *val)
     return err;
 }
 
-#if 0
-#if defined(WINDOWS) || defined(_WIN32)
-/* returns 1 on error, 0 if successful */
-static int init_winsock()
+static void reset_io_buffers(tws_instance_t *ti)
 {
-    WORD wVersionRequested = MAKEWORD(1, 0);
-    WSADATA wsaData;
-
-    return !!WSAStartup(wVersionRequested, &wsaData );
+    /* WARNING: reset the output buffer to NIL fill when we send a connect message: this flushes any data lingering from a previously failed transmit on a previous connect */
+    ti->tx_buf_next = 0;
+	/* also reset the RECEIVE BUFFER to an 'empty' state! */
+	ti->buf_last = 0;
+	ti->buf_next = 0;
 }
-#endif
-#endif
+
 
 /*
 similar to IB/TWS Java method:
@@ -1855,8 +1877,14 @@ int tws_connect(void *tws, int client_id)
         err = ALREADY_CONNECTED; goto out;
     }
 
-    /* WARNING: reset the output buffer to NIL fill when we send a connect message: this flushes any data lingering from a previously failed transmit on a previous connect */
-    ti->tx_buf_next = 0;
+	reset_io_buffers(ti);
+
+    err = ti->open(ti->opaque);
+	if (err != 0) {
+		goto out;
+    }
+	// turn this 'is connected' flag ON so that the read/send methods in here will work as expected.
+    ti->connected = 1;
 
     if(send_int(ti, TWSCLIENT_VERSION)) {
         err = CONNECT_FAIL; goto out;
@@ -1868,7 +1896,9 @@ int tws_connect(void *tws, int client_id)
     }
 
     if(val < 1) {
-        err = NO_VALID_ID; goto out;
+        err = NO_VALID_ID;
+		tws_disconnect(ti);
+		goto out;
     }
 
     ti->server_version = val;
@@ -1886,11 +1916,12 @@ int tws_connect(void *tws, int client_id)
         flush_message(ti);
     }
 
-    ti->connected = 1;
     err = 0;
 out:
     if(err) {
-        tws_destroy(ti);
+		// do NOT 'destroy' the tws instance for reasons of symmetry: that sort of thing should only happen when tws_create() fails!
+		//
+		// Any error which is fatal to the connection, will already have triggered a tws_disconnect() by now (e.g. errors in send_int() and read_int())
     }
     return err;
 }
@@ -1908,6 +1939,8 @@ void  tws_disconnect(void *tws)
         ti->close(ti->opaque);
     }
     ti->connected = 0;
+
+	reset_io_buffers(ti);
 }
 
 /*

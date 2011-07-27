@@ -353,14 +353,16 @@ extern "C" {
     typedef int tws_receive_func_t(void *arg, void *buf, unsigned int max_bufsize);
     /* 'flush()' marks the end of the outgoing message: it should be transmitted ASAP */
     typedef int tws_flush_func_t(void *arg);
+    /* open callback is invoked when tws_connect is invoked and no connection has been established yet (tws_connected() == false); return 0 on success; a twsclient_error_codes error code on failure. */
+    typedef int tws_open_func_t(void *arg);
     /* close callback is invoked on error or when tws_disconnect is invoked */
     typedef int tws_close_func_t(void *arg);
 
     /* creates new tws client instance and
      * and records opaque user defined pointer to be supplied in all callbacks
      */
-    void  *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_close_func_t *close);
-    /* only call once you've made sure tws_connected() == false */
+    void  *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_open_func_t *open, tws_close_func_t *close);
+    /* tws_destroy() implicitly calls tws_disconnect() but for reasons of symmetry it is advised to explicitly invoke tws_disconnect() (<-> tws_connect()) before invoking tws_destroy() (<->tws_create()) */
     void   tws_destroy(void *tws_instance);
     int    tws_connected(void *tws_instance); /* true=1 or false=0 */
     int    tws_event_process(void *tws_instance); /* dispatches event to a callback.c func */
