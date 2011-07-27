@@ -14,7 +14,8 @@ extern "C" {
         int    u_conid;
     } under_comp_t;
 
-    typedef struct contract_details_summary {
+#if 0
+	typedef struct contract_details_summary {
         double s_strike;
         char  *s_symbol;
         char  *s_sectype;
@@ -27,40 +28,14 @@ extern "C" {
         char  *s_multiplier;
         int    s_conid;
     } contract_details_summary_t;
+#endif
 
-    typedef struct tr_contract_details {
-        double                     d_mintick;
-        double                     d_coupon;
-        contract_details_summary_t d_summary;
-        char *                     d_market_name;
-        char *                     d_trading_class;
-        char *                     d_order_types;
-        char *                     d_valid_exchanges;
-        char *                     d_cusip;
-        char *                     d_maturity;
-        char *                     d_issue_date;
-        char *                     d_ratings;
-        char *                     d_bond_type;
-        char *                     d_coupon_type;
-        char *                     d_desc_append;
-        char *                     d_next_option_date;
-        char *                     d_next_option_type;
-        char *                     d_notes;
-        char *                     d_long_name;
-        char *                     d_contract_month;
-        char *                     d_industry;
-        char *                     d_category;
-        char *                     d_subcategory;
-        char *                     d_timezone_id;
-        char *                     d_trading_hours;
-        char *                     d_liquid_hours;
-        int                        d_price_magnifier;
-        int                        d_under_conid;
-        unsigned                   d_convertible: 1;
-        unsigned                   d_callable: 1;
-        unsigned                   d_putable: 1;
-        unsigned                   d_next_option_partial:1;
-    } tr_contract_details_t;
+	typedef enum {
+        COMBOLEG_SAME    = 0,     /* open/close leg value is same as combo */
+        COMBOLEG_OPEN    = 1,
+        COMBOLEG_CLOSE   = 2,
+        COMBOLEG_UNKNOWN = 3,
+	} tr_comboleg_type_t;
 
     typedef struct tr_comboleg {
         char *co_action; /* BUY/SELL/SSHORT/SSHORTX */
@@ -68,20 +43,16 @@ extern "C" {
         char *co_designated_location; /* set to "" if unused, as usual */
         int   co_conid;
         int   co_ratio;
-#define COMBOLEG_SAME    0     /* open/close leg value is same as combo */
-#define COMBOLEG_OPEN    1
-#define COMBOLEG_CLOSE   2
-#define COMBOLEG_UNKNOWN 3
-        int   co_open_close;
+        tr_comboleg_type_t co_open_close;
         int   co_short_sale_slot;    /* 1 = clearing broker, 2 = third party */
         int   co_exempt_code;        /* set to -1 if you do not use it */
     } tr_comboleg_t;
 
     typedef struct tr_contract {
-        under_comp_t  *c_undercomp;
+        under_comp_t  *c_undercomp;							/* delta neutral */
         double         c_strike;                            /* strike price for options */
         char *         c_symbol;                            /* underlying symbol */
-        char *         c_sectype;                           /* security type */
+        char *         c_sectype;                           /* security type ("BAG" -> transmits combo legs, "" -> does not transmit combo legs) */
         char *         c_exchange;
         char *         c_primary_exch;                      /* for SMART orders, specify an actual exchange where the contract trades, e.g. ISLAND.  Pick a non-aggregate (ie not the SMART exchange) exchange that the contract trades on.  DO NOT SET TO SMART. */
         char *         c_expiry;                            /* expiration for futures and options */
@@ -92,11 +63,45 @@ extern "C" {
         char *         c_combolegs_descrip;                 /* received in open order version 14 and up for all combos */
         char *         c_secid_type;                        /* CUSIP;SEDOL;ISIN;RIC */
         char *         c_secid;
-        tr_comboleg_t *c_comboleg;
-        long           c_num_combolegs;
+        tr_comboleg_t *c_comboleg;							/* COMBOS */
+        int			   c_num_combolegs;
         int            c_conid;                             /* contract id, returned from TWS */
         unsigned       c_include_expired: 1;                /* for contract requests, specifies that even expired contracts should be returned.  Can not be set to true for orders. */
     } tr_contract_t;
+
+    typedef struct tr_contract_details {
+        double                     d_mintick;
+        double                     d_coupon;                /* for bonds */
+        tr_contract_t              d_summary;
+        char *                     d_market_name;
+        char *                     d_trading_class;
+        char *                     d_order_types;
+        char *                     d_valid_exchanges;
+        char *                     d_cusip;                 /* for bonds */
+        char *                     d_maturity;              /* for bonds */
+        char *                     d_issue_date;            /* for bonds */
+        char *                     d_ratings;               /* for bonds */
+        char *                     d_bond_type;             /* for bonds */
+        char *                     d_coupon_type;           /* for bonds */
+        char *                     d_desc_append;           /* for bonds */
+        char *                     d_next_option_date;      /* for bonds */
+        char *                     d_next_option_type;      /* for bonds */
+        char *                     d_notes;                 /* for bonds */
+        char *                     d_long_name;
+        char *                     d_contract_month;
+        char *                     d_industry;
+        char *                     d_category;
+        char *                     d_subcategory;
+        char *                     d_timezone_id;
+        char *                     d_trading_hours;
+        char *                     d_liquid_hours;
+        int                        d_price_magnifier;
+        int                        d_under_conid;
+        unsigned                   d_convertible: 1;        /* for bonds */
+        unsigned                   d_callable: 1;           /* for bonds */
+        unsigned                   d_putable: 1;            /* for bonds */
+        unsigned                   d_next_option_partial:1; /* for bonds */
+    } tr_contract_details_t;
 
     struct tag_value {
         char *t_tag;
@@ -346,6 +351,9 @@ extern "C" {
     int    tws_connected(void *tws_instance); /* true=1 or false=0 */
     int    tws_event_process(void *tws_instance); /* dispatches event to a callback.c func */
 
+	/* init TWS structures to default values */
+	void   tws_init_tr_comboleg(void *tws, tr_comboleg_t *comboleg_ref);
+
     /* transmit connect message and wait for response */
     int    tws_connect(void *tws, int client_id);
     void   tws_disconnect(void *tws);
@@ -421,6 +429,7 @@ extern "C" {
     void event_managed_accounts(void *opaque, const char accounts_list[]);
     void event_receive_fa(void *opaque, int fa_data_type, const char cxml[]);
     void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, int bar_count, double wap, int has_gaps);
+	void event_historical_data_end(void *opaque, int reqid, const char completion_from[], const char completion_to[]);
     void event_scanner_parameters(void *opaque, const char xml[]);
     void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[], const char legs_str[]);
     void event_scanner_data_end(void *opaque, int ticker_id);
@@ -473,6 +482,7 @@ extern "C" {
         REQ_GLOBAL_CANCEL = 58
     };
 
+#define  MIN_SERVER_VER_REAL_TIME_BARS 34
 #define  MIN_SERVER_VER_SCALE_ORDERS  35
 #define  MIN_SERVER_VER_SNAPSHOT_MKT_DATA 35
 #define  MIN_SERVER_VER_SSHORT_COMBO_LEGS 35
@@ -535,42 +545,54 @@ extern "C" {
     };
 
 
-/* ERROR codes */
+	/* ERROR codes */
     enum twsclient_error_codes {
         NO_VALID_ID = -1,
-        NO_TWS_ERROR, /* thanks to Gino for pointing out that 0 is special */
-        ALREADY_CONNECTED,
-        CONNECT_FAIL,
-        UPDATE_TWS,
-        NOT_CONNECTED,
-        UNKNOWN_ID,
-        FAIL_SEND_REQMKT,
-        FAIL_SEND_CANMKT,
-        FAIL_SEND_ORDER,
-        FAIL_SEND_ACCT,
-        FAIL_SEND_EXEC,
-        FAIL_SEND_CORDER,
-        FAIL_SEND_OORDER,
-        UNKNOWN_CONTRACT,
-        FAIL_SEND_REQCONTRACT,
-        FAIL_SEND_REQMKTDEPTH,
-        FAIL_SEND_CANMKTDEPTH,
-        FAIL_SEND_SERVER_LOG_LEVEL,
-        FAIL_SEND_FA_REQUEST,
-        FAIL_SEND_FA_REPLACE,
-        FAIL_SEND_REQSCANNERPARAMETERS,
-        FAIL_SEND_CANSCANNER,
-        FAIL_SEND_REQSCANNER,
-        FAIL_SEND_REQRTBARS,
-        FAIL_SEND_CANRTBARS,
-        FAIL_SEND_REQCURRTIME,
-        FAIL_SEND_REQFUNDDATA,
-        FAIL_SEND_CANFUNDDATA,
-        FAIL_SEND_REQCALCIMPLIEDVOLAT,
-        FAIL_SEND_CANCALCIMPLIEDVOLAT,
-        FAIL_SEND_REQCALCOPTIONPRICE,
-        FAIL_SEND_CANCALCOPTIONPRICE,
-        FAIL_SEND_REQGLOBALCANCEL
+        NO_TWS_ERROR = 0, /* thanks to Gino for pointing out that 0 is special */
+        ALREADY_CONNECTED = 501,
+        CONNECT_FAIL = 502,
+        UPDATE_TWS = 503,
+        NOT_CONNECTED = 504,
+        UNKNOWN_ID = 505,
+		ZERO_BYTE_READ = 506,
+		NULL_STRING_READ = 507,
+		NO_BYTES_READ = 508,
+		SOCKET_EXCEPTION = 509,
+
+		FAIL_SEND_REQMKT = 510,
+		FAIL_SEND_CANMKT = 511,
+		FAIL_SEND_ORDER = 512,
+		FAIL_SEND_ACCT = 513,
+		FAIL_SEND_EXEC = 514,
+		FAIL_SEND_CORDER = 515,
+		FAIL_SEND_OORDER = 516,
+		UNKNOWN_CONTRACT = 517,
+		FAIL_SEND_REQCONTRACT = 518,
+		FAIL_SEND_REQMKTDEPTH = 519,
+		FAIL_SEND_CANMKTDEPTH = 520,
+		FAIL_SEND_SERVER_LOG_LEVEL = 521,
+		FAIL_SEND_FA_REQUEST = 522,
+		FAIL_SEND_FA_REPLACE = 523,
+		FAIL_SEND_REQSCANNER = 524,
+		FAIL_SEND_CANSCANNER = 525,
+		FAIL_SEND_REQSCANNERPARAMETERS = 526,
+		FAIL_SEND_REQHISTDATA = 527,
+		FAIL_SEND_CANHISTDATA = 528,
+		FAIL_SEND_REQRTBARS = 529,
+		FAIL_SEND_CANRTBARS = 530,
+		FAIL_SEND_REQCURRTIME = 531,
+		FAIL_SEND_REQFUNDDATA = 532,
+		FAIL_SEND_CANFUNDDATA = 533,
+		FAIL_SEND_REQCALCIMPLIEDVOLAT = 534,
+		FAIL_SEND_REQCALCOPTIONPRICE = 535,
+		FAIL_SEND_CANCALCIMPLIEDVOLAT = 536,
+		FAIL_SEND_CANCALCOPTIONPRICE = 537,
+		FAIL_SEND_REQGLOBALCANCEL = 538,
+
+		FAIL_SEND_BULLETINS = 596,
+		FAIL_SEND_CBULLETINS = 597,
+		FAIL_SEND_REQIDS = 598,
+		FAIL_SEND_EXCERCISE_OPTIONS = 599,
     };
 
     struct twsclient_errmsg {
@@ -584,12 +606,20 @@ extern "C" {
          * usage: if(err_code >= 0) puts(twsclient_err_indication[err_code]);
          */
         { 0, "No error" },
+        { -1, "No valid client ID" },
+		{ 503, "Your version of TWS is out of date and must be upgraded." },
         { 501, "Already connected." },
         { 502, "Couldn't connect to TWS.  Confirm that \"Enable ActiveX and Socket Clients\" is enabled on the TWS \"Configure->API\" menu." },
         { 503, "The TWS is out of date and must be upgraded."} ,
-        { 504,  "Not connected" },
+        { 504, "Not connected" },
         { 505, "Fatal Error: Unknown message id."},
-        { 510, "Request Market Data Sending Error - "},
+
+		{ 506, "Unexplained zero bytes read." },
+		{ 507, "Null string read when expecting integer" },
+		{ 508, "Error: no bytes read or no null terminator found" },
+		{ 509, "Exception caught while reading socket - " },
+
+		{ 510, "Request Market Data Sending Error - "},
         { 511, "Cancel Market Data Sending Error - "},
         { 512, "Order Sending Error - "},
         { 513, "Account Update Request Sending Error -"},
@@ -603,7 +633,7 @@ extern "C" {
         { 521, "Set Server Log Level Sending Error - "},
         { 522, "FA Information Request Sending Error - "},
         { 523, "FA Information Replace Sending Error - "},
-        { 524,  "Request Scanner Subscription Sending Error - "},
+        { 524, "Request Scanner Subscription Sending Error - "},
         { 525, "Cancel Scanner Subscription Sending Error - "},
         { 526, "Request Scanner Parameter Sending Error - "},
         { 527, "Request Historical Data Sending Error - "},
@@ -619,8 +649,257 @@ extern "C" {
         { 536, "Cancel Calculate Implied Volatility Sending Error - "},
         { 537, "Cancel Calculate Option Price Sending Error - "},
         /* since TWS API 9.65: */
-        { 538, "Request Global Cancel Sending Error - "}
-    };
+        { 538, "Request Global Cancel Sending Error - "},
+
+		/* related to bugfixes compared to the TWS Java implementation: */
+        { 596, "Request News Bulletins Sending Error - "},
+        { 597, "Cancel News Bulletins Sending Error - "},
+        { 598, "Request IDs Sending Error - "},
+		{ 599, "Excercise Options Sending Error - "},
+
+		/* -------------------------------------------------------------- */
+		/* The following items are taken from the TWS API on-line documentation: the error code strings for errors reported by the TWS client in the non-5xx range: */
+
+		/* Error Codes */
+		{ 100, "Max rate of messages per second has been exceeded." },
+		{ 101, "Max number of tickers has been reached." },
+		{ 102, "Duplicate ticker ID." },
+		{ 103, "Duplicate order ID." },
+		{ 104, "Can't modify a filled order." },
+		{ 105, "Order being modified does not match original order." },
+		{ 106, "Can't transmit order ID:" },
+		{ 107, "Cannot transmit incomplete order." },
+		{ 109, "Price is out of the range defined by the Percentage setting at order defaults frame. The order will not be transmitted." },
+		{ 110, "The price does not conform to the minimum price variation for this contract." },
+		{ 111, "The TIF (Tif type) and the order type are incompatible." },
+		{ 113, "The Tif option should be set to DAY for MOC and LOC orders." },
+		{ 114, "Relative orders are valid for stocks only." },
+		{ 115, "Relative orders for US stocks can only be submitted to SMART, SMART_ECN, INSTINET, or PRIMEX." },
+		{ 116, "The order cannot be transmitted to a dead exchange." },
+		{ 117, "The block order size must be at least 50." },
+		{ 118, "VWAP orders must be routed through the VWAP exchange." },
+		{ 119, "Only VWAP orders may be placed on the VWAP exchange." },
+		{ 120, "It is too late to place a VWAP order for today." },
+		{ 121, "Invalid BD flag for the order. Check \"Destination\" and \"BD\" flag." },
+		{ 122, "No request tag has been found for order:" },
+		{ 123, "No record is available for conid:" },
+		{ 124, "No market rule is available for conid:" },
+		{ 125, "Buy price must be the same as the best asking price." },
+		{ 126, "Sell price must be the same as the best bidding price." },
+		{ 129, "VWAP orders must be submitted at least three minutes before the start time." },
+		{ 131, "The sweep-to-fill flag and display size are only valid for US stocks routed through SMART, and will be ignored." },
+		{ 132, "This order cannot be transmitted without a clearing account." },
+		{ 133, "Submit new order failed." },
+		{ 134, "Modify order failed." },
+		{ 135, "Can't find order with ID =" },
+		{ 136, "This order cannot be cancelled." },
+		{ 137, "VWAP orders can only be cancelled up to three minutes before the start time." },
+		{ 138, "Could not parse ticker request:" },
+		{ 139, "Parsing error:" },
+		{ 140, "The size value should be an integer:" },
+		{ 141, "The price value should be a double:" },
+		{ 142, "Institutional customer account does not have account info" },
+		{ 143, "Requested ID is not an integer number." },
+		{ 144, "Order size does not match total share allocation.  To adjust the share allocation, right-click on the order and select “Modify > Share Allocation.”" },
+		{ 145, "Error in validating entry fields -" },
+		{ 146, "Invalid trigger method." },
+		{ 147, "The conditional contract info is incomplete." },
+		{ 148, "A conditional order can only be submitted when the order type is set to limit or market." },
+		{ 151, "This order cannot be transmitted without a user name." },
+		{ 152, "The \"hidden\" order attribute may not be specified for this order." },
+		{ 153, "EFPs can only be limit orders." },
+		{ 154, "Orders cannot be transmitted for a halted security." },
+		{ 155, "A sizeOp order must have a username and account." },
+		{ 156, "A SizeOp order must go to IBSX" },
+		{ 157, "An order can be EITHER Iceberg or Discretionary. Please remove either the Discretionary amount or the Display size." },
+		{ 158, "You must specify an offset amount or a percent offset value." },
+		{ 159, "The percent offset value must be between 0% and 100%." },
+		{ 160, "The size value cannot be zero." },
+		{ 161, "Cancel attempted when order is not in a cancellable state. Order permId =" },
+		{ 162, "Historical market data Service error message." },
+		{ 163, "The price specified would violate the percentage constraint specified in the default order settings." },
+		{ 164, "There is no market data to check price percent violations." },
+		{ 165, "Historical market Data Service query message." },
+		{ 166, "HMDS Expired Contract Violation." },
+		{ 167, "VWAP order time must be in the future." },
+		{ 168, "Discretionary amount does not conform to the minimum price variation for this contract." },
+
+		{ 200, "No security definition has been found for the request." },
+		{ 201, "Order rejected - Reason:" },
+		{ 202, "Order cancelled - Reason:" },
+		{ 203, "The security <security> is not available or allowed for this account." },
+
+		{ 300, "Can't find EId with ticker Id:" },
+		{ 301, "Invalid ticker action:" },
+		{ 302, "Error parsing stop ticker string:" },
+		{ 303, "Invalid action:" },
+		{ 304, "Invalid account value action:" },
+		{ 305, "Request parsing error, the request has been ignored." },
+		{ 306, "Error processing DDE request:" },
+		{ 307, "Invalid request topic:" },
+		{ 308, "Unable to create the 'API' page in TWS as the maximum number of pages already exists." },
+		{ 309, "Max number (3) of market depth requests has been reached.   Note: TWS currently limits users to a maximum of 3 distinct market depth requests. This same restriction applies to API clients, however API clients may make multiple market depth requests for the same security." },
+		{ 310, "Can't find the subscribed market depth with tickerId:" },
+		{ 311, "The origin is invalid." },
+		{ 312, "The combo details are invalid." },
+		{ 313, "The combo details for leg '<leg number>' are invalid." },
+		{ 314, "Security type 'BAG' requires combo leg details." },
+		{ 315, "Stock combo legs are restricted to SMART order routing." },
+		{ 316, "Market depth data has been HALTED. Please re-subscribe." },
+		{ 317, "Market depth data has been RESET. Please empty deep book contents before applying any new entries." },
+		{ 319, "Invalid log level <log level>" },
+		{ 320, "Server error when reading an API client request." },
+		{ 321, "Server error when validating an API client request." },
+		{ 322, "Server error when processing an API client request." },
+		{ 323, "Server error: cause - %s" },
+		{ 324, "Server error when reading a DDE client request (missing information)." },
+		{ 325, "Discretionary orders are not supported for this combination of exchange and order type." },
+		{ 326, "Unable to connect as the client id is already in use. Retry with a unique client id." },
+		{ 327, "Only API connections with clientId set to 0 can set the auto bind TWS orders property." },
+		{ 328, "Trailing stop orders can be attached to limit or stop-limit orders only." },
+		{ 329, "Order modify failed. Cannot change to the new order type." },
+		{ 330, "Only FA or STL customers can request managed accounts list." },
+		{ 331, "Internal error. FA or STL does not have any managed accounts." },
+		{ 332, "The account codes for the order profile are invalid." },
+		{ 333, "Invalid share allocation syntax." },
+		{ 334, "Invalid Good Till Date order" },
+		{ 335, "Invalid delta: The delta must be between 0 and 100." },
+		{ 336, "The time or time zone is invalid.   The correct format is 'hh:mm:ss xxx' where 'xxx' is an optionally specified time-zone. E.g.: 15:59:00 EST.   Note that there is a space between the time and the time zone.   If no time zone is specified, local time is assumed." },
+		{ 337, "The date, time, or time-zone entered is invalid. The correct format is yyyymmdd hh:mm:ss xxx where yyyymmdd and xxx are optional. E.g.: 20031126 15:59:00 EST.   Note that there is a space between the date and time, and between the time and time-zone.   If no date is specified, current date is assumed.   If no time-zone is specified, local time-zone is assumed." },
+		{ 338, "Good After Time orders are currently disabled on this exchange." },
+		{ 339, "Futures spread are no longer supported. Please use combos instead." },
+		{ 340, "Invalid improvement amount for box auction strategy." },
+		{ 341, "Invalid delta. Valid values are from 1 to 100.   You can set the delta from the \"Pegged to Stock\" section of the Order Ticket Panel, or by selecting Page/Layout from the main menu and adding the Delta column." },
+		{ 342, "Pegged order is not supported on this exchange." },
+		{ 343, "The date, time, or time-zone entered is invalid. The correct format is yyyymmdd hh:mm:ss xxx where yyyymmdd and xxx are optional. E.g.: 20031126 15:59:00 EST.   Note that there is a space between the date and time, and between the time and time-zone.   If no date is specified, current date is assumed.   If no time-zone is specified, local time-zone is assumed." },
+		{ 344, "The account logged into is not a financial advisor account." },
+		{ 345, "Generic combo is not supported for FA advisor account." },
+		{ 346, "Not an institutional account or an away clearing account." },
+		{ 347, "Short sale slot value must be 1 (broker holds shares) or 2 (delivered from elsewhere)." },
+		{ 348, "Order not a short sale -- type must be SSHORT to specify short sale slot." },
+		{ 349, "Generic combo does not support \"Good After\" attribute." },
+		{ 350, "Minimum quantity is not supported for best combo order." },
+		{ 351, "The \"Regular Trading Hours only\" flag is not valid for this order." },
+		{ 352, "Short sale slot value of 2 (delivered from elsewhere) requires location." },
+		{ 353, "Short sale slot value of 1 requires no location be specified." },
+		{ 354, "Not subscribed to requested market data." },
+		{ 355, "Order size does not conform to market rule." },
+		{ 356, "Smart-combo order does not support OCA group." },
+		{ 357, "Your client version is out of date." },
+		{ 358, "Smart combo child order not supported." },
+		{ 359, "Combo order only supports reduce on fill without block(OCA)." },
+		{ 360, "No whatif check support for smart combo order." },
+		{ 361, "Invalid trigger price." },
+		{ 362, "Invalid adjusted stop price." },
+		{ 363, "Invalid adjusted stop limit price." },
+		{ 364, "Invalid adjusted trailing amount." },
+		{ 365, "No scanner subscription found for ticker id:" },
+		{ 366, "No historical data query found for ticker id:" },
+		{ 367, "Volatility type if set must be 1 or 2 for VOL orders. Do not set it for other order types." },
+		{ 368, "Reference Price Type must be 1 or 2 for dynamic volatility management. Do not set it for non-VOL orders." },
+		{ 369, "Volatility orders are only valid for US options." },
+		{ 370, "Dynamic Volatility orders must be SMART routed, or trade on a Price Improvement Exchange." },
+		{ 371, "VOL order requires positive floating point value for volatility. Do not set it for other order types." },
+		{ 372, "Cannot set dynamic VOL attribute on non-VOL order." },
+		{ 373, "Can only set stock range attribute on VOL or RELATIVE TO STOCK order." },
+		{ 374, "If both are set, the lower stock range attribute must be less than the upper stock range attribute." },
+		{ 375, "Stock range attributes cannot be negative." },
+		{ 376, "The order is not eligible for continuous update. The option must trade on a cheap-to-reroute exchange." },
+		{ 377, "Must specify valid delta hedge order aux. price." },
+		{ 378, "Delta hedge order type requires delta hedge aux. price to be specified." },
+		{ 379, "Delta hedge order type requires that no delta hedge aux. price be specified." },
+		{ 380, "This order type is not allowed for delta hedge orders." },
+		{ 381, "Your DDE.dll needs to be upgraded." },
+		{ 382, "The price specified violates the number of ticks constraint specified in the default order settings." },
+		{ 383, "The size specified violates the size constraint specified in the default order settings." },
+		{ 384, "Invalid DDE array request." },
+		{ 385, "Duplicate ticker ID for API scanner subscription." },
+		{ 386, "Duplicate ticker ID for API historical data query." },
+		{ 387, "Unsupported order type for this exchange and security type." },
+		{ 388, "Order size is smaller than the minimum requirement." },
+		{ 389, "Supplied routed order ID is not unique." },
+		{ 390, "Supplied routed order ID is invalid." },
+		{ 391, "The time or time-zone entered is invalid. The correct format is hh:mm:ss xxx where xxx is an optionally specified time-zone. E.g.: 15:59:00 EST.   Note that there is a space between the time and the time zone.   If no time zone is specified, local time is assumed.   " },
+		{ 392, "Invalid order: contract expired." },
+		{ 393, "Short sale slot may be specified for delta hedge orders only." },
+		{ 394, "Invalid Process Time: must be integer number of milliseconds between 100 and 2000.  Found:" },
+		{ 395, "Due to system problems, orders with OCA groups are currently not being accepted." },
+		{ 396, "Due to system problems, application is currently accepting only Market and Limit orders for this contract." },
+		{ 397, "Due to system problems, application is currently accepting only Market and Limit orders for this contract." },
+		{ 398, "< > cannot be used as a condition trigger." },
+		{ 399, "Order message error" },
+
+		{ 400, "Algo order error." },
+		{ 401, "Length restriction." },
+		{ 402, "Conditions are not allowed for this contract." },
+		{ 403, "Invalid stop price." },
+		{ 404, "Shares for this order are not immediately available for short sale. The order will be held while we attempt to locate the shares." },
+		{ 405, "The child order quantity should be equivalent to the parent order size." },
+		{ 406, "The currency < > is not allowed." },
+		{ 407, "The symbol should contain valid non-unicode characters only." },
+		{ 408, "Invalid scale order increment." },
+		{ 409, "Invalid scale order. You must specify order component size." },
+		{ 410, "Invalid subsequent component size for scale order." },
+		{ 411, "The \"Outside Regular Trading Hours\" flag is not valid for this order." },
+		{ 412, "The contract is not available for trading." },
+		{ 413, "What-if order should have the transmit flag set to true." },
+		{ 414, "Snapshot market data subscription is not applicable to generic ticks." },
+		{ 415, "Wait until previous RFQ finishes and try again." },
+		{ 416, "RFQ is not applicable for the contract. Order ID:" },
+		{ 417, "Invalid initial component size for scale order." },
+		{ 418, "Invalid scale order profit offset." },
+		{ 419, "Missing initial component size for scale order." },
+		{ 420, "Invalid real-time query." },
+		{ 421, "Invalid route." },
+		{ 422, "The account and clearing attributes on this order may not be changed." },
+		{ 423, "Cross order RFQ has been expired. THI committed size is no longer available. Please open order dialog and verify liquidity allocation." },
+		{ 424, "FA Order requires allocation to be specified." },
+		{ 425, "FA Order requires per-account manual allocations because there is no common clearing instruction. Please use order dialog Adviser tab to enter the allocation." },
+		{ 426, "None of the accounts have enough shares." },
+		{ 427, "Mutual Fund order requires monetary value to be specified." },
+		{ 428, "Mutual Fund Sell order requires shares to be specified." },
+		{ 429, "Delta neutral orders are only supported for combos (BAG security type)." },
+		{ 430, "We are sorry, but fundamentals data for the security specified is not available." },
+		{ 431, "What to show field is missing or incorrect." },
+		{ 432, "Commission must not be negative." },
+		{ 433, "Invalid \"Restore size after taking profit\" for multiple account allocation scale order." },
+		{ 434, "The order size cannot be zero." },
+		{ 435, "You must specify an account." },
+		{ 436, "You must specify an allocation (either a single account, group, or profile)." },
+		{ 437, "Order can have only one flag Outside RTH or Allow PreOpen." },
+		{ 438, "The application is now locked." },
+		{ 439, "Order processing failed. Algorithm definition not found." },
+		{ 440, "Order modify failed. Algorithm cannot be modified." },
+		{ 441, "Algo attributes validation failed:" },
+		{ 442, "Specified algorithm is not allowed for this order." },
+		{ 443, "Order processing failed. Unknown algo attribute." },
+		{ 444, "Volatility Combo order is not yet acknowledged. Cannot submit changes at this time." },
+		{ 445, "The RFQ for this order is no longer valid." },
+		{ 446, "Missing scale order profit offset." },
+		{ 447, "Missing scale price adjustment amount or interval." },
+		{ 448, "Invalid scale price adjustment interval." },
+		{ 449, "Unexpected scale price adjustment amount or interval." },
+		{ 450, "Dividend schedule query failed." },								/* was listed as '40' on the IB/TWS web site */
+
+		/* System Message Codes */
+		{ 1100, "Connectivity between IB and TWS has been lost." },
+		{ 1101, "Connectivity between IB and TWS has been restored- data lost.*" },
+		{ 1102, "Connectivity between IB and TWS has been restored- data maintained." },
+		{ 1300, "TWS socket port has been reset and this connection is being dropped.   Please reconnect on the new port - <port_num>   *Market and account data subscription requests must be resubmitted." },
+
+		/* Warning Message Codes */
+		{ 2100, "New account data requested from TWS.  API client has been unsubscribed from account data." },
+		{ 2101, "Unable to subscribe to account as the following clients are subscribed to a different account." },
+		{ 2102, "Unable to modify this order as it is still being processed." },
+		{ 2103, "A market data farm is disconnected." },
+		{ 2104, "A market data farm is connected." },
+		{ 2105, "A historical data farm is disconnected." },
+		{ 2106, "A historical data farm is connected." },
+		{ 2107, "A historical data farm connection has become inactive but should be available upon demand." },
+		{ 2108, "A market data farm connection has become inactive but should be available upon demand." },
+		{ 2109, "Order Event Warning: Attribute “Outside Regular Trading Hours” is ignored based on the order type and destination. PlaceOrder is now processed." },
+		{ 2110, "Connectivity between TWS and server is broken. It will be restored automatically." },
+	};
 
     const char *tws_incoming_msg_names[] = {
         "tick_price", "tick_size", "order_status", "err_msg", "open_order",
