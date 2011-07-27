@@ -637,7 +637,7 @@ extern "C" {
         { 525, "Cancel Scanner Subscription Sending Error - "},
         { 526, "Request Scanner Parameter Sending Error - "},
         { 527, "Request Historical Data Sending Error - "},
-        { 528, "Request Historical Data Sending Error - "},
+        { 528, "Cancel Historical Data Sending Error - "},
         { 529, "Request Real-time Bar Data Sending Error - "},
         { 530, "Cancel Real-time Bar Data Sending Error - "},
         { 531, "Request Current Time Sending Error - "},

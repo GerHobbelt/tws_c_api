@@ -2575,7 +2575,7 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
     }
 
     if(ti->server_version >= 19) {
-        vol26 = ti->server_version == 26 && !strcasecmp(order->o_order_type, "VOL");
+        vol26 = (ti->server_version == 26 && !strcasecmp(order->o_order_type, "VOL"));
 
         send_int(ti, order->o_oca_type);
 
@@ -2692,7 +2692,7 @@ int tws_req_account_updates(void *tws, int subscribe, const char acct_code[])
 
     send_int(ti, REQ_ACCOUNT_DATA );
     send_int(ti, 2 /*VERSION*/);
-    send_int(ti, subscribe);
+    send_int(ti, !!subscribe);
 
     /* Send the account code. This will only be used for FA clients */
     if(ti->server_version >= 9)
@@ -2852,7 +2852,7 @@ int tws_req_auto_open_orders(void *tws, int auto_bind)
 
     send_int(ti, REQ_AUTO_OPEN_ORDERS);
     send_int(ti, 1 /*VERSION*/);
-    send_int(ti, auto_bind);
+    send_int(ti, !!auto_bind);
 
     flush_message(ti);
 
@@ -3210,7 +3210,7 @@ int tws_request_realtime_bars(void *tws, int ticker_id, tr_contract_t *c, int ba
     send_str(ti, c->c_local_symbol);
     send_int(ti, bar_size);
     send_str(ti, what_to_show);
-    send_int(ti, use_rth);
+    send_int(ti, !!use_rth);
 
     flush_message(ti);
 
