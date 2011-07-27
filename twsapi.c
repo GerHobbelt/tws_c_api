@@ -190,6 +190,18 @@ static void destroy_order(tws_instance_t *ti, tr_order_t *o)
     free_string(ti, o->o_good_till_date);
     free_string(ti, o->o_good_after_time);
     free_string(ti, o->o_algo_strategy);
+
+	if (o->o_algo_params && o->o_algo_params_count)
+	{
+		int i;
+
+		for (i = 0; i < o->o_algo_params_count; i++)
+		{
+			free_string(ti, o->o_algo_params[i].t_tag);
+			free_string(ti, o->o_algo_params[i].t_val);
+		}
+		free(o->o_algo_params);
+	}
 }
 
 static void init_order_status(tws_instance_t *ti, tr_order_status_t *ost)
@@ -335,10 +347,10 @@ static void receive_tick_price(tws_instance_t *ti)
             case BID:  size_tick_type = BID_SIZE; break;
             case ASK:  size_tick_type = ASK_SIZE; break;
             case LAST: size_tick_type = LAST_SIZE; break;
-            default: size_tick_type = UNDEFINED; break; /* not a tick */
+            default: size_tick_type = TICK_UNDEFINED; break; /* not a tick */
         }
 
-        if(size_tick_type != UNDEFINED)
+        if(size_tick_type != TICK_UNDEFINED)
             if(ti->connected)
                 event_tick_size(ti->opaque, ticker_id, size_tick_type, size);
     }
@@ -679,7 +691,7 @@ static void receive_open_order(tws_instance_t *ti)
     lval = sizeof(tws_string_t), read_line(ti, order.o_oca_group, &lval);
     lval = sizeof(tws_string_t), read_line(ti, order.o_account, &lval);
     lval = sizeof(tws_string_t), read_line(ti, order.o_open_close, &lval);
-    read_int(ti, &order.o_origin);
+    read_int(ti, &ival), order.o_origin = ival;
     lval = sizeof(tws_string_t), read_line(ti, order.o_orderref, &lval);
 
     if(version >= 3)
@@ -692,7 +704,7 @@ static void receive_open_order(tws_instance_t *ti)
         if(version < 18)
             ; /* "will never happen" comment */
         else
-            order.o_outside_rth = ival == 1;
+            order.o_outside_rth = (ival == 1);
 
         read_int(ti, &ival); order.o_hidden = ival == 1;
         read_double(ti, &order.o_discretionary_amt);
@@ -763,7 +775,7 @@ static void receive_open_order(tws_instance_t *ti)
 
         if(version == 11) {
             read_int(ti, &ival);
-            order.o_delta_neutral_order_type = !ival ? (char*) "NONE" : (char *) "MKT";
+            strcpy(order.o_delta_neutral_order_type, (!ival ? "NONE" : "MKT"));
         } else {
             lval = sizeof(tws_string_t), read_line(ti, order.o_delta_neutral_order_type, &lval);
             read_double(ti, &order.o_delta_neutral_aux_price);
@@ -820,16 +832,17 @@ static void receive_open_order(tws_instance_t *ti)
         lval = sizeof(tws_string_t); read_line(ti, order.o_algo_strategy, &lval);
 
         if (!IS_EMPTY(order.o_algo_strategy)) {
-            int param_count;
-            read_int(ti, &ival); param_count = ival;
+            read_int(ti, &order.o_algo_params_count);
 
-            if (param_count > 0) {
-                order.o_tvector = calloc(param_count, sizeof *order.o_tvector);
-                if(order.o_tvector) {
+            if (order.o_algo_params_count > 0) {
+				order.o_algo_params = calloc(order.o_algo_params_count, sizeof(*order.o_algo_params));
+                if(order.o_algo_params) {
                     int j;
-                    for (j = 0; j < param_count; j++) {
-                        lval = sizeof(tws_string_t); read_line(ti, order.o_tvector[j].t_tag, &lval);
-                        lval = sizeof(tws_string_t); read_line(ti, order.o_tvector[j].t_val, &lval);
+                    for (j = 0; j < order.o_algo_params_count; j++) {
+                        order.o_algo_params[j].t_tag = alloc_string(ti);
+                        order.o_algo_params[j].t_val = alloc_string(ti);
+                        lval = sizeof(tws_string_t); read_line(ti, order.o_algo_params[j].t_tag, &lval);
+                        lval = sizeof(tws_string_t); read_line(ti, order.o_algo_params[j].t_val, &lval);
                     }
                 } else {
 #ifdef TWS_DEBUG
@@ -859,9 +872,6 @@ static void receive_open_order(tws_instance_t *ti)
         event_open_order(ti->opaque, order.o_orderid, &contract, &order, &ost);
 
     destroy_order_status(ti, &ost);
-    if(order.o_tvector)
-        free(order.o_tvector);
-
     destroy_order(ti, &order);
     destroy_contract(ti, &contract);
 }
@@ -2662,13 +2672,30 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
     if(ti->server_version >= MIN_SERVER_VER_ALGO_ORDERS) {
         send_str(ti, order->o_algo_strategy);
         if(!IS_EMPTY(order->o_algo_strategy)) {
-            send_int(ti, order->o_tval_count);
-            if(order->o_tval_count > 0) {
+            send_int(ti, order->o_algo_params_count);
+            if(order->o_algo_params_count > 0) {
                 int j;
-                for(j = 0; j < order->o_tval_count; j++) {
-                    send_str(ti, order->o_tvector[j].t_tag);
-                    send_str(ti, order->o_tvector[j].t_val);
-                }
+				if (order->o_algo_params == NULL) {
+#ifdef TWS_DEBUG
+					printf("tws_place_order: Algo Params array has not been properly set up: array is NULL\n");
+#endif
+					// we may already have sent part of the constructed message so play it safe and discard the connection!
+					tws_disconnect(ti);
+				}
+				else {
+					for(j = 0; j < order->o_algo_params_count; j++) {
+						if (order->o_algo_params[j].t_tag == NULL) {
+#ifdef TWS_DEBUG
+							printf("tws_place_order: Algo Params array has not been properly set up: tag is NULL\n");
+#endif
+							// we may already have sent part of the constructed message so play it safe and discard the connection!
+							tws_disconnect(ti);
+							break;
+						}
+						send_str(ti, order->o_algo_params[j].t_tag);
+						send_str(ti, order->o_algo_params[j].t_val);
+					}
+				}
             }
         }
     }
