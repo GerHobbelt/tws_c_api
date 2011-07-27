@@ -71,8 +71,8 @@ static void reset_io_buffers(tws_instance_t *ti);
 static char *alloc_string(tws_instance_t *ti)
 {
     unsigned int index;
-	unsigned long bits;
-	unsigned int j;
+    unsigned long bits;
+    unsigned int j;
 
     for(j = 0; j < MAX_TWS_STRINGS; j++) {
         index = j / WORD_SIZE_IN_BITS;
@@ -84,8 +84,8 @@ static char *alloc_string(tws_instance_t *ti)
         bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
         if(!(ti->bitmask[index] & bits)) {
             ti->bitmask[index] |= bits;
-			// and initially start with an empty string value (aids legibility while debugging):
-			ti->mempool[j].str[0] = 0;
+            // and initially start with an empty string value (aids legibility while debugging):
+            ti->mempool[j].str[0] = 0;
             return ti->mempool[j].str;
         }
     }
@@ -102,14 +102,14 @@ static char *alloc_string(tws_instance_t *ti)
 
 static void free_string(tws_instance_t *ti, void *ptr)
 {
-	if (ptr)
-	{
-		unsigned int j = (unsigned int) ((tws_string_t *) ptr - &ti->mempool[0]);
-		unsigned int index = j / WORD_SIZE_IN_BITS;
-		unsigned long bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
+    if (ptr)
+    {
+        unsigned int j = (unsigned int) ((tws_string_t *) ptr - &ti->mempool[0]);
+        unsigned int index = j / WORD_SIZE_IN_BITS;
+        unsigned long bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
 
-		ti->bitmask[index] &= ~bits;
-	}
+        ti->bitmask[index] &= ~bits;
+    }
 }
 
 static void init_contract(tws_instance_t *ti, tr_contract_t *c)
@@ -197,17 +197,17 @@ static void destroy_order(tws_instance_t *ti, tr_order_t *o)
     free_string(ti, o->o_good_after_time);
     free_string(ti, o->o_algo_strategy);
 
-	if (o->o_algo_params && o->o_algo_params_count)
-	{
-		int i;
+    if (o->o_algo_params && o->o_algo_params_count)
+    {
+        int i;
 
-		for (i = 0; i < o->o_algo_params_count; i++)
-		{
-			free_string(ti, o->o_algo_params[i].t_tag);
-			free_string(ti, o->o_algo_params[i].t_val);
-		}
-		free(o->o_algo_params);
-	}
+        for (i = 0; i < o->o_algo_params_count; i++)
+        {
+            free_string(ti, o->o_algo_params[i].t_tag);
+            free_string(ti, o->o_algo_params[i].t_val);
+        }
+        free(o->o_algo_params);
+    }
 }
 
 static void init_order_status(tws_instance_t *ti, tr_order_status_t *ost)
@@ -235,7 +235,7 @@ static void destroy_order_status(tws_instance_t *ti, tr_order_status_t *ost)
 static void init_contract_details(tws_instance_t *ti, tr_contract_details_t *cd)
 {
     memset(cd, 0, sizeof *cd);
-	init_contract(ti, &cd->d_summary);
+    init_contract(ti, &cd->d_summary);
 
     cd->d_market_name = alloc_string(ti);
     cd->d_trading_class = alloc_string(ti);
@@ -286,7 +286,7 @@ static void destroy_contract_details(tws_instance_t *ti, tr_contract_details_t *
     free_string(ti, cd->d_trading_class);
     free_string(ti, cd->d_market_name);
 
-	destroy_contract(ti, &cd->d_summary);
+    destroy_contract(ti, &cd->d_summary);
 }
 
 static void init_execution(tws_instance_t *ti, tr_execution_t *exec)
@@ -320,9 +320,9 @@ static void destroy_under_comp(tws_instance_t *ti, under_comp_t *und)
 
 void tws_init_tr_comboleg(void *tws, tr_comboleg_t *cl)
 {
-	memset(cl, 0, sizeof(*cl));
+    memset(cl, 0, sizeof(*cl));
 
-	cl->co_exempt_code = -1;
+    cl->co_exempt_code = -1;
 }
 
 
@@ -330,9 +330,9 @@ static void receive_tick_price(tws_instance_t *ti)
 {
     double price;
     int ival, version, ticker_id;
-	tr_tick_type_t tick_type;
-	int size = 0, can_auto_execute = 0;
-	tr_tick_type_t size_tick_type;
+    tr_tick_type_t tick_type;
+    int size = 0, can_auto_execute = 0;
+    tr_tick_type_t size_tick_type;
 
     read_int(ti, &ival), version = ival;
     read_int(ti, &ival), ticker_id = ival;
@@ -366,8 +366,8 @@ static void receive_tick_price(tws_instance_t *ti)
 static void receive_tick_size(tws_instance_t *ti)
 {
     int ival, ticker_id;
-	tr_tick_type_t tick_type;
-	int size;
+    tr_tick_type_t tick_type;
+    int size;
 
     read_int(ti, &ival); /* version unused */
     read_int(ti, &ival), ticker_id = ival;
@@ -388,7 +388,7 @@ static void receive_tick_option_computation(tws_instance_t *ti)
     double theta = DBL_MAX;
     double und_price = DBL_MAX;
     int ival, ticker_id;
-	tr_tick_type_t tick_type;
+    tr_tick_type_t tick_type;
     int version;
 
     read_int(ti, &ival), version = ival;
@@ -439,7 +439,7 @@ static void receive_tick_generic(tws_instance_t *ti)
 {
     double value;
     int ival, ticker_id;
-	tr_tick_type_t tick_type;
+    tr_tick_type_t tick_type;
 
     read_int(ti, &ival /*version */); /* ignored */
     read_int(ti, &ival), ticker_id = ival;
@@ -454,22 +454,22 @@ static void receive_tick_string(tws_instance_t *ti)
     char *str;
     char *ticker_value;
     int ival, ticker_id;
-	tr_tick_type_t tick_type;
+    tr_tick_type_t tick_type;
 
     read_int(ti, &ival /*version */); /* ignored */
     read_int(ti, &ival), ticker_id = ival;
     read_int(ti, &ival), tick_type = ival;
 
-	ticker_value = str = alloc_string(ti);
+    ticker_value = str = alloc_string(ti);
     read_line_of_arbitrary_length(ti, &ticker_value, sizeof(tws_string_t));
 
     if(ti->connected) {
         event_tick_string(ti->opaque, ticker_id, tick_type, ticker_value);
     }
 
-	if (ticker_value != str)
-		free(ticker_value);
-	free_string(ti, str);
+    if (ticker_value != str)
+        free(ticker_value);
+    free_string(ti, str);
 }
 
 static void receive_tick_efp(tws_instance_t *ti)
@@ -478,8 +478,8 @@ static void receive_tick_efp(tws_instance_t *ti)
     char *formatted_basis_points = alloc_string(ti), *future_expiry = alloc_string(ti);
     size_t lval;
     int ival, ticker_id;
-	tr_tick_type_t tick_type;
-	int hold_days;
+    tr_tick_type_t tick_type;
+    int hold_days;
 
     read_int(ti, &ival /*version unused */);
     read_int(ti, &ival); ticker_id = ival;
@@ -532,7 +532,7 @@ static void receive_order_status(tws_instance_t *ti)
 
     if(ti->connected)
         event_order_status(ti->opaque, id, status, filled, remaining,
-                           avg_fill_price, permid, parentid, last_fill_price, clientid, why_held);
+        avg_fill_price, permid, parentid, last_fill_price, clientid, why_held);
 
     free_string(ti, why_held);
     free_string(ti, status);
@@ -611,8 +611,8 @@ static void receive_portfolio_value(tws_instance_t *ti)
 
     if(ti->connected)
         event_update_portfolio(ti->opaque, &contract, position,
-                               market_price, market_value, average_cost,
-                               unrealized_pnl, realized_pnl, account_name);
+        market_price, market_value, average_cost,
+        unrealized_pnl, realized_pnl, account_name);
 
     free_string(ti, account_name);
     destroy_contract(ti, &contract);
@@ -841,7 +841,7 @@ static void receive_open_order(tws_instance_t *ti)
             read_int(ti, &order.o_algo_params_count);
 
             if (order.o_algo_params_count > 0) {
-				order.o_algo_params = calloc(order.o_algo_params_count, sizeof(*order.o_algo_params));
+                order.o_algo_params = calloc(order.o_algo_params_count, sizeof(*order.o_algo_params));
                 if(order.o_algo_params) {
                     int j;
                     for (j = 0; j < order.o_algo_params_count; j++) {
@@ -1072,7 +1072,7 @@ static void receive_market_depth(tws_instance_t *ti)
 
     if(ti->connected)
         event_update_mkt_depth(ti->opaque, id, position, operation,
-                               side, price, size);
+        side, price, size);
 }
 
 static void receive_market_depth_l2(tws_instance_t *ti)
@@ -1094,7 +1094,7 @@ static void receive_market_depth_l2(tws_instance_t *ti)
 
     if(ti->connected) {
         event_update_mkt_depth_l2(ti->opaque, id, position, mkt_maker,
-                                  operation, side, price, size);
+            operation, side, price, size);
     }
 
     free_string(ti, mkt_maker);
@@ -1110,21 +1110,21 @@ static void receive_news_bulletins(tws_instance_t *ti)
     read_int(ti, &ival), newsmsgid = ival;
     read_int(ti, &ival), newsmsgtype = ival;
 
-	msg = str = alloc_string(ti);
+    msg = str = alloc_string(ti);
     read_line_of_arbitrary_length(ti, &msg, sizeof(tws_string_t)); /* news message */
 
-	originating_exch = alloc_string(ti);
+    originating_exch = alloc_string(ti);
     lval = sizeof(tws_string_t), read_line(ti, originating_exch, &lval);
 
     if(ti->connected) {
         event_update_news_bulletin(ti->opaque, newsmsgid, newsmsgtype,
-                                   msg, originating_exch);
+            msg, originating_exch);
     }
 
-	if (msg != str)
-		free(msg);
-	free_string(ti, str);
-	free_string(ti, originating_exch);
+    if (msg != str)
+        free(msg);
+    free_string(ti, str);
+    free_string(ti, originating_exch);
 }
 
 static void receive_managed_accts(tws_instance_t *ti)
@@ -1144,23 +1144,23 @@ static void receive_managed_accts(tws_instance_t *ti)
 
 static void receive_fa(tws_instance_t *ti)
 {
-	char *str;
+    char *str;
     char *xml;
     int ival, fadata_type;
 
     read_int(ti, &ival); /*version*/
     read_int(ti, &ival), fadata_type = ival;
 
-	xml = str = alloc_string(ti);
+    xml = str = alloc_string(ti);
     read_line_of_arbitrary_length(ti, &xml, sizeof(tws_string_t)); /* xml */
 
     if(ti->connected) {
         event_receive_fa(ti->opaque, fadata_type, xml);
     }
 
-	if (xml != str)
-		free(xml);
-	free_string(ti, str);
+    if (xml != str)
+        free(xml);
+    free_string(ti, str);
 }
 
 static void receive_historical_data(void *tws)
@@ -1205,10 +1205,10 @@ static void receive_historical_data(void *tws)
     if(ti->connected)
         event_historical_data_end(ti->opaque, reqid, completion_from, completion_to);
 
-	free_string(ti, date);
-	free_string(ti, has_gaps);
-	free_string(ti, completion_from);
-	free_string(ti, completion_to);
+    free_string(ti, date);
+    free_string(ti, has_gaps);
+    free_string(ti, completion_from);
+    free_string(ti, completion_to);
 }
 
 static void receive_scanner_parameters(void *tws)
@@ -1219,18 +1219,18 @@ static void receive_scanner_parameters(void *tws)
 
     read_int(ti, &ival); /*version*/
 
-	// we expect to receive a very large XML string here, so don't even try to make the effort for smaller strings.
-	// In my case, I see an incoming XML string of ~ 193K so we instruct the function to start with a 200K buffer
-	// on the heap to speed it up a little bit by (most probably) not requiring any realloc ~ large memcopy
-	// operation in there.
-	xml = NULL;
+    // we expect to receive a very large XML string here, so don't even try to make the effort for smaller strings.
+    // In my case, I see an incoming XML string of ~ 193K so we instruct the function to start with a 200K buffer
+    // on the heap to speed it up a little bit by (most probably) not requiring any realloc ~ large memcopy
+    // operation in there.
+    xml = NULL;
     read_line_of_arbitrary_length(ti, &xml, 200 * 1024);
 
     if(ti->connected) {
         event_scanner_parameters(ti->opaque, xml);
     }
 
-	free(xml);
+    free(xml);
 }
 
 static void receive_scanner_data(void *tws)
@@ -1330,22 +1330,22 @@ static void receive_fundamental_data(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
     int ival, req_id;
-	char *str;
+    char *str;
     char *data;
 
     read_int(ti, &ival); /* version ignored */
     read_int(ti, &ival), req_id = ival;
 
-	data = str = alloc_string(ti);
+    data = str = alloc_string(ti);
     read_line_of_arbitrary_length(ti, &data, sizeof(tws_string_t));
 
     if(ti->connected) {
         event_fundamental_data(ti->opaque, req_id, data);
     }
 
-	if (data != str)
-		free(data);
-	free_string(ti, str);
+    if (data != str)
+        free(data);
+    free_string(ti, str);
 }
 
 static void receive_contract_data_end(void *tws)
@@ -1399,7 +1399,7 @@ static void receive_execution_data_end(void *tws)
 static void receive_delta_neutral_validation(void *tws)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
-	under_comp_t und;
+    under_comp_t und;
     int ival, reqid;
 
     read_int(ti, &ival); /* version ignored */
@@ -1478,7 +1478,7 @@ int tws_event_process(void *tws)
 
 #ifdef TWS_DEBUG
     printf("\nreceived id=%d, name=%s\n", (int)msgcode,
-           valid ? tws_incoming_msg_names[msgcode - 1] : "invalid id");
+        valid ? tws_incoming_msg_names[msgcode - 1] : "invalid id");
 #endif
     return valid ? 0 : -1;
 }
@@ -1488,23 +1488,23 @@ void *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t
 {
     tws_instance_t *ti = (tws_instance_t *) calloc(1, sizeof *ti);
     if(ti)
-	{
+    {
         ti->opaque = opaque;
         ti->transmit = transmit;
         ti->receive = receive;
         ti->flush = flush;
-		ti->open = open;
+        ti->open = open;
         ti->close = close;
 
-		reset_io_buffers(ti);
-	}
+        reset_io_buffers(ti);
+    }
 
     return ti;
 }
 
 void tws_destroy(void *tws_instance)
 {
-	tws_disconnect(tws_instance);
+    tws_disconnect(tws_instance);
 
     free(tws_instance);
 }
@@ -1515,29 +1515,29 @@ static int send_blob(tws_instance_t *ti, const char *src, size_t srclen)
     size_t len = sizeof(ti->tx_buf) - ti->tx_buf_next;
     int err = 0;
 
-	if (ti->connected) {
-		while (len < srclen) {
-			err = ((int)ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
-			if(err) {
-				tws_disconnect(ti);
-				return err;
-			}
-			len = sizeof(ti->tx_buf);
-			if (len > srclen) {
-				len = srclen;
-			}
-			memcpy(ti->tx_buf, src, len);
-			srclen -= len;
-			src += len;
-			ti->tx_buf_next = len;
-		}
+    if (ti->connected) {
+        while (len < srclen) {
+            err = ((int)ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
+            if(err) {
+                tws_disconnect(ti);
+                return err;
+            }
+            len = sizeof(ti->tx_buf);
+            if (len > srclen) {
+                len = srclen;
+            }
+            memcpy(ti->tx_buf, src, len);
+            srclen -= len;
+            src += len;
+            ti->tx_buf_next = len;
+        }
 
-		if (srclen > 0)
-		{
-			memcpy(ti->tx_buf + ti->tx_buf_next, src, srclen);
-			ti->tx_buf_next += srclen;
-		}
-	}
+        if (srclen > 0)
+        {
+            memcpy(ti->tx_buf + ti->tx_buf_next, src, srclen);
+            ti->tx_buf_next += srclen;
+        }
+    }
 
     return err;
 }
@@ -1546,21 +1546,21 @@ static int flush_message(tws_instance_t *ti)
 {
     int err = 0;
 
-	if (ti->connected) {
-		if (ti->tx_buf_next > 0) {
-			err = ((int)ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
-			if(err) {
-				tws_disconnect(ti);
-				goto out;
-			}
-		}
-		/* now that all lingering message data has been transmitted, signal end of message by requesting a TX/flush: */
-		err = ti->flush(ti->opaque);
-		if(err) {
-			tws_disconnect(ti);
-			goto out;
-		}
-	}
+    if (ti->connected) {
+        if (ti->tx_buf_next > 0) {
+            err = ((int)ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
+            if(err) {
+                tws_disconnect(ti);
+                goto out;
+            }
+        }
+        /* now that all lingering message data has been transmitted, signal end of message by requesting a TX/flush: */
+        err = ti->flush(ti->opaque);
+        if(err) {
+            tws_disconnect(ti);
+            goto out;
+        }
+    }
     ti->tx_buf_next = 0;
 out:
     return err;
@@ -1571,7 +1571,7 @@ out:
  */
 static int send_str(tws_instance_t *ti, const char str[])
 {
-	const char *s = (str ? str : "");
+    const char *s = (str ? str : "");
     int len = (int)strlen(s) + 1;
     int err = send_blob(ti, s, len);
 
@@ -1612,7 +1612,7 @@ out:
 /* return 1 on error, 0 if successful, it's all right to block */
 static int send_boolean(tws_instance_t *ti, int val)
 {
-	return send_blob(ti, (val ? "1" : "0"), 2);
+    return send_blob(ti, (val ? "1" : "0"), 2);
 }
 
 static int send_int_max(tws_instance_t *ti, int val)
@@ -1632,22 +1632,22 @@ static int read_char(tws_instance_t *ti)
 {
     int nread;
 
-	if (ti->connected) {
-		if(ti->buf_next == ti->buf_last) {
-			nread = ti->receive(ti->opaque, ti->buf, (unsigned int)sizeof ti->buf);
-			if(nread <= 0) {
-				nread = -1;
-				goto out;
-			}
-			ti->buf_last = nread;
-			ti->buf_next = 0;
-		}
+    if (ti->connected) {
+        if(ti->buf_next == ti->buf_last) {
+            nread = ti->receive(ti->opaque, ti->buf, (unsigned int)sizeof ti->buf);
+            if(nread <= 0) {
+                nread = -1;
+                goto out;
+            }
+            ti->buf_last = nread;
+            ti->buf_next = 0;
+        }
 
-		nread = ti->buf[ti->buf_next++];
-	}
-	else {
-		nread = -1;
-	}
+        nread = ti->buf[ti->buf_next++];
+    }
+    else {
+        nread = -1;
+    }
 out:
     return nread;
 }
@@ -1658,12 +1658,12 @@ static int read_line(tws_instance_t *ti, char *line, size_t *len)
     size_t j;
     int nread = -1, err = -1;
 
-	if (line == NULL) {
+    if (line == NULL) {
 #ifdef TWS_DEBUG
-		printf("read_line: line buffer is NULL\n");
+        printf("read_line: line buffer is NULL\n");
 #endif
         goto out;
-	}
+    }
 
     line[0] = '\0';
     for(j = 0; j < *len; j++) {
@@ -1697,7 +1697,7 @@ out:
 #ifdef TWS_DEBUG
             printf("read_line: corruption happened (string longer than max)\n");
 #endif
-		}
+        }
         // always close the connection in buffer overflow / error conditions; the next element fetch will be corrupt anyway and this way we prevent nasty surprises downrange.
         tws_disconnect(ti);
     }
@@ -1718,39 +1718,39 @@ static int read_line_of_arbitrary_length(tws_instance_t *ti, char **val, size_t 
     size_t j;
     char *line;
     int nread = -1, err = -1;
-	int malloced = 0;
+    int malloced = 0;
 
     line = *val;
-	*val = NULL;
+    *val = NULL;
 
     if (line == NULL || alloc_size == 0) {
-	    // guestimate reasonable initial buffer size: we expect large inputs so we start pretty big:
-		if (alloc_size < 65536)
-			alloc_size = 65536;
-		line = malloc(alloc_size);
-		malloced = 1;
-		if (line == NULL)
-		{
+        // guestimate reasonable initial buffer size: we expect large inputs so we start pretty big:
+        if (alloc_size < 65536)
+            alloc_size = 65536;
+        line = malloc(alloc_size);
+        malloced = 1;
+        if (line == NULL)
+        {
 #ifdef TWS_DEBUG
-	        printf("read_line_of_arbitrary_length: going out 0, heap alloc failure\n");
+            printf("read_line_of_arbitrary_length: going out 0, heap alloc failure\n");
 #endif
-		    goto out;
-		}
-	}
+            goto out;
+        }
+    }
 
     line[0] = '\0';
     for(j = 0; ; j++) {
         if (j + 1 >= alloc_size) {
             alloc_size += 65536;
-			if (malloced)
-			{
-				line = realloc(line, alloc_size);
-			}
-			else
-			{
-				line = malloc(alloc_size);
-			}
-			malloced = 1;
+            if (malloced)
+            {
+                line = realloc(line, alloc_size);
+            }
+            else
+            {
+                line = malloc(alloc_size);
+            }
+            malloced = 1;
             if (line == NULL) {
 #ifdef TWS_DEBUG
                 printf("read_line_of_arbitrary_length: going out 1, heap alloc failure\n");
@@ -1781,15 +1781,15 @@ out:
 #ifdef TWS_DEBUG
             printf("read_line: corruption happened (string longer than max)\n");
 #endif
-		}
+        }
         // always close the connection in buffer overflow conditions; the next element fetch will be corrupt anyway and this way we prevent nasty surprises downrange.
         tws_disconnect(ti);
 
-		// and free the allocated buffer when an error occurred: it is NOT passed back to the caller
-		if (malloced && line)
-		{
-			free(line);
-		}
+        // and free the allocated buffer when an error occurred: it is NOT passed back to the caller
+        if (malloced && line)
+        {
+            free(line);
+        }
         //assert(*val == NULL);
     }
 
@@ -1862,9 +1862,9 @@ static void reset_io_buffers(tws_instance_t *ti)
 {
     /* WARNING: reset the output buffer to NIL fill when we send a connect message: this flushes any data lingering from a previously failed transmit on a previous connect */
     ti->tx_buf_next = 0;
-	/* also reset the RECEIVE BUFFER to an 'empty' state! */
-	ti->buf_last = 0;
-	ti->buf_next = 0;
+    /* also reset the RECEIVE BUFFER to an 'empty' state! */
+    ti->buf_last = 0;
+    ti->buf_next = 0;
 }
 
 
@@ -1883,13 +1883,13 @@ int tws_connect(void *tws, int client_id)
         err = ALREADY_CONNECTED; goto out;
     }
 
-	reset_io_buffers(ti);
+    reset_io_buffers(ti);
 
     err = ti->open(ti->opaque);
-	if (err != 0) {
-		goto out;
+    if (err != 0) {
+        goto out;
     }
-	// turn this 'is connected' flag ON so that the read/send methods in here will work as expected.
+    // turn this 'is connected' flag ON so that the read/send methods in here will work as expected.
     ti->connected = 1;
 
     if(send_int(ti, TWSCLIENT_VERSION)) {
@@ -1903,8 +1903,8 @@ int tws_connect(void *tws, int client_id)
 
     if(val < 1) {
         err = NO_VALID_ID;
-		tws_disconnect(ti);
-		goto out;
+        tws_disconnect(ti);
+        goto out;
     }
 
     ti->server_version = val;
@@ -1925,9 +1925,9 @@ int tws_connect(void *tws, int client_id)
     err = 0;
 out:
     if(err) {
-		// do NOT 'destroy' the tws instance for reasons of symmetry: that sort of thing should only happen when tws_create() fails!
-		//
-		// Any error which is fatal to the connection, will already have triggered a tws_disconnect() by now (e.g. errors in send_int() and read_int())
+        // do NOT 'destroy' the tws instance for reasons of symmetry: that sort of thing should only happen when tws_create() fails!
+        //
+        // Any error which is fatal to the connection, will already have triggered a tws_disconnect() by now (e.g. errors in send_int() and read_int())
     }
     return err;
 }
@@ -1946,7 +1946,7 @@ void  tws_disconnect(void *tws)
     }
     ti->connected = 0;
 
-	reset_io_buffers(ti);
+    reset_io_buffers(ti);
 }
 
 /*
@@ -2037,9 +2037,9 @@ int tws_cancel_scanner_subscription(void *tws, int ticker_id)
 
 typedef enum
 {
-	COMBO_FOR_REQUEST_MARKET_DATA,
-	COMBO_FOR_REQUEST_HIST_DATA,
-	COMBO_FOR_PLACE_ORDER,
+    COMBO_FOR_REQUEST_MARKET_DATA,
+    COMBO_FOR_REQUEST_HIST_DATA,
+    COMBO_FOR_PLACE_ORDER,
 } send_combolegs_mode;
 
 static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, send_combolegs_mode mode)
@@ -2054,20 +2054,20 @@ static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, send_com
         send_int(ti, cl->co_ratio);
         send_str(ti, cl->co_action);
         send_str(ti, cl->co_exchange);
-		if (mode != COMBO_FOR_REQUEST_MARKET_DATA && mode != COMBO_FOR_REQUEST_HIST_DATA)
-		{
-			send_int(ti, cl->co_open_close);
+        if (mode != COMBO_FOR_REQUEST_MARKET_DATA && mode != COMBO_FOR_REQUEST_HIST_DATA)
+        {
+            send_int(ti, cl->co_open_close);
 
-			if(ti->server_version >= MIN_SERVER_VER_SSHORT_COMBO_LEGS)
-			{
-				send_int(ti, cl->co_short_sale_slot);
-				send_str(ti, cl->co_designated_location);
-			}
-			if (ti->server_version >= MIN_SERVER_VER_SSHORTX_OLD)
-			{
-				send_int(ti, cl->co_exempt_code);
-			}
-		}
+            if(ti->server_version >= MIN_SERVER_VER_SSHORT_COMBO_LEGS)
+            {
+                send_int(ti, cl->co_short_sale_slot);
+                send_str(ti, cl->co_designated_location);
+            }
+            if (ti->server_version >= MIN_SERVER_VER_SSHORTX_OLD)
+            {
+                send_int(ti, cl->co_exempt_code);
+            }
+        }
     }
 }
 
@@ -2075,7 +2075,7 @@ static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, send_com
 similar to IB/TWS Java method:
 
     public synchronized void reqMktData(int tickerId, Contract contract,
-    		String genericTickList, boolean snapshot) {
+            String genericTickList, boolean snapshot) {
 */
 int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract, const char generic_tick_list[], int snapshot)
 {
@@ -2142,20 +2142,20 @@ int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract, const ch
             send_double(ti, contract->c_undercomp->u_price);
         } else {
             send_int(ti, 0);
-		}
+        }
     }
 
     if(ti->server_version >= 31)
-	{
-    	/*
-    	 * Note: Even though SHORTABLE tick type support only
-    	 *       started with server version 33 it would be relatively
-    	 *       expensive to expose this restriction here.
-    	 *
-    	 *       Therefore we are relying on TWS doing validation.
-    	 */
+    {
+        /*
+         * Note: Even though SHORTABLE tick type support only
+         *       started with server version 33 it would be relatively
+         *       expensive to expose this restriction here.
+         *
+         *       Therefore we are relying on TWS doing validation.
+         */
         send_str(ti, generic_tick_list);
-	}
+    }
 
     if(ti->server_version >= MIN_SERVER_VER_SNAPSHOT_MKT_DATA)
         send_boolean(ti, snapshot);
@@ -2209,7 +2209,7 @@ int tws_req_historical_data(void *tws, int ticker_id, tr_contract_t *contract, c
         send_int(ti, format_date);
 
     if(ti->server_version >= 8 && !strcasecmp(contract->c_sectype, "BAG"))
-	    send_combolegs(ti, contract, COMBO_FOR_REQUEST_HIST_DATA);
+        send_combolegs(ti, contract, COMBO_FOR_REQUEST_HIST_DATA);
 
     flush_message(ti);
 
@@ -2417,11 +2417,11 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
 
     if(ti->server_version < MIN_SERVER_VER_SCALE_ORDERS) {
         if(order->o_scale_init_level_size != INTEGER_MAX_VALUE ||
-           DBL_NOTMAX(order->o_scale_price_increment)) {
+            DBL_NOTMAX(order->o_scale_price_increment)) {
 #ifdef TWS_DEBUG
-            printf("tws_place_order: It does not support Scale orders\n");
+                printf("tws_place_order: It does not support Scale orders\n");
 #endif
-            return UPDATE_TWS;
+                return UPDATE_TWS;
         }
     }
 
@@ -2434,11 +2434,11 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
                 cl = &contract->c_comboleg[j];
 
                 if(cl->co_short_sale_slot != 0 ||
-                   !IS_EMPTY(cl->co_designated_location)) {
+                    !IS_EMPTY(cl->co_designated_location)) {
 #ifdef TWS_DEBUG
-                    printf("tws_place_order does not support SSHORT flag for combo legs\n");
+                        printf("tws_place_order does not support SSHORT flag for combo legs\n");
 #endif
-                    return UPDATE_TWS;
+                        return UPDATE_TWS;
                 }
             }
         }
@@ -2643,7 +2643,7 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
         send_double_max(ti, order->o_starting_price);
         send_double_max(ti, order->o_stock_ref_price);
         send_double_max(ti, order->o_delta);
-		/* Volatility orders had specific watermark price attribs in server version 26 */
+        /* Volatility orders had specific watermark price attribs in server version 26 */
         send_double_max(ti, vol26 ? DBL_MAX : order->o_stock_range_lower);
         send_double_max(ti, vol26 ? DBL_MAX : order->o_stock_range_upper);
     }
@@ -2657,14 +2657,14 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
 
         if(ti->server_version < 28) {
             send_boolean(ti, !strcasecmp(order->o_delta_neutral_order_type, "MKT"));
-		}
+        }
         else {
             send_str(ti, order->o_delta_neutral_order_type);
             send_double_max(ti, order->o_delta_neutral_aux_price);
         }
 
         send_boolean(ti, order->o_continuous_update);
-		/* Volatility orders had specific watermark price attribs in server version 26 */
+        /* Volatility orders had specific watermark price attribs in server version 26 */
         if(ti->server_version == 26) {
             /* this is a mechanical translation of java code but is it correct? */
             send_double_max(ti, vol26 ? order->o_stock_range_lower : DBL_MAX);
@@ -2703,9 +2703,9 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
             send_int(ti, contract->c_undercomp->u_conid);
             send_double(ti, contract->c_undercomp->u_delta);
             send_double(ti, contract->c_undercomp->u_price);
-		} else {
+        } else {
             send_int(ti, 0);
-		}
+        }
     }
 
     if(ti->server_version >= MIN_SERVER_VER_ALGO_ORDERS) {
@@ -2714,27 +2714,27 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
             send_int(ti, order->o_algo_params_count);
             if(order->o_algo_params_count > 0) {
                 int j;
-				if (order->o_algo_params == NULL) {
+                if (order->o_algo_params == NULL) {
 #ifdef TWS_DEBUG
-					printf("tws_place_order: Algo Params array has not been properly set up: array is NULL\n");
+                    printf("tws_place_order: Algo Params array has not been properly set up: array is NULL\n");
 #endif
-					// we may already have sent part of the constructed message so play it safe and discard the connection!
-					tws_disconnect(ti);
-				}
-				else {
-					for(j = 0; j < order->o_algo_params_count; j++) {
-						if (order->o_algo_params[j].t_tag == NULL) {
+                    // we may already have sent part of the constructed message so play it safe and discard the connection!
+                    tws_disconnect(ti);
+                }
+                else {
+                    for(j = 0; j < order->o_algo_params_count; j++) {
+                        if (order->o_algo_params[j].t_tag == NULL) {
 #ifdef TWS_DEBUG
-							printf("tws_place_order: Algo Params array has not been properly set up: tag is NULL\n");
+                            printf("tws_place_order: Algo Params array has not been properly set up: tag is NULL\n");
 #endif
-							// we may already have sent part of the constructed message so play it safe and discard the connection!
-							tws_disconnect(ti);
-							break;
-						}
-						send_str(ti, order->o_algo_params[j].t_tag);
-						send_str(ti, order->o_algo_params[j].t_val);
-					}
-				}
+                            // we may already have sent part of the constructed message so play it safe and discard the connection!
+                            tws_disconnect(ti);
+                            break;
+                        }
+                        send_str(ti, order->o_algo_params[j].t_tag);
+                        send_str(ti, order->o_algo_params[j].t_val);
+                    }
+                }
             }
         }
     }
@@ -3031,7 +3031,7 @@ int tws_req_current_time(void *tws)
 similar to IB/TWS Java method:
 
     public synchronized void reqFundamentalData(int reqId, Contract contract,
-    		String reportType) {
+            String reportType) {
 */
 int tws_req_fundamental_data(void *tws, int reqid, tr_contract_t *contract, char report_type[])
 {
@@ -3325,14 +3325,15 @@ const struct twsclient_errmsg *tws_strerror(int errcode)
     static const struct twsclient_errmsg unknown_err = {
         500, "Unknown TWS failure code."
     };
-	int i;
+    int i;
 
-	for (i = 0; i < sizeof(twsclient_err_indication) / sizeof(twsclient_err_indication[0]); i++)
-	{
-		if (twsclient_err_indication[i].err_code == errcode)
-		{
-			return &twsclient_err_indication[i];
-		}
+    for (i = 0; i < sizeof(twsclient_err_indication) / sizeof(twsclient_err_indication[0]); i++)
+    {
+        if (twsclient_err_indication[i].err_code == errcode)
+        {
+            return &twsclient_err_indication[i];
+        }
     }
     return &unknown_err;
 }
+
