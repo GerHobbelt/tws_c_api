@@ -1545,8 +1545,9 @@ out:
  */
 static int send_str(tws_instance_t *ti, const char str[])
 {
-    int len = (int)strlen(str) + 1;
-    int err = send_blob(ti, str, len);
+	const char *s = (str ? str : "");
+    int len = (int)strlen(s) + 1;
+    int err = send_blob(ti, s, len);
 
     return err;
 }
