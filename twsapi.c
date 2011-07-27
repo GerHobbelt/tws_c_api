@@ -24,7 +24,7 @@
 #include <stdio.h>
 
 #define MAX_TWS_STRINGS 127
-#define WORD_SIZE_IN_BITS (8*sizeof(long))
+#define WORD_SIZE_IN_BITS (8*sizeof(unsigned long))
 #define WORDS_NEEDED(num, wsize) (!!((num)%(wsize)) + ((num)/(wsize)))
 #define ROUND_UP_POW2(num, pow2) (((num) + (pow2)-1) & ~((pow2)-1))
 #define INTEGER_MAX_VALUE ((int) ~(1U<<(8*sizeof(int) -1)))
@@ -67,7 +67,9 @@ static int read_line_of_arbitrary_length(tws_instance_t *ti, char **val);
  */
 static char *alloc_string(tws_instance_t *ti)
 {
-    unsigned long j, index, bits;
+    unsigned int index;
+	unsigned long bits;
+	unsigned int j;
 
     for(j = 0; j < MAX_TWS_STRINGS; j++) {
         index = j / WORD_SIZE_IN_BITS;
@@ -95,8 +97,8 @@ static char *alloc_string(tws_instance_t *ti)
 
 static void free_string(tws_instance_t *ti, void *ptr)
 {
-    unsigned long j = (unsigned long) ((tws_string_t *) ptr - &ti->mempool[0]);
-    unsigned long index = j / WORD_SIZE_IN_BITS;
+    unsigned int j = (unsigned int) ((tws_string_t *) ptr - &ti->mempool[0]);
+    unsigned int index = j / WORD_SIZE_IN_BITS;
     unsigned long bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
 
     ti->bitmask[index] &= ~bits;
@@ -1395,7 +1397,7 @@ int tws_event_process(void *tws)
     read_int(ti, &ival);
     msgcode = (enum tws_incoming_ids)ival;
 
-    switch(msgcode) 
+    switch(msgcode)
     {
         case TICK_PRICE: receive_tick_price(ti); break;
         case TICK_SIZE: receive_tick_size(ti); break;
@@ -1467,7 +1469,7 @@ static int send_blob(tws_instance_t *ti, const char *src, size_t srclen)
     int err = 0;
 
     while (len < srclen) {
-        err = (ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
+        err = ((int)ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
         if(err) {
             tws_disconnect(ti);
             return err;
@@ -1496,7 +1498,7 @@ static int flush_message(tws_instance_t *ti)
     int err = 0;
 
     if (ti->tx_buf_next > 0) {
-        err = (ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
+        err = ((int)ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
         if(err) {
             tws_disconnect(ti);
             goto out;
@@ -1637,7 +1639,7 @@ out:
 
 /*
 When fetching a parameter string value of arbitrary length, we return a pointer to
-space allocated on the heap (we do NOT use the string memory pool as that one is 
+space allocated on the heap (we do NOT use the string memory pool as that one is
 size limited and too small for several messages.
 
 We don't want to take a risk like that any more, so we fix this by allowing arbitrary
@@ -1762,7 +1764,7 @@ static int read_int_max(tws_instance_t *ti, int *val)
 /* return -1 on error, 0 if successful */
 static int read_long(tws_instance_t *ti, long *val)
 {
-    char line[3* sizeof *val];
+    char line[3 * sizeof *val];
     size_t len = sizeof line;
     int err = read_line(ti, line, &len);
 
@@ -2999,7 +3001,7 @@ const char *tws_connection_time(void *tws)
 const struct twsclient_errmsg *tws_strerror(int errcode)
 {
     static const struct twsclient_errmsg unknown_err = {
-        500, "Unknown TWS failure code." 
+        500, "Unknown TWS failure code."
     };
 
     if (errcode >= 0 && errcode < sizeof(twsclient_err_indication) / sizeof(twsclient_err_indication[0]))
