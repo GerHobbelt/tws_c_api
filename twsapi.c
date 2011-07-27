@@ -81,6 +81,8 @@ static char *alloc_string(tws_instance_t *ti)
         bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
         if(!(ti->bitmask[index] & bits)) {
             ti->bitmask[index] |= bits;
+			// and initially start with an empty string value (aids legibility while debugging):
+			ti->mempool[j].str[0] = 0;
             return ti->mempool[j].str;
         }
     }
