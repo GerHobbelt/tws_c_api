@@ -2241,7 +2241,7 @@ int tws_cancel_mkt_depth(void *tws, int ticker_id)
     return ti->connected ? 0 : FAIL_SEND_CANMKTDEPTH;
 }
 
-int tws_exercise_options(void *tws, int ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int override)
+int tws_exercise_options(void *tws, int ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int exc_override)
 {
     tws_instance_t *ti = (tws_instance_t *) tws;
 
@@ -2263,7 +2263,7 @@ int tws_exercise_options(void *tws, int ticker_id, tr_contract_t *contract, int 
     send_int(ti, exercise_action);
     send_int(ti, exercise_quantity);
     send_str(ti, account);
-    send_int(ti, override);
+    send_int(ti, exc_override);
 
     flush_message(ti);
 
