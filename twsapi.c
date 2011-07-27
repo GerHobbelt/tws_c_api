@@ -1985,7 +1985,14 @@ int tws_cancel_scanner_subscription(void *tws, int ticker_id)
     return ti->connected ? 0 : FAIL_SEND_CANSCANNER;
 }
 
-static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, int send_open_close)
+typedef enum
+{
+	COMBO_FOR_REQUEST_MARKET_DATA,
+	COMBO_FOR_REQUEST_HIST_DATA,
+	COMBO_FOR_PLACE_ORDER,
+} send_combolegs_mode;
+
+static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, send_combolegs_mode mode)
 {
     int j;
 
@@ -1997,16 +2004,20 @@ static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, int send
         send_int(ti, cl->co_ratio);
         send_str(ti, cl->co_action);
         send_str(ti, cl->co_exchange);
-        if(send_open_close)
-            send_int(ti, cl->co_open_close);
+		if (mode != COMBO_FOR_REQUEST_MARKET_DATA && mode != COMBO_FOR_REQUEST_HIST_DATA)
+		{
+			send_int(ti, cl->co_open_close);
 
-        if(ti->server_version >= MIN_SERVER_VER_SSHORT_COMBO_LEGS) {
-            send_int(ti, cl->co_short_sale_slot);
-            send_str(ti, cl->co_designated_location);
-        }
-        if (ti->server_version >= MIN_SERVER_VER_SSHORTX_OLD) {
-            send_int(ti, cl->co_exempt_code);
-        }
+			if(ti->server_version >= MIN_SERVER_VER_SSHORT_COMBO_LEGS)
+			{
+				send_int(ti, cl->co_short_sale_slot);
+				send_str(ti, cl->co_designated_location);
+			}
+			if (ti->server_version >= MIN_SERVER_VER_SSHORTX_OLD)
+			{
+				send_int(ti, cl->co_exempt_code);
+			}
+		}
     }
 }
 
@@ -2071,7 +2082,7 @@ int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract, const ch
         send_str(ti, contract->c_local_symbol);
 
     if(ti->server_version >= 8 && !strcasecmp(contract->c_sectype, "BAG"))
-        send_combolegs(ti, contract, 0);
+        send_combolegs(ti, contract, COMBO_FOR_REQUEST_MARKET_DATA);
 
     if (ti->server_version >= MIN_SERVER_VER_UNDER_COMP) {
         if(contract->c_undercomp) {
@@ -2147,7 +2158,8 @@ int tws_req_historical_data(void *tws, int ticker_id, tr_contract_t *contract, c
     if(ti->server_version > 16)
         send_int(ti, format_date);
 
-    send_combolegs(ti, contract, 0);
+    if(ti->server_version >= 8 && !strcasecmp(contract->c_sectype, "BAG"))
+	    send_combolegs(ti, contract, COMBO_FOR_REQUEST_HIST_DATA);
 
     flush_message(ti);
 
@@ -2531,7 +2543,7 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
 
     /* Send combo legs for BAG requests */
     if(ti->server_version >= 8 && !strcasecmp(contract->c_sectype, "BAG"))
-        send_combolegs(ti, contract, 1);
+        send_combolegs(ti, contract, COMBO_FOR_PLACE_ORDER);
 
     if(ti->server_version >= 9)
         send_str(ti, ""); /* deprecated: shares allocation */
