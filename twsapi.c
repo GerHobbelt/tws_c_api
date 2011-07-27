@@ -1609,6 +1609,12 @@ out:
     return err;
 }
 
+/* return 1 on error, 0 if successful, it's all right to block */
+static int send_boolean(tws_instance_t *ti, int val)
+{
+	return send_blob(ti, (val ? "1" : "0"), 2);
+}
+
 static int send_int_max(tws_instance_t *ti, int val)
 {
     return val != INTEGER_MAX_VALUE ? send_int(ti, val) : send_str(ti, "");
@@ -2152,7 +2158,7 @@ int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract, const ch
 	}
 
     if(ti->server_version >= MIN_SERVER_VER_SNAPSHOT_MKT_DATA)
-        send_int(ti, !!snapshot);
+        send_boolean(ti, snapshot);
 
     flush_message(ti);
 
@@ -2190,7 +2196,7 @@ int tws_req_historical_data(void *tws, int ticker_id, tr_contract_t *contract, c
     send_str(ti, contract->c_local_symbol);
 
     if(ti->server_version >= 31)
-        send_int(ti, contract->c_include_expired);
+        send_boolean(ti, contract->c_include_expired);
 
     if(ti->server_version >= 20) {
         send_str(ti, end_date_time);
@@ -2275,7 +2281,7 @@ int tws_req_contract_details(void *tws, int reqid, tr_contract_t *contract)
     send_str(ti, contract->c_currency);
     send_str(ti, contract->c_local_symbol);
     if(ti->server_version >= 31)
-        send_int(ti, contract->c_include_expired);
+        send_boolean(ti, contract->c_include_expired);
 
     if(ti->server_version >= MIN_SERVER_VER_SEC_ID_TYPE) {
         send_str(ti, contract->c_secid_type);
@@ -2570,20 +2576,20 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
     send_str(ti, order->o_open_close);
     send_int(ti, order->o_origin);
     send_str(ti, order->o_orderref);
-    send_int(ti, order->o_transmit);
+    send_boolean(ti, order->o_transmit);
     if(ti->server_version >= 4)
         send_int(ti, order->o_parentid);
 
     if(ti->server_version >= 5 ) {
-        send_int(ti, order->o_block_order);
-        send_int(ti, order->o_sweep_to_fill);
+        send_boolean(ti, order->o_block_order);
+        send_boolean(ti, order->o_sweep_to_fill);
         send_int(ti, order->o_display_size);
         send_int(ti, order->o_trigger_method);
-        send_int(ti, ti->server_version < 38 ? 0 : order->o_outside_rth);
+        send_boolean(ti, ti->server_version < 38 ? 0 : order->o_outside_rth);
     }
 
     if(ti->server_version >= 7)
-        send_int(ti, order->o_hidden);
+        send_boolean(ti, order->o_hidden);
 
     /* Send combo legs for BAG requests */
     if(ti->server_version >= 8 && !strcasecmp(contract->c_sectype, "BAG"))
@@ -2627,11 +2633,11 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
 
         send_str(ti, order->o_rule80a);
         send_str(ti, order->o_settling_firm);
-        send_int(ti, order->o_all_or_none);
+        send_boolean(ti, order->o_all_or_none);
         send_int_max(ti, order->o_min_qty);
         send_double_max(ti, order->o_percent_offset);
-        send_int(ti, order->o_etrade_only);
-        send_int(ti, order->o_firm_quote_only);
+        send_boolean(ti, order->o_etrade_only);
+        send_boolean(ti, order->o_firm_quote_only);
         send_double_max(ti, order->o_nbbo_price_cap);
         send_int_max(ti, order->o_auction_strategy);
         send_double_max(ti, order->o_starting_price);
@@ -2643,21 +2649,21 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
     }
 
     if(ti->server_version >= 22)
-        send_int(ti, order->o_override_percentage_constraints);
+        send_boolean(ti, order->o_override_percentage_constraints);
 
     if(ti->server_version >= 26) { /* Volatility orders */
         send_double_max(ti, order->o_volatility);
         send_int_max(ti, order->o_volatility_type);
 
         if(ti->server_version < 28) {
-            send_int(ti, !strcasecmp(order->o_delta_neutral_order_type, "MKT"));
+            send_boolean(ti, !strcasecmp(order->o_delta_neutral_order_type, "MKT"));
 		}
         else {
             send_str(ti, order->o_delta_neutral_order_type);
             send_double_max(ti, order->o_delta_neutral_aux_price);
         }
 
-        send_int(ti, order->o_continuous_update);
+        send_boolean(ti, order->o_continuous_update);
 		/* Volatility orders had specific watermark price attribs in server version 26 */
         if(ti->server_version == 26) {
             /* this is a mechanical translation of java code but is it correct? */
@@ -2689,7 +2695,7 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
     }
 
     if(ti->server_version >= MIN_SERVER_VER_NOT_HELD)
-        send_int(ti, order->o_not_held);
+        send_boolean(ti, order->o_not_held);
 
     if(ti->server_version >= MIN_SERVER_VER_UNDER_COMP) {
         if(contract->c_undercomp) {
@@ -2734,7 +2740,7 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
     }
 
     if(ti->server_version >= MIN_SERVER_VER_WHAT_IF_ORDERS)
-        send_int(ti, order->o_whatif);
+        send_boolean(ti, order->o_whatif);
 
     flush_message(ti);
 
@@ -2752,7 +2758,7 @@ int tws_req_account_updates(void *tws, int subscribe, const char acct_code[])
 
     send_int(ti, REQ_ACCOUNT_DATA );
     send_int(ti, 2 /*VERSION*/);
-    send_int(ti, !!subscribe);
+    send_boolean(ti, subscribe);
 
     /* Send the account code. This will only be used for FA clients */
     if(ti->server_version >= 9)
@@ -2859,7 +2865,7 @@ int tws_req_news_bulletins(void *tws, int allmsgs)
 
     send_int(ti, REQ_NEWS_BULLETINS);
     send_int(ti, 1 /*VERSION*/);
-    send_int(ti, allmsgs);
+    send_boolean(ti, allmsgs);
 
     flush_message(ti);
 
@@ -2912,7 +2918,7 @@ int tws_req_auto_open_orders(void *tws, int auto_bind)
 
     send_int(ti, REQ_AUTO_OPEN_ORDERS);
     send_int(ti, 1 /*VERSION*/);
-    send_int(ti, !!auto_bind);
+    send_boolean(ti, auto_bind);
 
     flush_message(ti);
 
@@ -3270,7 +3276,7 @@ int tws_request_realtime_bars(void *tws, int ticker_id, tr_contract_t *c, int ba
     send_str(ti, c->c_local_symbol);
     send_int(ti, bar_size);
     send_str(ti, what_to_show);
-    send_int(ti, !!use_rth);
+    send_boolean(ti, use_rth);
 
     flush_message(ti);
 
