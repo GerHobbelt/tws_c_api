@@ -532,7 +532,7 @@ static void receive_order_status(tws_instance_t *ti)
 
     if(ti->connected)
         event_order_status(ti->opaque, id, status, filled, remaining,
-        avg_fill_price, permid, parentid, last_fill_price, clientid, why_held);
+                           avg_fill_price, permid, parentid, last_fill_price, clientid, why_held);
 
     free_string(ti, why_held);
     free_string(ti, status);
@@ -611,8 +611,8 @@ static void receive_portfolio_value(tws_instance_t *ti)
 
     if(ti->connected)
         event_update_portfolio(ti->opaque, &contract, position,
-        market_price, market_value, average_cost,
-        unrealized_pnl, realized_pnl, account_name);
+                               market_price, market_value, average_cost,
+                               unrealized_pnl, realized_pnl, account_name);
 
     free_string(ti, account_name);
     destroy_contract(ti, &contract);
@@ -1072,7 +1072,7 @@ static void receive_market_depth(tws_instance_t *ti)
 
     if(ti->connected)
         event_update_mkt_depth(ti->opaque, id, position, operation,
-        side, price, size);
+                               side, price, size);
 }
 
 static void receive_market_depth_l2(tws_instance_t *ti)
@@ -1094,7 +1094,7 @@ static void receive_market_depth_l2(tws_instance_t *ti)
 
     if(ti->connected) {
         event_update_mkt_depth_l2(ti->opaque, id, position, mkt_maker,
-            operation, side, price, size);
+                                  operation, side, price, size);
     }
 
     free_string(ti, mkt_maker);
@@ -1118,7 +1118,7 @@ static void receive_news_bulletins(tws_instance_t *ti)
 
     if(ti->connected) {
         event_update_news_bulletin(ti->opaque, newsmsgid, newsmsgtype,
-            msg, originating_exch);
+                                   msg, originating_exch);
     }
 
     if (msg != str)
@@ -1478,7 +1478,7 @@ int tws_event_process(void *tws)
 
 #ifdef TWS_DEBUG
     printf("\nreceived id=%d, name=%s\n", (int)msgcode,
-        valid ? tws_incoming_msg_names[msgcode - 1] : "invalid id");
+           valid ? tws_incoming_msg_names[msgcode - 1] : "invalid id");
 #endif
     return valid ? 0 : -1;
 }

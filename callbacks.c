@@ -97,29 +97,29 @@ void event_next_valid_id(void *opaque, int order_id)
 void event_contract_details(void *opaque, int req_id, const tr_contract_details_t *cd)
 {
     printf("contract_details: opaque=%p, ...\n", opaque);
-	printf("contract details: sym=%s, sectype=%s, expiry=%s, strike=%.3lf, right=%s, exch=%s, primary exch=%s, currency=%s, multiplier=%s, local_sym=%s, market_name=%s, trading_class=%s, conid=%d\n",
-		cd->d_summary.c_symbol, cd->d_summary.c_sectype, cd->d_summary.c_expiry, cd->d_summary.c_strike, cd->d_summary.c_right, cd->d_summary.c_exchange, cd->d_summary.c_primary_exch,
-		cd->d_summary.c_currency, cd->d_summary.c_multiplier, cd->d_summary.c_local_symbol, cd->d_market_name, cd->d_trading_class, cd->d_summary.c_conid);
-	printf("contract details: min.tick: %f, coupon: %f, order types: %s, valid exch: %s, cusip: %s, maturity: %s, issue_date: %s, ratings: %s, bond_type: %s, "
-		"coupon_type: %s, notes: %s, long name: %s, industry: %s, category: %s, subcategory: %s, timezone: %s, trading hours: %s, liquid hours: %s, price_magnifier: %d, "
-		"under_conid: %d\n",
-		cd->d_mintick, cd->d_coupon, cd->d_order_types, cd->d_valid_exchanges, cd->d_cusip, cd->d_maturity, cd->d_issue_date, cd->d_ratings, cd->d_bond_type,
-		cd->d_coupon_type, cd->d_notes, cd->d_long_name, cd->d_industry, cd->d_category, cd->d_subcategory, cd->d_timezone_id, cd->d_trading_hours, cd->d_liquid_hours,
-		cd->d_price_magnifier, cd->d_under_conid);
+    printf("contract details: sym=%s, sectype=%s, expiry=%s, strike=%.3lf, right=%s, exch=%s, primary exch=%s, currency=%s, multiplier=%s, local_sym=%s, market_name=%s, trading_class=%s, conid=%d\n",
+        cd->d_summary.c_symbol, cd->d_summary.c_sectype, cd->d_summary.c_expiry, cd->d_summary.c_strike, cd->d_summary.c_right, cd->d_summary.c_exchange, cd->d_summary.c_primary_exch,
+        cd->d_summary.c_currency, cd->d_summary.c_multiplier, cd->d_summary.c_local_symbol, cd->d_market_name, cd->d_trading_class, cd->d_summary.c_conid);
+    printf("contract details: min.tick: %f, coupon: %f, order types: %s, valid exch: %s, cusip: %s, maturity: %s, issue_date: %s, ratings: %s, bond_type: %s, "
+        "coupon_type: %s, notes: %s, long name: %s, industry: %s, category: %s, subcategory: %s, timezone: %s, trading hours: %s, liquid hours: %s, price_magnifier: %d, "
+        "under_conid: %d\n",
+        cd->d_mintick, cd->d_coupon, cd->d_order_types, cd->d_valid_exchanges, cd->d_cusip, cd->d_maturity, cd->d_issue_date, cd->d_ratings, cd->d_bond_type,
+        cd->d_coupon_type, cd->d_notes, cd->d_long_name, cd->d_industry, cd->d_category, cd->d_subcategory, cd->d_timezone_id, cd->d_trading_hours, cd->d_liquid_hours,
+        cd->d_price_magnifier, cd->d_under_conid);
 }
 
 void event_bond_contract_details(void *opaque, int req_id, const tr_contract_details_t *cd)
 {
     printf("bond_contract_details: opaque=%p, ...\n", opaque);
-	printf("bond contract details: sym=%s, sectype=%s, expiry=%s, strike=%.3lf, right=%s, exch=%s, primary exch=%s, currency=%s, multiplier=%s, local_sym=%s, market_name=%s, trading_class=%s, conid=%d\n",
-		cd->d_summary.c_symbol, cd->d_summary.c_sectype, cd->d_summary.c_expiry, cd->d_summary.c_strike, cd->d_summary.c_right, cd->d_summary.c_exchange, cd->d_summary.c_primary_exch,
-		cd->d_summary.c_currency, cd->d_summary.c_multiplier, cd->d_summary.c_local_symbol, cd->d_market_name, cd->d_trading_class, cd->d_summary.c_conid);
-	printf("bond contract details: min.tick: %f, coupon: %f, order types: %s, valid exch: %s, cusip: %s, maturity: %s, issue_date: %s, ratings: %s, bond_type: %s, "
-		"coupon_type: %s, notes: %s, long name: %s, industry: %s, category: %s, subcategory: %s, timezone: %s, trading hours: %s, liquid hours: %s, price_magnifier: %d, "
-		"under_conid: %d\n",
-		cd->d_mintick, cd->d_coupon, cd->d_order_types, cd->d_valid_exchanges, cd->d_cusip, cd->d_maturity, cd->d_issue_date, cd->d_ratings, cd->d_bond_type,
-		cd->d_coupon_type, cd->d_notes, cd->d_long_name, cd->d_industry, cd->d_category, cd->d_subcategory, cd->d_timezone_id, cd->d_trading_hours, cd->d_liquid_hours,
-		cd->d_price_magnifier, cd->d_under_conid);
+    printf("bond contract details: sym=%s, sectype=%s, expiry=%s, strike=%.3lf, right=%s, exch=%s, primary exch=%s, currency=%s, multiplier=%s, local_sym=%s, market_name=%s, trading_class=%s, conid=%d\n",
+        cd->d_summary.c_symbol, cd->d_summary.c_sectype, cd->d_summary.c_expiry, cd->d_summary.c_strike, cd->d_summary.c_right, cd->d_summary.c_exchange, cd->d_summary.c_primary_exch,
+        cd->d_summary.c_currency, cd->d_summary.c_multiplier, cd->d_summary.c_local_symbol, cd->d_market_name, cd->d_trading_class, cd->d_summary.c_conid);
+    printf("bond contract details: min.tick: %f, coupon: %f, order types: %s, valid exch: %s, cusip: %s, maturity: %s, issue_date: %s, ratings: %s, bond_type: %s, "
+        "coupon_type: %s, notes: %s, long name: %s, industry: %s, category: %s, subcategory: %s, timezone: %s, trading hours: %s, liquid hours: %s, price_magnifier: %d, "
+        "under_conid: %d\n",
+        cd->d_mintick, cd->d_coupon, cd->d_order_types, cd->d_valid_exchanges, cd->d_cusip, cd->d_maturity, cd->d_issue_date, cd->d_ratings, cd->d_bond_type,
+        cd->d_coupon_type, cd->d_notes, cd->d_long_name, cd->d_industry, cd->d_category, cd->d_subcategory, cd->d_timezone_id, cd->d_trading_hours, cd->d_liquid_hours,
+        cd->d_price_magnifier, cd->d_under_conid);
 }
 
 void event_exec_details(void *opaque, int order_id, const tr_contract_t *contract, const tr_execution_t *execution)
@@ -131,7 +131,7 @@ void event_error(void *opaque, int ticker_id, int error_code, const char error_s
 {
     struct my_tws_io_info *info = (struct my_tws_io_info *)opaque;
 
-	printf("error: opaque=%p, id=%d, error_code=%d, msg=%s\n", opaque, ticker_id, error_code, error_string);
+    printf("error: opaque=%p, id=%d, error_code=%d, msg=%s\n", opaque, ticker_id, error_code, error_string);
 }
 
 void event_update_mkt_depth(void *opaque, int ticker_id, int position, int operation, int side, double price, int size)
@@ -178,30 +178,30 @@ void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_detai
 {
     printf("scanner_data: opaque=%p, ticker_id=%d, rank=%d, distance=%s, benchmark=%s, projection=%s\n",
            opaque, ticker_id, rank, distance, benchmark, projection);
-	printf("scanner_data details: sym=%s, sectype=%s, expiry=%s, strike=%.3lf, right=%s, exch=%s, primary exch=%s, currency=%s, multiplier=%s, local_sym=%s, market_name=%s, trading_class=%s, conid=%d\n",
-		cd->d_summary.c_symbol, cd->d_summary.c_sectype, cd->d_summary.c_expiry, cd->d_summary.c_strike, cd->d_summary.c_right, cd->d_summary.c_exchange, cd->d_summary.c_primary_exch,
-		cd->d_summary.c_currency, cd->d_summary.c_multiplier, cd->d_summary.c_local_symbol, cd->d_market_name, cd->d_trading_class, cd->d_summary.c_conid);
-	printf("scanner_data details: min.tick: %f, coupon: %f, order types: %s, valid exch: %s, cusip: %s, maturity: %s, issue_date: %s, ratings: %s, bond_type: %s, "
-		"coupon_type: %s, notes: %s, long name: %s, industry: %s, category: %s, subcategory: %s, timezone: %s, trading hours: %s, liquid hours: %s, price_magnifier: %d, "
-		"under_conid: %d\n",
-		cd->d_mintick, cd->d_coupon, cd->d_order_types, cd->d_valid_exchanges, cd->d_cusip, cd->d_maturity, cd->d_issue_date, cd->d_ratings, cd->d_bond_type,
-		cd->d_coupon_type, cd->d_notes, cd->d_long_name, cd->d_industry, cd->d_category, cd->d_subcategory, cd->d_timezone_id, cd->d_trading_hours, cd->d_liquid_hours,
-		cd->d_price_magnifier, cd->d_under_conid);
+    printf("scanner_data details: sym=%s, sectype=%s, expiry=%s, strike=%.3lf, right=%s, exch=%s, primary exch=%s, currency=%s, multiplier=%s, local_sym=%s, market_name=%s, trading_class=%s, conid=%d\n",
+        cd->d_summary.c_symbol, cd->d_summary.c_sectype, cd->d_summary.c_expiry, cd->d_summary.c_strike, cd->d_summary.c_right, cd->d_summary.c_exchange, cd->d_summary.c_primary_exch,
+        cd->d_summary.c_currency, cd->d_summary.c_multiplier, cd->d_summary.c_local_symbol, cd->d_market_name, cd->d_trading_class, cd->d_summary.c_conid);
+    printf("scanner_data details: min.tick: %f, coupon: %f, order types: %s, valid exch: %s, cusip: %s, maturity: %s, issue_date: %s, ratings: %s, bond_type: %s, "
+        "coupon_type: %s, notes: %s, long name: %s, industry: %s, category: %s, subcategory: %s, timezone: %s, trading hours: %s, liquid hours: %s, price_magnifier: %d, "
+        "under_conid: %d\n",
+        cd->d_mintick, cd->d_coupon, cd->d_order_types, cd->d_valid_exchanges, cd->d_cusip, cd->d_maturity, cd->d_issue_date, cd->d_ratings, cd->d_bond_type,
+        cd->d_coupon_type, cd->d_notes, cd->d_long_name, cd->d_industry, cd->d_category, cd->d_subcategory, cd->d_timezone_id, cd->d_trading_hours, cd->d_liquid_hours,
+        cd->d_price_magnifier, cd->d_under_conid);
 
     /* it seems that NYSE traded stocks have different market_name and trading_class from NASDAQ */
 }
 
 void event_scanner_data_end(void *opaque, int ticker_id)
 {
-	printf("scanner_data_end: opaque=%p, ticker_id=%d\n", opaque, ticker_id);
+    printf("scanner_data_end: opaque=%p, ticker_id=%d\n", opaque, ticker_id);
 }
 
 void event_current_time(void *opaque, long time)
 {
-	char tbuf[40];
-	time_t timestamp = (time_t)time;
+    char tbuf[40];
+    time_t timestamp = (time_t)time;
 
-	strftime(tbuf, sizeof(tbuf), "[%Y%m%dT%H%M%S] ", gmtime(&timestamp));
+    strftime(tbuf, sizeof(tbuf), "[%Y%m%dT%H%M%S] ", gmtime(&timestamp));
 
     printf("current_time: opaque=%p, time=%ld ~ '%s'\n", opaque, time, tbuf);
 }
