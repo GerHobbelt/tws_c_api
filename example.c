@@ -151,7 +151,7 @@ static void scan_market(void *ti)
 int main(int argc, char *argv[])
 {
     int err, no_thread = 0;
-    void *ti;
+    tws_instance_t *ti;
     tr_contract_t c;
 
     if(argc != 2) {
@@ -225,6 +225,7 @@ int main(int argc, char *argv[])
         o.o_fagroup = o.o_famethod = o.o_fapercentage = o.o_faprofile = "";
         o.o_designated_location = o.o_rule80a = o.o_settling_firm = "";
         o.o_delta_neutral_order_type = o.o_clearing_account = o.o_clearing_intent = "";
+        o.o_hedge_type = o.o_hedge_param = "";
         o.o_algo_strategy = "";
 
         /* see comment in function event_next_valid_id() before placing the order */

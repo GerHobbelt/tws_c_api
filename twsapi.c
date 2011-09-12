@@ -29,13 +29,13 @@
 #define ROUND_UP_POW2(num, pow2) (((num) + (pow2)-1) & ~((pow2)-1))
 #define INTEGER_MAX_VALUE ((int) ~(1U<<(8*sizeof(int) -1)))
 #define DBL_NOTMAX(d) (fabs((d) - DBL_MAX) > DBL_EPSILON)
-#define IS_EMPTY(str)  ((str)[0] == '\0')
+#define IS_EMPTY(str)  (!(str) || ((str)[0] == '\0'))
 
 typedef struct {
     char str[512]; /* maximum conceivable string length */
 } tws_string_t;
 
-typedef struct tws_instance {
+struct tws_instance {
     void *opaque;
     tws_transmit_func_t *transmit;
     tws_receive_func_t *receive;
@@ -52,7 +52,7 @@ typedef struct tws_instance {
     volatile unsigned int connected;
     tws_string_t mempool[MAX_TWS_STRINGS];
     unsigned long bitmask[WORDS_NEEDED(MAX_TWS_STRINGS, WORD_SIZE_IN_BITS)];
-} tws_instance_t;
+};
 
 static int read_double(tws_instance_t *ti, double *val);
 static int read_double_max(tws_instance_t *ti, double *val);
@@ -170,12 +170,16 @@ static void init_order(tws_instance_t *ti, tr_order_t *o)
     o->o_delta_neutral_order_type = alloc_string(ti);
     o->o_clearing_account = alloc_string(ti);
     o->o_clearing_intent = alloc_string(ti);
+    o->o_hedge_type = alloc_string(ti);
+    o->o_hedge_param = alloc_string(ti);
 
     o->o_exempt_code = -1;
 }
 
 static void destroy_order(tws_instance_t *ti, tr_order_t *o)
 {
+    free_string(ti, o->o_hedge_param);
+    free_string(ti, o->o_hedge_type);
     free_string(ti, o->o_clearing_intent);
     free_string(ti, o->o_clearing_account);
     free_string(ti, o->o_delta_neutral_order_type);
@@ -318,11 +322,21 @@ static void destroy_under_comp(tws_instance_t *ti, under_comp_t *und)
 {
 }
 
-void tws_init_tr_comboleg(void *tws, tr_comboleg_t *cl)
+void tws_init_tr_comboleg(tws_instance_t *ti, tr_comboleg_t *cl)
 {
     memset(cl, 0, sizeof(*cl));
+    cl->co_action = alloc_string(ti);
+    cl->co_exchange = alloc_string(ti);
+    cl->co_designated_location = alloc_string(ti);
 
     cl->co_exempt_code = -1;
+}
+
+void tws_destroy_tr_comboleg(tws_instance_t *ti, tr_comboleg_t *cl)
+{
+    free_string(ti, cl->co_action);
+    free_string(ti, cl->co_exchange);
+    free_string(ti, cl->co_designated_location);
 }
 
 
@@ -336,7 +350,7 @@ static void receive_tick_price(tws_instance_t *ti)
 
     read_int(ti, &ival), version = ival;
     read_int(ti, &ival), ticker_id = ival;
-    read_int(ti, &ival), tick_type = ival;
+    read_int(ti, &ival), tick_type = (tr_tick_type_t)ival;
     read_double(ti, &price);
 
     if(version >= 2)
@@ -817,6 +831,13 @@ static void receive_open_order(tws_instance_t *ti)
         read_double_max(ti, &order.o_scale_price_increment);
     }
 
+	if(version >= 24) {
+        lval = sizeof(tws_string_t); read_line(ti, order.o_hedge_type, &lval);
+		if (!IS_EMPTY(order.o_hedge_type)) {
+	        lval = sizeof(tws_string_t); read_line(ti, order.o_hedge_param, &lval);
+		}
+	}
+
     if(version >= 19) {
         lval = sizeof(tws_string_t); read_line(ti, order.o_clearing_account, &lval);
         lval = sizeof(tws_string_t); read_line(ti, order.o_clearing_intent, &lval);
@@ -1163,10 +1184,9 @@ static void receive_fa(tws_instance_t *ti)
     free_string(ti, str);
 }
 
-static void receive_historical_data(void *tws)
+static void receive_historical_data(tws_instance_t *ti)
 {
     double open, high, low, close, wap;
-    tws_instance_t *ti = (tws_instance_t *) tws;
     int j;
     size_t lval;
     int ival, version, reqid, item_count, volume, gaps, bar_count;
@@ -1211,9 +1231,8 @@ static void receive_historical_data(void *tws)
     free_string(ti, completion_to);
 }
 
-static void receive_scanner_parameters(void *tws)
+static void receive_scanner_parameters(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     char *xml;
     int ival;
 
@@ -1233,10 +1252,9 @@ static void receive_scanner_parameters(void *tws)
     free(xml);
 }
 
-static void receive_scanner_data(void *tws)
+static void receive_scanner_data(tws_instance_t *ti)
 {
     tr_contract_details_t cdetails;
-    tws_instance_t *ti = (tws_instance_t *) tws;
     char *distance = alloc_string(ti), *benchmark = alloc_string(ti), *projection = alloc_string(ti), *legs_str;
     size_t lval;
     int j;
@@ -1291,9 +1309,8 @@ static void receive_scanner_data(void *tws)
     free_string(ti, projection);
 }
 
-static void receive_current_time(void *tws)
+static void receive_current_time(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     long time;
     int ival;
 
@@ -1304,9 +1321,8 @@ static void receive_current_time(void *tws)
         event_current_time(ti->opaque, time);
 }
 
-static void receive_realtime_bars(void *tws)
+static void receive_realtime_bars(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     long lval, time, volume;
     double open, high, low, close, wap;
     int ival, reqid, count;
@@ -1326,9 +1342,8 @@ static void receive_realtime_bars(void *tws)
         event_realtime_bar(ti->opaque, reqid, time, open, high, low, close, volume, wap, count);
 }
 
-static void receive_fundamental_data(void *tws)
+static void receive_fundamental_data(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     int ival, req_id;
     char *str;
     char *data;
@@ -1348,9 +1363,8 @@ static void receive_fundamental_data(void *tws)
     free_string(ti, str);
 }
 
-static void receive_contract_data_end(void *tws)
+static void receive_contract_data_end(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     int ival, req_id;
 
     read_int(ti, &ival); /* version ignored */
@@ -1360,9 +1374,8 @@ static void receive_contract_data_end(void *tws)
         event_contract_details_end(ti->opaque, req_id);
 }
 
-static void receive_open_order_end(void *tws)
+static void receive_open_order_end(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     int ival;
 
     read_int(ti, &ival); /* version ignored */
@@ -1370,9 +1383,8 @@ static void receive_open_order_end(void *tws)
         event_open_order_end(ti->opaque);
 }
 
-static void receive_acct_download_end(void *tws)
+static void receive_acct_download_end(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     char acct_name[200];
     size_t lval = sizeof acct_name;
     int ival;
@@ -1384,9 +1396,8 @@ static void receive_acct_download_end(void *tws)
         event_acct_download_end(ti->opaque, acct_name);
 }
 
-static void receive_execution_data_end(void *tws)
+static void receive_execution_data_end(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     int ival, reqid;
 
     read_int(ti, &ival); /* version ignored */
@@ -1396,9 +1407,8 @@ static void receive_execution_data_end(void *tws)
         event_exec_details_end(ti->opaque, reqid);
 }
 
-static void receive_delta_neutral_validation(void *tws)
+static void receive_delta_neutral_validation(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     under_comp_t und;
     int ival, reqid;
 
@@ -1413,9 +1423,8 @@ static void receive_delta_neutral_validation(void *tws)
         event_delta_neutral_validation(ti->opaque, reqid, &und);
 }
 
-static void receive_tick_snapshot_end(void *tws)
+static void receive_tick_snapshot_end(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     int ival, reqid;
 
     read_int(ti, &ival); /* version ignored */
@@ -1428,9 +1437,8 @@ static void receive_tick_snapshot_end(void *tws)
 /* allows for reading events from within the same thread or an externally
  * spawned thread, returns 0 on success, -1 on error,
  */
-int tws_event_process(void *tws)
+int tws_event_process(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     int ival;
     int valid = 1;
     enum tws_incoming_ids msgcode;
@@ -1484,7 +1492,7 @@ int tws_event_process(void *tws)
 }
 
 /* caller supplies start_thread method */
-void *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_open_func_t *open, tws_close_func_t *close)
+tws_instance_t *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_open_func_t *open, tws_close_func_t *close)
 {
     tws_instance_t *ti = (tws_instance_t *) calloc(1, sizeof *ti);
     if(ti)
@@ -1502,11 +1510,11 @@ void *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t
     return ti;
 }
 
-void tws_destroy(void *tws_instance)
+void tws_destroy(tws_instance_t *ti)
 {
-    tws_disconnect(tws_instance);
+    tws_disconnect(ti);
 
-    free(tws_instance);
+    free(ti);
 }
 
 /* perform output buffering */
@@ -1873,9 +1881,8 @@ similar to IB/TWS Java method:
 
     public synchronized void eConnect(Socket socket, int clientId) throws IOException {
 */
-int tws_connect(void *tws, int client_id)
+int tws_connect(tws_instance_t *ti, int client_id)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     size_t lval;
     int val, err;
 
@@ -1932,15 +1939,13 @@ out:
     return err;
 }
 
-int tws_connected(void *tws)
+int tws_connected(tws_instance_t *ti)
 {
-    return ((tws_instance_t *) tws)->connected;
+    return ti->connected;
 }
 
-void  tws_disconnect(void *tws)
+void  tws_disconnect(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if (ti->connected) {
         ti->close(ti->opaque);
     }
@@ -1954,10 +1959,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqScannerParameters() {
 */
-int tws_req_scanner_parameters(void *tws)
+int tws_req_scanner_parameters(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if(ti->server_version < 24) return UPDATE_TWS;
 
     send_int(ti, REQ_SCANNER_PARAMETERS);
@@ -1974,10 +1977,8 @@ similar to IB/TWS Java method:
     public synchronized void reqScannerSubscription( int tickerId,
         ScannerSubscription subscription) {
 */
-int tws_req_scanner_subscription(void *tws, int ticker_id, tr_scanner_subscription_t *s)
+int tws_req_scanner_subscription(tws_instance_t *ti, int ticker_id, tr_scanner_subscription_t *s)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if(ti->server_version < 24) return UPDATE_TWS;
 
     send_int(ti, REQ_SCANNER_SUBSCRIPTION);
@@ -2020,10 +2021,8 @@ similar to IB/TWS Java method:
 
     public synchronized void cancelScannerSubscription( int tickerId) {
 */
-int tws_cancel_scanner_subscription(void *tws, int ticker_id)
+int tws_cancel_scanner_subscription(tws_instance_t *ti, int ticker_id)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if(ti->server_version < 24) return UPDATE_TWS;
 
     send_int(ti, CANCEL_SCANNER_SUBSCRIPTION);
@@ -2077,10 +2076,8 @@ similar to IB/TWS Java method:
     public synchronized void reqMktData(int tickerId, Contract contract,
             String genericTickList, boolean snapshot) {
 */
-int tws_req_mkt_data(void *tws, int ticker_id, tr_contract_t *contract, const char generic_tick_list[], int snapshot)
+int tws_req_mkt_data(tws_instance_t *ti, int ticker_id, tr_contract_t *contract, const char generic_tick_list[], int snapshot)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if(ti->server_version < MIN_SERVER_VER_SNAPSHOT_MKT_DATA && snapshot) {
 #ifdef TWS_DEBUG
         printf("tws_req_mkt_data does not support snapshot market data requests\n");
@@ -2173,10 +2170,8 @@ similar to IB/TWS Java method:
                                                 String barSizeSetting, String whatToShow,
                                                 int useRTH, int formatDate) {
 */
-int tws_req_historical_data(void *tws, int ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], const char bar_size_setting[], const char what_to_show[], int use_rth, int format_date)
+int tws_req_historical_data(tws_instance_t *ti, int ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], const char bar_size_setting[], const char what_to_show[], int use_rth, int format_date)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if(ti->server_version < 16)
         return UPDATE_TWS;
 
@@ -2221,10 +2216,8 @@ similar to IB/TWS Java method:
 
     public synchronized void cancelHistoricalData( int tickerId ) {
 */
-int tws_cancel_historical_data(void *tws, int ticker_id)
+int tws_cancel_historical_data(tws_instance_t *ti, int ticker_id)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if(ti->server_version < 24) return UPDATE_TWS;
 
     send_int(ti, CANCEL_HISTORICAL_DATA);
@@ -2241,10 +2234,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqContractDetails(int reqId, Contract contract)
 */
-int tws_req_contract_details(void *tws, int reqid, tr_contract_t *contract)
+int tws_req_contract_details(tws_instance_t *ti, int reqid, tr_contract_t *contract)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     /* This feature is only available for versions of TWS >=4 */
     if(ti->server_version < 4)
         return UPDATE_TWS;
@@ -2298,10 +2289,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqMktDepth( int tickerId, Contract contract, int numRows)
 */
-int tws_req_mkt_depth(void *tws, int ticker_id, tr_contract_t *contract, int num_rows)
+int tws_req_mkt_depth(tws_instance_t *ti, int ticker_id, tr_contract_t *contract, int num_rows)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     /* This feature is only available for versions of TWS >=6 */
     if(ti->server_version < 6)
         return UPDATE_TWS;
@@ -2334,10 +2323,8 @@ similar to IB/TWS Java method:
 
     public synchronized void cancelMktData( int tickerId) {
 */
-int tws_cancel_mkt_data(void *tws, int ticker_id)
+int tws_cancel_mkt_data(tws_instance_t *ti, int ticker_id)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     send_int(ti, CANCEL_MKT_DATA);
     send_int(ti, 1 /*VERSION*/);
     send_int(ti, ticker_id);
@@ -2352,10 +2339,8 @@ similar to IB/TWS Java method:
 
     public synchronized void cancelMktDepth( int tickerId) {
 */
-int tws_cancel_mkt_depth(void *tws, int ticker_id)
+int tws_cancel_mkt_depth(tws_instance_t *ti, int ticker_id)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     /* This feature is only available for versions of TWS >=6 */
     if(ti->server_version < 6)
         return UPDATE_TWS;
@@ -2376,10 +2361,8 @@ similar to IB/TWS Java method:
                                               int exerciseAction, int exerciseQuantity,
                                               String account, int override) {
 */
-int tws_exercise_options(void *tws, int ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int exc_override)
+int tws_exercise_options(tws_instance_t *ti, int ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int exc_override)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if(ti->server_version < 21)
         return UPDATE_TWS;
 
@@ -2410,9 +2393,8 @@ similar to IB/TWS Java method:
 
     public synchronized void placeOrder( int id, Contract contract, Order order) {
 */
-int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *order)
+int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_order_t *order)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     int vol26 = 0, version;
 
     if(ti->server_version < MIN_SERVER_VER_SCALE_ORDERS) {
@@ -2532,8 +2514,17 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
         }
     }
 
+	if (ti->server_version < MIN_SERVER_VER_HEDGE_ORDERS) {
+		if (!IS_EMPTY(order->o_hedge_type)) {
+#ifdef TWS_DEBUG
+            printf("tws_place_order: It does not support hedge orders\n");
+#endif
+            return UPDATE_TWS;
+		}
+	}
+
     send_int(ti, PLACE_ORDER);
-    version = ti->server_version < MIN_SERVER_VER_NOT_HELD ? 27 : 31;
+    version = ti->server_version < MIN_SERVER_VER_NOT_HELD ? 27 : 32;
     send_int(ti, version);
     send_int(ti, id);
 
@@ -2689,6 +2680,14 @@ int tws_place_order(void *tws, int id, tr_contract_t *contract, tr_order_t *orde
         send_double_max(ti, order->o_scale_price_increment);
     }
 
+	// HEDGE orders
+	if (ti->server_version >= MIN_SERVER_VER_HEDGE_ORDERS) {
+		send_str(ti, order->o_hedge_type);
+		if (!IS_EMPTY(order->o_hedge_type)) {
+			send_str(ti, order->o_hedge_param);
+		}
+	}
+
     if(ti->server_version >= MIN_SERVER_VER_PTA_ORDERS) {
         send_str(ti, order->o_clearing_account);
         send_str(ti, order->o_clearing_intent);
@@ -2752,10 +2751,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqAccountUpdates(boolean subscribe, String acctCode) {
 */
-int tws_req_account_updates(void *tws, int subscribe, const char acct_code[])
+int tws_req_account_updates(tws_instance_t *ti, int subscribe, const char acct_code[])
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     send_int(ti, REQ_ACCOUNT_DATA );
     send_int(ti, 2 /*VERSION*/);
     send_boolean(ti, subscribe);
@@ -2774,10 +2771,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqExecutions(int reqId, ExecutionFilter filter) {
 */
-int tws_req_executions(void *tws, int reqid, tr_exec_filter_t *filter)
+int tws_req_executions(tws_instance_t *ti, int reqid, tr_exec_filter_t *filter)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     send_int(ti, REQ_EXECUTIONS);
     send_int(ti, 3 /*VERSION*/);
     if(ti->server_version >= MIN_SERVER_VER_EXECUTION_DATA_CHAIN)
@@ -2806,9 +2801,8 @@ similar to IB/TWS Java method:
 
     public synchronized void cancelOrder( int id) {
 */
-int tws_cancel_order(void *tws, int order_id)
+int tws_cancel_order(tws_instance_t *ti, int order_id)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     /* send cancel order msg */
     send_int(ti, CANCEL_ORDER);
     send_int(ti, 1 /*VERSION*/);
@@ -2824,10 +2818,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqOpenOrders() {
 */
-int tws_req_open_orders(void *tws)
+int tws_req_open_orders(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     send_int(ti, REQ_OPEN_ORDERS);
     send_int(ti, 1 /*VERSION*/);
 
@@ -2841,10 +2833,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqIds( int numIds) {
 */
-int tws_req_ids(void *tws, int numids)
+int tws_req_ids(tws_instance_t *ti, int numids)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     send_int(ti, REQ_IDS);
     send_int(ti, 1 /* VERSION */);
     send_int(ti, numids);
@@ -2859,10 +2849,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqNewsBulletins( boolean allMsgs) {
 */
-int tws_req_news_bulletins(void *tws, int allmsgs)
+int tws_req_news_bulletins(tws_instance_t *ti, int allmsgs)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     send_int(ti, REQ_NEWS_BULLETINS);
     send_int(ti, 1 /*VERSION*/);
     send_boolean(ti, allmsgs);
@@ -2877,10 +2865,8 @@ similar to IB/TWS Java method:
 
     public synchronized void cancelNewsBulletins() {
 */
-int tws_cancel_news_bulletins(void *tws)
+int tws_cancel_news_bulletins(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     send_int(ti, CANCEL_NEWS_BULLETINS);
     send_int(ti, 1 /*VERSION*/);
 
@@ -2894,10 +2880,8 @@ similar to IB/TWS Java method:
 
     public synchronized void setServerLogLevel(int logLevel) {
 */
-int tws_set_server_log_level(void *tws, int level)
+int tws_set_server_log_level(tws_instance_t *ti, int level)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     send_int(ti, SET_SERVER_LOGLEVEL);
     send_int(ti, 1 /*VERSION*/);
     send_int(ti, level);
@@ -2912,10 +2896,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqAutoOpenOrders(boolean bAutoBind)
 */
-int tws_req_auto_open_orders(void *tws, int auto_bind)
+int tws_req_auto_open_orders(tws_instance_t *ti, int auto_bind)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     send_int(ti, REQ_AUTO_OPEN_ORDERS);
     send_int(ti, 1 /*VERSION*/);
     send_boolean(ti, auto_bind);
@@ -2930,10 +2912,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqAllOpenOrders() {
 */
-int tws_req_all_open_orders(void *tws)
+int tws_req_all_open_orders(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     /* send req all open orders msg */
     send_int(ti, REQ_ALL_OPEN_ORDERS);
     send_int(ti, 1 /*VERSION*/);
@@ -2948,10 +2928,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqManagedAccts() {
 */
-int tws_req_managed_accts(void *tws)
+int tws_req_managed_accts(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     /* send req FA managed accounts msg */
     send_int(ti, REQ_MANAGED_ACCTS);
     send_int(ti, 1 /*VERSION*/);
@@ -2966,10 +2944,8 @@ similar to IB/TWS Java method:
 
     public synchronized void requestFA( int faDataType ) {
 */
-int tws_request_fa(void *tws, int fa_data_type)
+int tws_request_fa(tws_instance_t *ti, int fa_data_type)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     /* This feature is only available for versions of TWS >= 13 */
     if(ti->server_version < 13)
         return UPDATE_TWS;
@@ -2988,10 +2964,8 @@ similar to IB/TWS Java method:
 
     public synchronized void replaceFA( int faDataType, String xml ) {
 */
-int tws_replace_fa(void *tws, int fa_data_type, const char xml[])
+int tws_replace_fa(tws_instance_t *ti, int fa_data_type, const char xml[])
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     /* This feature is only available for versions of TWS >= 13 */
     if(ti->server_version < 13)
         return UPDATE_TWS;
@@ -3011,10 +2985,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqCurrentTime() {
 */
-int tws_req_current_time(void *tws)
+int tws_req_current_time(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if(ti->server_version < 33) {
         return UPDATE_TWS;
     }
@@ -3033,10 +3005,8 @@ similar to IB/TWS Java method:
     public synchronized void reqFundamentalData(int reqId, Contract contract,
             String reportType) {
 */
-int tws_req_fundamental_data(void *tws, int reqid, tr_contract_t *contract, char report_type[])
+int tws_req_fundamental_data(tws_instance_t *ti, int reqid, tr_contract_t *contract, char report_type[])
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if(ti->server_version < MIN_SERVER_VER_FUNDAMENTAL_DATA) {
 #ifdef TWS_DEBUG
         printf("tws_req_fundamental_data does not support fundamental data requests");
@@ -3065,10 +3035,8 @@ similar to IB/TWS Java method:
 
     public synchronized void cancelFundamentalData(int reqId) {
 */
-int tws_cancel_fundamental_data(void *tws, int reqid)
+int tws_cancel_fundamental_data(tws_instance_t *ti, int reqid)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if(ti->server_version < MIN_SERVER_VER_FUNDAMENTAL_DATA) {
 #ifdef TWS_DEBUG
         printf("tws_cancel_fundamental data does not support fundamental data requests.");
@@ -3091,10 +3059,8 @@ similar to IB/TWS Java method:
     public synchronized void calculateImpliedVolatility(int reqId, Contract contract,
             double optionPrice, double underPrice) {
 */
-int tws_calculate_implied_volatility(void *tws, int reqid, tr_contract_t *contract, double option_price, double under_price)
+int tws_calculate_implied_volatility(tws_instance_t *ti, int reqid, tr_contract_t *contract, double option_price, double under_price)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if (ti->server_version < MIN_SERVER_VER_REQ_CALC_IMPLIED_VOLAT) {
 #ifdef TWS_DEBUG
         printf("tws_calculate_implied_volatility: It does not support calculate implied volatility requests\n");
@@ -3133,10 +3099,8 @@ similar to IB/TWS Java method:
 
     public synchronized void cancelCalculateImpliedVolatility(int reqId) {
 */
-int tws_cancel_calculate_implied_volatility(void *tws, int reqid)
+int tws_cancel_calculate_implied_volatility(tws_instance_t *ti, int reqid)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if (ti->server_version < MIN_SERVER_VER_CANCEL_CALC_IMPLIED_VOLAT) {
 #ifdef TWS_DEBUG
         printf("tws_cancel_calculate_implied_volatility: It does not support calculate implied volatility cancellation\n");
@@ -3160,10 +3124,8 @@ similar to IB/TWS Java method:
     public synchronized void calculateOptionPrice(int reqId, Contract contract,
             double volatility, double underPrice) {
 */
-int tws_calculate_option_price(void *tws, int reqid, tr_contract_t *contract, double volatility, double under_price)
+int tws_calculate_option_price(tws_instance_t *ti, int reqid, tr_contract_t *contract, double volatility, double under_price)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if (ti->server_version < MIN_SERVER_VER_REQ_CALC_OPTION_PRICE) {
 #ifdef TWS_DEBUG
         printf("tws_calculate_option_price: It does not support calculate option price requests\n");
@@ -3202,10 +3164,8 @@ similar to IB/TWS Java method:
 
     public synchronized void cancelCalculateOptionPrice(int reqId) {
 */
-int tws_cancel_calculate_option_price(void *tws, int reqid)
+int tws_cancel_calculate_option_price(tws_instance_t *ti, int reqid)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if (ti->server_version < MIN_SERVER_VER_CANCEL_CALC_OPTION_PRICE) {
 #ifdef TWS_DEBUG
         printf("tws_cancel_calculate_option_price: It does not support calculate option price cancellation\n");
@@ -3228,10 +3188,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqGlobalCancel() {
 */
-int tws_req_global_cancel(void *tws)
+int tws_req_global_cancel(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if (ti->server_version < MIN_SERVER_VER_REQ_GLOBAL_CANCEL) {
 #ifdef TWS_DEBUG
         printf("tws_req_global_cancel: It does not support globalCancel requests\n");
@@ -3253,10 +3211,8 @@ similar to IB/TWS Java method:
 
     public synchronized void reqRealTimeBars(int tickerId, Contract contract, int barSize, String whatToShow, boolean useRTH) {
 */
-int tws_request_realtime_bars(void *tws, int ticker_id, tr_contract_t *c, int bar_size, const char what_to_show[], int use_rth)
+int tws_request_realtime_bars(tws_instance_t *ti, int ticker_id, tr_contract_t *c, int bar_size, const char what_to_show[], int use_rth)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if(ti->server_version < MIN_SERVER_VER_REAL_TIME_BARS)
         return UPDATE_TWS;
 
@@ -3288,10 +3244,8 @@ similar to IB/TWS Java method:
 
     public void cancelRealTimeBars(int tickerId) {
 */
-int tws_cancel_realtime_bars(void *tws, int ticker_id)
+int tws_cancel_realtime_bars(tws_instance_t *ti, int ticker_id)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
-
     if(ti->server_version < MIN_SERVER_VER_REAL_TIME_BARS)
         return UPDATE_TWS;
 
@@ -3305,25 +3259,23 @@ int tws_cancel_realtime_bars(void *tws, int ticker_id)
 }
 
 /* returns -1 on error, who knows 0 might be valid? */
-int tws_server_version(void *tws)
+int tws_server_version(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     return ti->connected ? (int) ti->server_version : -1;
 }
 
 /* this routine is useless if used for synchronization
  * because of clock drift, use NTP for time sync
  */
-const char *tws_connection_time(void *tws)
+const char *tws_connection_time(tws_instance_t *ti)
 {
-    tws_instance_t *ti = (tws_instance_t *) tws;
     return ti->connected ? ti->connect_time : 0;
 }
 
 const struct twsclient_errmsg *tws_strerror(int errcode)
 {
     static const struct twsclient_errmsg unknown_err = {
-        500, "Unknown TWS failure code."
+        UNKNOWN_TWS_ERROR, "Unknown TWS failure code."
     };
     int i;
 
