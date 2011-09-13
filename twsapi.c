@@ -385,7 +385,7 @@ static void receive_tick_size(tws_instance_t *ti)
 
     read_int(ti, &ival); /* version unused */
     read_int(ti, &ival), ticker_id = ival;
-    read_int(ti, &ival), tick_type = ival;
+    read_int(ti, &ival), tick_type = (tr_tick_type_t)ival;
     read_int(ti, &ival), size = ival;
 
     if(ti->connected)
@@ -407,7 +407,7 @@ static void receive_tick_option_computation(tws_instance_t *ti)
 
     read_int(ti, &ival), version = ival;
     read_int(ti, &ival), ticker_id = ival;
-    read_int(ti, &ival), tick_type = ival;
+    read_int(ti, &ival), tick_type = (tr_tick_type_t)ival;
     read_double(ti, &implied_vol);
     if(implied_vol < 0) /* -1 is the "not yet computed" indicator */
         implied_vol = DBL_MAX;
@@ -457,7 +457,7 @@ static void receive_tick_generic(tws_instance_t *ti)
 
     read_int(ti, &ival /*version */); /* ignored */
     read_int(ti, &ival), ticker_id = ival;
-    read_int(ti, &ival), tick_type = ival;
+    read_int(ti, &ival), tick_type = (tr_tick_type_t)ival;
     read_double(ti, &value);
     if(ti->connected)
         event_tick_generic(ti->opaque, ticker_id, tick_type, value);
@@ -472,7 +472,7 @@ static void receive_tick_string(tws_instance_t *ti)
 
     read_int(ti, &ival /*version */); /* ignored */
     read_int(ti, &ival), ticker_id = ival;
-    read_int(ti, &ival), tick_type = ival;
+    read_int(ti, &ival), tick_type = (tr_tick_type_t)ival;
 
     ticker_value = str = alloc_string(ti);
     read_line_of_arbitrary_length(ti, &ticker_value, sizeof(tws_string_t));
@@ -497,7 +497,7 @@ static void receive_tick_efp(tws_instance_t *ti)
 
     read_int(ti, &ival /*version unused */);
     read_int(ti, &ival); ticker_id = ival;
-    read_int(ti, &ival); tick_type = ival;
+    read_int(ti, &ival); tick_type = (tr_tick_type_t)ival;
     read_double(ti, &basis_points);
 
     lval = sizeof(tws_string_t), read_line(ti, formatted_basis_points, &lval);
@@ -1255,7 +1255,7 @@ static void receive_scanner_parameters(tws_instance_t *ti)
 static void receive_scanner_data(tws_instance_t *ti)
 {
     tr_contract_details_t cdetails;
-    char *distance = alloc_string(ti), *benchmark = alloc_string(ti), *projection = alloc_string(ti), *legs_str;
+    char *distance = alloc_string(ti), *benchmark = alloc_string(ti), *projection = alloc_string(ti);
     size_t lval;
     int j;
     int ival, version, rank, ticker_id, num_elements;
@@ -1267,7 +1267,8 @@ static void receive_scanner_data(tws_instance_t *ti)
     read_int(ti, &ival), num_elements = ival;
 
     for(j = 0; j < num_elements; j++) {
-        legs_str = 0;
+        char *legs_str = NULL;
+
         read_int(ti, &ival), rank = ival;
 
         if(version >= 3) {
@@ -1448,40 +1449,40 @@ int tws_event_process(tws_instance_t *ti)
 
     switch(msgcode)
     {
-        case TICK_PRICE: receive_tick_price(ti); break;
-        case TICK_SIZE: receive_tick_size(ti); break;
-        case TICK_OPTION_COMPUTATION: receive_tick_option_computation(ti); break;
-        case TICK_GENERIC: receive_tick_generic(ti); break;
-        case TICK_STRING: receive_tick_string(ti); break;
-        case TICK_EFP: receive_tick_efp(ti); break;
-        case ORDER_STATUS: receive_order_status(ti); break;
-        case ACCT_VALUE: receive_acct_value(ti); break;
-        case PORTFOLIO_VALUE: receive_portfolio_value(ti); break;
-        case ACCT_UPDATE_TIME: receive_acct_update_time(ti); break;
-        case ERR_MSG: receive_err_msg(ti); break;
-        case OPEN_ORDER: receive_open_order(ti); break;
-        case NEXT_VALID_ID: receive_next_valid_id(ti); break;
-        case CONTRACT_DATA: receive_contract_data(ti); break;
-        case BOND_CONTRACT_DATA: receive_bond_contract_data(ti); break;
-        case EXECUTION_DATA: receive_execution_data(ti); break;
-        case MARKET_DEPTH: receive_market_depth(ti); break;
-        case MARKET_DEPTH_L2: receive_market_depth_l2(ti); break;
-        case NEWS_BULLETINS: receive_news_bulletins(ti); break;
-        case MANAGED_ACCTS: receive_managed_accts(ti); break;
-        case RECEIVE_FA: receive_fa(ti); break;
-        case HISTORICAL_DATA: receive_historical_data(ti); break;
-        case SCANNER_PARAMETERS: receive_scanner_parameters(ti); break;
-        case SCANNER_DATA: receive_scanner_data(ti); break;
-        case CURRENT_TIME: receive_current_time(ti); break;
-        case REAL_TIME_BARS: receive_realtime_bars(ti); break;
-        case FUNDAMENTAL_DATA: receive_fundamental_data(ti); break;
-        case CONTRACT_DATA_END: receive_contract_data_end(ti); break;
-        case OPEN_ORDER_END: receive_open_order_end(ti); break;
-        case ACCT_DOWNLOAD_END: receive_acct_download_end(ti); break;
-        case EXECUTION_DATA_END: receive_execution_data_end(ti); break;
-        case DELTA_NEUTRAL_VALIDATION: receive_delta_neutral_validation(ti); break;
-        case TICK_SNAPSHOT_END: receive_tick_snapshot_end(ti); break;
-        default: valid = 0; break;
+    case TICK_PRICE: receive_tick_price(ti); break;
+    case TICK_SIZE: receive_tick_size(ti); break;
+    case TICK_OPTION_COMPUTATION: receive_tick_option_computation(ti); break;
+    case TICK_GENERIC: receive_tick_generic(ti); break;
+    case TICK_STRING: receive_tick_string(ti); break;
+    case TICK_EFP: receive_tick_efp(ti); break;
+    case ORDER_STATUS: receive_order_status(ti); break;
+    case ACCT_VALUE: receive_acct_value(ti); break;
+    case PORTFOLIO_VALUE: receive_portfolio_value(ti); break;
+    case ACCT_UPDATE_TIME: receive_acct_update_time(ti); break;
+    case ERR_MSG: receive_err_msg(ti); break;
+    case OPEN_ORDER: receive_open_order(ti); break;
+    case NEXT_VALID_ID: receive_next_valid_id(ti); break;
+    case CONTRACT_DATA: receive_contract_data(ti); break;
+    case BOND_CONTRACT_DATA: receive_bond_contract_data(ti); break;
+    case EXECUTION_DATA: receive_execution_data(ti); break;
+    case MARKET_DEPTH: receive_market_depth(ti); break;
+    case MARKET_DEPTH_L2: receive_market_depth_l2(ti); break;
+    case NEWS_BULLETINS: receive_news_bulletins(ti); break;
+    case MANAGED_ACCTS: receive_managed_accts(ti); break;
+    case RECEIVE_FA: receive_fa(ti); break;
+    case HISTORICAL_DATA: receive_historical_data(ti); break;
+    case SCANNER_PARAMETERS: receive_scanner_parameters(ti); break;
+    case SCANNER_DATA: receive_scanner_data(ti); break;
+    case CURRENT_TIME: receive_current_time(ti); break;
+    case REAL_TIME_BARS: receive_realtime_bars(ti); break;
+    case FUNDAMENTAL_DATA: receive_fundamental_data(ti); break;
+    case CONTRACT_DATA_END: receive_contract_data_end(ti); break;
+    case OPEN_ORDER_END: receive_open_order_end(ti); break;
+    case ACCT_DOWNLOAD_END: receive_acct_download_end(ti); break;
+    case EXECUTION_DATA_END: receive_execution_data_end(ti); break;
+    case DELTA_NEUTRAL_VALIDATION: receive_delta_neutral_validation(ti); break;
+    case TICK_SNAPSHOT_END: receive_tick_snapshot_end(ti); break;
+    default: valid = 0; break;
     }
 
 #ifdef TWS_DEBUG

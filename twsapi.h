@@ -382,90 +382,154 @@ void   tws_destroy_tr_comboleg(tws_instance_t *tws, tr_comboleg_t *comboleg_ref)
 /* transmit connect message and wait for response */
 int    tws_connect(tws_instance_t *tws, int client_id);
 void   tws_disconnect(tws_instance_t *tws);
+
+/* sends message REQ_SCANNER_PARAMETERS to IB/TWS */
 int    tws_req_scanner_parameters(tws_instance_t *tws);
+/* sends message REQ_SCANNER_SUBSCRIPTION to IB/TWS */
 int    tws_req_scanner_subscription(tws_instance_t *tws, int ticker_id, tr_scanner_subscription_t *subscription);
+/* sends message CANCEL_SCANNER_SUBSCRIPTION to IB/TWS */
 int    tws_cancel_scanner_subscription(tws_instance_t *tws, int ticker_id);
+/* sends message REQ_MKT_DATA to IB/TWS */
 int    tws_req_mkt_data(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, const char generic_tick_list[], int snapshot);
+/* sends message REQ_HISTORICAL_DATA to IB/TWS */
 int    tws_req_historical_data(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], const char bar_size_setting[], const char what_to_show[], int use_rth, int format_date);
+/* sends message CANCEL_HISTORICAL_DATA to IB/TWS */
 int    tws_cancel_historical_data(tws_instance_t *tws, int ticker_id);
+/* sends message CANCEL_MKT_DATA to IB/TWS */
 int    tws_cancel_mkt_data(tws_instance_t *tws, int ticker_id);
+/* sends message EXERCISE_OPTIONS to IB/TWS */
 int    tws_exercise_options(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int exc_override);
+/* sends message PLACE_ORDER to IB/TWS */
 int    tws_place_order(tws_instance_t *tws, int order_id, tr_contract_t *contract, tr_order_t *order);
+/* sends message CANCEL_ORDER to IB/TWS */
 int    tws_cancel_order(tws_instance_t *tws, int order_id);
+/* sends message REQ_OPEN_ORDERS to IB/TWS */
 int    tws_req_open_orders(tws_instance_t *tws);
+/* sends message REQ_ACCOUNT_DATA to IB/TWS */
 int    tws_req_account_updates(tws_instance_t *tws, int subscribe, const char acct_code[]);
+/* sends message REQ_EXECUTIONS to IB/TWS */
 int    tws_req_executions(tws_instance_t *tws, int reqid, tr_exec_filter_t *filter);
+/* sends message REQ_IDS to IB/TWS */
 int    tws_req_ids(tws_instance_t *tws, int num_ids);
+/* sends message REQ_CONTRACT_DATA to IB/TWS */
 int    tws_req_contract_details(tws_instance_t *tws, int reqid, tr_contract_t *contract);
+/* sends message REQ_MKT_DEPTH to IB/TWS */
 int    tws_req_mkt_depth(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, int num_rows);
+/* sends message CANCEL_MKT_DEPTH to IB/TWS */
 int    tws_cancel_mkt_depth(tws_instance_t *tws, int ticker_id);
+/* sends message REQ_NEWS_BULLETINS to IB/TWS */
 int    tws_req_news_bulletins(tws_instance_t *tws, int all_msgs);
+/* sends message CANCEL_NEWS_BULLETINS to IB/TWS */
 int    tws_cancel_news_bulletins(tws_instance_t *tws);
+/* sends message SET_SERVER_LOGLEVEL to IB/TWS */
 int    tws_set_server_log_level(tws_instance_t *tws, int level);
+/* sends message REQ_AUTO_OPEN_ORDERS to IB/TWS */
 int    tws_req_auto_open_orders(tws_instance_t *tws, int auto_bind);
+/* sends message REQ_ALL_OPEN_ORDERS to IB/TWS */
 int    tws_req_all_open_orders(tws_instance_t *tws);
+/* sends message REQ_MANAGED_ACCTS to IB/TWS */
 int    tws_req_managed_accts(tws_instance_t *tws);
+/* sends message REQ_FA to IB/TWS */
 int    tws_request_fa(tws_instance_t *tws, int fa_data_type);
+/* sends message REPLACE_FA to IB/TWS */
 int    tws_replace_fa(tws_instance_t *tws, int fa_data_type, const char cxml[]);
+/* sends message REQ_CURRENT_TIME to IB/TWS */
 int    tws_req_current_time(tws_instance_t *tws);
+/* sends message REQ_FUNDAMENTAL_DATA to IB/TWS */
 int    tws_req_fundamental_data(tws_instance_t *tws, int reqid, tr_contract_t *contract, char report_type[]);
+/* sends message CANCEL_FUNDAMENTAL_DATA to IB/TWS */
 int    tws_cancel_fundamental_data(tws_instance_t *tws, int reqid);
+/* sends message REQ_CALC_IMPLIED_VOLAT to IB/TWS */
 int    tws_calculate_implied_volatility(tws_instance_t *tws, int reqid, tr_contract_t *contract, double option_price, double under_price);
+/* sends message CANCEL_CALC_IMPLIED_VOLAT to IB/TWS */
 int    tws_cancel_calculate_implied_volatility(tws_instance_t *tws, int reqid);
+/* sends message REQ_CALC_OPTION_PRICE to IB/TWS */
 int    tws_calculate_option_price(tws_instance_t *tws, int reqid, tr_contract_t *contract, double volatility, double under_price);
+/* sends message CANCEL_CALC_OPTION_PRICE to IB/TWS */
 int    tws_cancel_calculate_option_price(tws_instance_t *tws, int reqid);
+/* sends message REQ_GLOBAL_CANCEL to IB/TWS */
 int    tws_req_global_cancel(tws_instance_t *tws);
+/* sends message REQ_REAL_TIME_BARS to IB/TWS */
 int    tws_request_realtime_bars(tws_instance_t *tws, int ticker_id, tr_contract_t *c, int bar_size, const char what_to_show[], int use_rth);
+/* sends message CANCEL_REAL_TIME_BARS to IB/TWS */
 int    tws_cancel_realtime_bars(tws_instance_t *tws, int ticker_id);
+
 /**** 2 auxilliary routines */
 int    tws_server_version(tws_instance_t *tws);
 const char *tws_connection_time(tws_instance_t *tws);
+
 /************************************ callbacks *************************************/
-/* API users must implement some or all of these C functions */
+/* API users must implement some or all of these C functions; the comment before each function describes which incoming message(s) fire the given event: */
+
+/* fired by: TICK_PRICE */
 void event_tick_price(void *opaque, int ticker_id, tr_tick_type_t field, double price, int can_auto_execute);
+/* fired by: TICK_PRICE (for modern versions, then immediately preceeded by an invocation of event_tick_price()), TICK_SIZE */
 void event_tick_size(void *opaque, int ticker_id, tr_tick_type_t field, int size);
+/* fired by: TICK_OPTION_COMPUTATION */
 void event_tick_option_computation(void *opaque, int ticker_id, tr_tick_type_t type, double implied_vol, double delta, double opt_price, double pv_dividend, double gamma, double vega, double theta, double und_price);
+/* fired by: TICK_GENERIC */
 void event_tick_generic(void *opaque, int ticker_id, tr_tick_type_t type, double value);
+/* fired by: TICK_STRING */
 void event_tick_string(void *opaque, int ticker_id, tr_tick_type_t type, const char value[]);
+/* fired by: TICK_EFP */
 void event_tick_efp(void *opaque, int ticker_id, tr_tick_type_t tick_type, double basis_points, const char formatted_basis_points[], double implied_futures_price, int hold_days, const char future_expiry[], double dividend_impact, double dividends_to_expiry);
-void event_order_status(void *opaque, int order_id, const char status[],
-    int filled, int remaining, double avg_fill_price, int perm_id,
-    int parent_id, double last_fill_price, int client_id, const char why_held[]);
+/* fired by: ORDER_STATUS */
+void event_order_status(void *opaque, int order_id, const char status[], int filled, int remaining, double avg_fill_price, int perm_id, int parent_id, double last_fill_price, int client_id, const char why_held[]);
+/* fired by: OPEN_ORDER */
 void event_open_order(void *opaque, int order_id, const tr_contract_t *contract, const tr_order_t *order, const tr_order_status_t *ost);
-void event_connection_closed(void *opaque);
-void event_update_account_value(void *opaque, const char key[], const char val[],
-    const char currency[], const char account_name[]);
-void event_update_portfolio(void *opaque, const tr_contract_t *contract, int position,
-    double mkt_price, double mkt_value, double average_cost,
-    double unrealized_pnl, double realized_pnl, const char account_name[]);
-void event_update_account_time(void *opaque, const char time_stamp[]);
-void event_next_valid_id(void *opaque, int order_id);
-void event_contract_details(void *opaque, int req_id, const tr_contract_details_t *contract_details);
-void event_bond_contract_details(void *opaque, int req_id, const tr_contract_details_t *contract_details);
-void event_exec_details(void *opaque, int order_id, const tr_contract_t *contract,
-    const tr_execution_t *execution);
-void event_error(void *opaque, int id, int error_code, const char error_string[]);
-void event_update_mkt_depth(void *opaque, int ticker_id, int position, int operation, int side,
-    double price, int size);
-void event_update_mkt_depth_l2(void *opaque, int ticker_id, int position,
-    char *market_maker, int operation, int side, double price, int size);
-void event_update_news_bulletin(void *opaque, int msgid, int msg_type, const char news_msg[],
-    const char origin_exch[]);
-void event_managed_accounts(void *opaque, const char accounts_list[]);
-void event_receive_fa(void *opaque, int fa_data_type, const char cxml[]);
-void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, int bar_count, double wap, int has_gaps);
-void event_historical_data_end(void *opaque, int reqid, const char completion_from[], const char completion_to[]);
-void event_scanner_parameters(void *opaque, const char xml[]);
-void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[], const char legs_str[]);
-void event_scanner_data_end(void *opaque, int ticker_id);
-void event_current_time(void *opaque, long time);
-void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long volume, double wap, int count);
-void event_fundamental_data(void *opaque, int reqid, const char data[]);
-void event_contract_details_end(void *opaque, int reqid);
+/* fired by: OPEN_ORDER_END */
 void event_open_order_end(void *opaque);
-void event_delta_neutral_validation(void *opaque, int reqid, under_comp_t *und);
-void event_acct_download_end(void *opaque, char acct_name[]);
+/* fired by: ACCT_VALUE */
+void event_update_account_value(void *opaque, const char key[], const char val[], const char currency[], const char account_name[]);
+/* fired by: PORTFOLIO_VALUE */
+void event_update_portfolio(void *opaque, const tr_contract_t *contract, int position, double mkt_price, double mkt_value, double average_cost, double unrealized_pnl, double realized_pnl, const char account_name[]);
+/* fired by: ACCT_UPDATE_TIME */
+void event_update_account_time(void *opaque, const char time_stamp[]);
+/* fired by: NEXT_VALID_ID */
+void event_next_valid_id(void *opaque, int order_id);
+/* fired by: CONTRACT_DATA */
+void event_contract_details(void *opaque, int req_id, const tr_contract_details_t *contract_details);
+/* fired by: CONTRACT_DATA_END */
+void event_contract_details_end(void *opaque, int reqid);
+/* fired by: BOND_CONTRACT_DATA */
+void event_bond_contract_details(void *opaque, int req_id, const tr_contract_details_t *contract_details);
+/* fired by: EXECUTION_DATA */
+void event_exec_details(void *opaque, int order_id, const tr_contract_t *contract, const tr_execution_t *execution);
+/* fired by: EXECUTION_DATA_END */
 void event_exec_details_end(void *opaque, int reqid);
+/* fired by: ERR_MSG */
+void event_error(void *opaque, int id, int error_code, const char error_string[]);
+/* fired by: MARKET_DEPTH */
+void event_update_mkt_depth(void *opaque, int ticker_id, int position, int operation, int side, double price, int size);
+/* fired by: MARKET_DEPTH_L2 */
+void event_update_mkt_depth_l2(void *opaque, int ticker_id, int position, char *market_maker, int operation, int side, double price, int size);
+/* fired by: NEWS_BULLETINS */
+void event_update_news_bulletin(void *opaque, int msgid, int msg_type, const char news_msg[], const char origin_exch[]);
+/* fired by: MANAGED_ACCTS */
+void event_managed_accounts(void *opaque, const char accounts_list[]);
+/* fired by: RECEIVE_FA */
+void event_receive_fa(void *opaque, int fa_data_type, const char cxml[]);
+/* fired by: HISTORICAL_DATA (possibly multiple times per incoming message) */
+void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, int bar_count, double wap, int has_gaps);
+/* fired by: HISTORICAL_DATA  (once, after one or more invocations of event_historical_data()) */
+void event_historical_data_end(void *opaque, int reqid, const char completion_from[], const char completion_to[]);
+/* fired by: SCANNER_PARAMETERS */
+void event_scanner_parameters(void *opaque, const char xml[]);
+/* fired by: SCANNER_DATA (possibly multiple times per incoming message) */
+void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[], const char legs_str[]);
+/* fired by: SCANNER_DATA (once, after one or more invocations of event_scanner_data()) */
+void event_scanner_data_end(void *opaque, int ticker_id);
+/* fired by: CURRENT_TIME */
+void event_current_time(void *opaque, long time);
+/* fired by: REAL_TIME_BARS */
+void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long volume, double wap, int count);
+/* fired by: FUNDAMENTAL_DATA */
+void event_fundamental_data(void *opaque, int reqid, const char data[]);
+/* fired by: DELTA_NEUTRAL_VALIDATION */
+void event_delta_neutral_validation(void *opaque, int reqid, under_comp_t *und);
+/* fired by: ACCT_DOWNLOAD_END */
+void event_acct_download_end(void *opaque, char acct_name[]);
+/* fired by: TICK_SNAPSHOT_END */
 void event_tick_snapshot_end(void *opaque, int reqid);
 
 /* outgoing message IDs */
@@ -634,54 +698,53 @@ struct twsclient_errmsg twsclient_err_indication[] = {
      */
     { NO_TWS_ERROR, "No error" },
     { NO_VALID_ID, "No valid client ID" },
-    { 501, "Already connected." },
-    { 502, "Couldn't connect to TWS.  Confirm that \"Enable ActiveX and Socket Clients\" is enabled on the TWS \"Configure->API\" menu." },
-    { 503, "Your version of TWS is out of date and must be upgraded." },
-    { 504, "Not connected" },
-    { 505, "Fatal Error: Unknown message id."},
+    { ALREADY_CONNECTED, "Already connected." },
+    { CONNECT_FAIL, "Couldn't connect to TWS.  Confirm that \"Enable ActiveX and Socket Clients\" is enabled on the TWS \"Configure->API\" menu." },
+    { UPDATE_TWS, "Your version of TWS is out of date and must be upgraded." },
+    { NOT_CONNECTED, "Not connected" },
+    { UNKNOWN_ID, "Fatal Error: Unknown message id."},
+    { ZERO_BYTE_READ, "Unexplained zero bytes read." },
+    { NULL_STRING_READ, "Null string read when expecting integer" },
+    { NO_BYTES_READ, "Error: no bytes read or no null terminator found" },
+    { SOCKET_EXCEPTION, "Exception caught while reading socket - " },
 
-    { 506, "Unexplained zero bytes read." },
-    { 507, "Null string read when expecting integer" },
-    { 508, "Error: no bytes read or no null terminator found" },
-    { 509, "Exception caught while reading socket - " },
-
-    { 510, "Request Market Data Sending Error - "},
-    { 511, "Cancel Market Data Sending Error - "},
-    { 512, "Order Sending Error - "},
-    { 513, "Account Update Request Sending Error -"},
-    { 514, "Request For Executions Sending Error -"},
-    { 515, "Cancel Order Sending Error -"},
-    { 516, "Request Open Order Sending Error -"},
-    { 517, "Unknown contract. Verify the contract details supplied."},
-    { 518, "Request Contract Data Sending Error - "},
-    { 519, "Request Market Depth Sending Error - "},
-    { 520, "Cancel Market Depth Sending Error - "},
-    { 521, "Set Server Log Level Sending Error - "},
-    { 522, "FA Information Request Sending Error - "},
-    { 523, "FA Information Replace Sending Error - "},
-    { 524, "Request Scanner Subscription Sending Error - "},
-    { 525, "Cancel Scanner Subscription Sending Error - "},
-    { 526, "Request Scanner Parameter Sending Error - "},
-    { 527, "Request Historical Data Sending Error - "},
-    { 528, "Cancel Historical Data Sending Error - "},
-    { 529, "Request Real-time Bar Data Sending Error - "},
-    { 530, "Cancel Real-time Bar Data Sending Error - "},
-    { 531, "Request Current Time Sending Error - "},
-    { 532, "Request Fundamental Data Sending Error - "},
-    { 533, "Cancel Fundamental Data Sending Error - "},
+    { FAIL_SEND_REQMKT, "Request Market Data Sending Error - "},
+    { FAIL_SEND_CANMKT, "Cancel Market Data Sending Error - "},
+    { FAIL_SEND_ORDER, "Order Sending Error - "},
+    { FAIL_SEND_ACCT, "Account Update Request Sending Error -"},
+    { FAIL_SEND_EXEC, "Request For Executions Sending Error -"},
+    { FAIL_SEND_CORDER, "Cancel Order Sending Error -"},
+    { FAIL_SEND_OORDER, "Request Open Order Sending Error -"},
+    { UNKNOWN_CONTRACT, "Unknown contract. Verify the contract details supplied."},
+    { FAIL_SEND_REQCONTRACT, "Request Contract Data Sending Error - "},
+    { FAIL_SEND_REQMKTDEPTH, "Request Market Depth Sending Error - "},
+    { FAIL_SEND_CANMKTDEPTH, "Cancel Market Depth Sending Error - "},
+    { FAIL_SEND_SERVER_LOG_LEVEL, "Set Server Log Level Sending Error - "},
+    { FAIL_SEND_FA_REQUEST, "FA Information Request Sending Error - "},
+    { FAIL_SEND_FA_REPLACE, "FA Information Replace Sending Error - "},
+    { FAIL_SEND_REQSCANNER, "Request Scanner Subscription Sending Error - "},
+    { FAIL_SEND_CANSCANNER, "Cancel Scanner Subscription Sending Error - "},
+    { FAIL_SEND_REQSCANNERPARAMETERS, "Request Scanner Parameter Sending Error - "},
+    { FAIL_SEND_REQHISTDATA, "Request Historical Data Sending Error - "},
+    { FAIL_SEND_CANHISTDATA, "Cancel Historical Data Sending Error - "},
+    { FAIL_SEND_REQRTBARS, "Request Real-time Bar Data Sending Error - "},
+    { FAIL_SEND_CANRTBARS, "Cancel Real-time Bar Data Sending Error - "},
+    { FAIL_SEND_REQCURRTIME, "Request Current Time Sending Error - "},
+    { FAIL_SEND_REQFUNDDATA, "Request Fundamental Data Sending Error - "},
+    { FAIL_SEND_CANFUNDDATA, "Cancel Fundamental Data Sending Error - "},
     /* since TWS API 9.64: */
-    { 534, "Request Calculate Implied Volatility Sending Error - "},
-    { 535, "Request Calculate Option Price Sending Error - "},
-    { 536, "Cancel Calculate Implied Volatility Sending Error - "},
-    { 537, "Cancel Calculate Option Price Sending Error - "},
+    { FAIL_SEND_REQCALCIMPLIEDVOLAT, "Request Calculate Implied Volatility Sending Error - "},
+    { FAIL_SEND_REQCALCOPTIONPRICE, "Request Calculate Option Price Sending Error - "},
+    { FAIL_SEND_CANCALCIMPLIEDVOLAT, "Cancel Calculate Implied Volatility Sending Error - "},
+    { FAIL_SEND_CANCALCOPTIONPRICE, "Cancel Calculate Option Price Sending Error - "},
     /* since TWS API 9.65: */
-    { 538, "Request Global Cancel Sending Error - "},
+    { FAIL_SEND_REQGLOBALCANCEL, "Request Global Cancel Sending Error - "},
 
     /* related to bugfixes compared to the TWS Java implementation: */
-    { 596, "Request News Bulletins Sending Error - "},
-    { 597, "Cancel News Bulletins Sending Error - "},
-    { 598, "Request IDs Sending Error - "},
-    { 599, "Excercise Options Sending Error - "},
+    { FAIL_SEND_BULLETINS, "Request News Bulletins Sending Error - "},
+    { FAIL_SEND_CBULLETINS, "Cancel News Bulletins Sending Error - "},
+    { FAIL_SEND_REQIDS, "Request IDs Sending Error - "},
+    { FAIL_SEND_EXCERCISE_OPTIONS, "Excercise Options Sending Error - "},
 
     /* -------------------------------------------------------------- */
     /* The following items are taken from the TWS API on-line documentation: the error code strings for errors reported by the TWS client in the non-5xx range: */

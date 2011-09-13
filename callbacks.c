@@ -57,11 +57,6 @@ void event_open_order(void *opaque, int order_id, const tr_contract_t *contract,
     printf("open_order: opaque=%p, order_id=%d, sym=%s\n", opaque, order_id, contract->c_symbol);
 }
 
-void event_connection_closed(void *opaque)
-{
-    printf("connection_closed: opaque=%p\n", opaque);
-}
-
 void event_update_account_value(void *opaque, const char key[], const char val[],
                                 const char currency[], const char account_name[])
 {
