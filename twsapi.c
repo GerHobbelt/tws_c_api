@@ -172,12 +172,18 @@ static void init_order(tws_instance_t *ti, tr_order_t *o)
     o->o_clearing_intent = alloc_string(ti);
     o->o_hedge_type = alloc_string(ti);
     o->o_hedge_param = alloc_string(ti);
+    o->o_delta_neutral_settling_firm = alloc_string(ti);
+    o->o_delta_neutral_clearing_account = alloc_string(ti);
+    o->o_delta_neutral_clearing_intent = alloc_string(ti);
 
     o->o_exempt_code = -1;
 }
 
 static void destroy_order(tws_instance_t *ti, tr_order_t *o)
 {
+    free_string(ti, o->o_delta_neutral_clearing_intent);
+    free_string(ti, o->o_delta_neutral_clearing_account);
+    free_string(ti, o->o_delta_neutral_settling_firm);
     free_string(ti, o->o_hedge_param);
     free_string(ti, o->o_hedge_type);
     free_string(ti, o->o_clearing_intent);
@@ -211,6 +217,18 @@ static void destroy_order(tws_instance_t *ti, tr_order_t *o)
             free_string(ti, o->o_algo_params[i].t_val);
         }
         free(o->o_algo_params);
+    }
+
+	if (o->o_smart_combo_routing_params && o->o_smart_combo_routing_params_count)
+    {
+        int i;
+
+        for (i = 0; i < o->o_smart_combo_routing_params_count; i++)
+        {
+            free_string(ti, o->o_smart_combo_routing_params[i].t_tag);
+            free_string(ti, o->o_smart_combo_routing_params[i].t_val);
+        }
+        free(o->o_smart_combo_routing_params);
     }
 }
 
@@ -302,10 +320,12 @@ static void init_execution(tws_instance_t *ti, tr_execution_t *exec)
     exec->e_acct_number = alloc_string(ti);
     exec->e_exchange = alloc_string(ti);
     exec->e_side = alloc_string(ti);
+    exec->e_orderref = alloc_string(ti);
 }
 
 static void destroy_execution(tws_instance_t *ti, tr_execution_t *exec)
 {
+    free_string(ti, exec->e_orderref);
     free_string(ti, exec->e_side);
     free_string(ti, exec->e_exchange);
     free_string(ti, exec->e_acct_number);
@@ -799,6 +819,13 @@ static void receive_open_order(tws_instance_t *ti)
         } else {
             lval = sizeof(tws_string_t), read_line(ti, order.o_delta_neutral_order_type, &lval);
             read_double(ti, &order.o_delta_neutral_aux_price);
+
+            if (version >= 27 && !IS_EMPTY(order.o_delta_neutral_order_type)) {
+	            read_int(ti, &ival); order.o_delta_neutral_con_id = ival;
+				lval = sizeof(tws_string_t), read_line(ti, order.o_delta_neutral_settling_firm, &lval);
+				lval = sizeof(tws_string_t), read_line(ti, order.o_delta_neutral_clearing_account, &lval);
+				lval = sizeof(tws_string_t), read_line(ti, order.o_delta_neutral_clearing_intent, &lval);
+            }
         }
 
         read_int(ti, &ival); order.o_continuous_update = !!ival;
@@ -817,6 +844,27 @@ static void receive_open_order(tws_instance_t *ti)
         read_double(ti, &order.o_basis_points);
         read_int(ti, &ival), order.o_basis_points_type = ival;
         lval = sizeof(tws_string_t); read_line(ti, contract.c_combolegs_descrip, &lval);
+    }
+                
+    if (version >= 26) {
+		read_int(ti, &order.o_smart_combo_routing_params_count);
+        if (order.o_smart_combo_routing_params_count > 0) {
+            order.o_smart_combo_routing_params = calloc(order.o_smart_combo_routing_params_count, sizeof(*order.o_smart_combo_routing_params));
+            if(order.o_smart_combo_routing_params) {
+                int j;
+                for (j = 0; j < order.o_smart_combo_routing_params_count; j++) {
+                    order.o_smart_combo_routing_params[j].t_tag = alloc_string(ti);
+                    order.o_smart_combo_routing_params[j].t_val = alloc_string(ti);
+                    lval = sizeof(tws_string_t); read_line(ti, order.o_smart_combo_routing_params[j].t_tag, &lval);
+                    lval = sizeof(tws_string_t); read_line(ti, order.o_smart_combo_routing_params[j].t_val, &lval);
+                }
+            } else {
+#ifdef TWS_DEBUG
+                printf("receive_open_order: memory allocation failure\n");
+#endif
+                tws_disconnect(ti);
+            }
+        }
     }
 
     if(version >= 15) {
@@ -837,6 +885,10 @@ static void receive_open_order(tws_instance_t *ti)
 	        lval = sizeof(tws_string_t); read_line(ti, order.o_hedge_param, &lval);
 		}
 	}
+
+    if (version >= 25) {
+        read_int(ti, &ival), order.o_opt_out_smart_routing = !!ival;
+    }
 
     if(version >= 19) {
         lval = sizeof(tws_string_t); read_line(ti, order.o_clearing_account, &lval);
@@ -1069,6 +1121,10 @@ static void receive_execution_data(tws_instance_t *ti)
     if (version >= 6) {
         read_int(ti, &exec.e_cum_qty);
         read_double(ti, &exec.e_avg_price);
+    }
+
+    if (version >= 8) {
+	    lval = sizeof(tws_string_t), read_line(ti, exec.e_orderref, &lval);
     }
 
     if(ti->connected)
@@ -1435,6 +1491,19 @@ static void receive_tick_snapshot_end(tws_instance_t *ti)
         event_tick_snapshot_end(ti->opaque, reqid);
 }
 
+static void receive_market_data_type(tws_instance_t *ti)
+{
+	int ival, reqid;
+	market_data_type_t market_type;
+
+    read_int(ti, &ival); /* version ignored */
+    read_int(ti, &ival); reqid = ival;
+    read_int(ti, &ival); market_type = (market_data_type_t)ival;
+
+    if(ti->connected)
+        event_market_data_type(ti->opaque, reqid, market_type);
+}
+
 /* allows for reading events from within the same thread or an externally
  * spawned thread, returns 0 on success, -1 on error,
  */
@@ -1482,6 +1551,7 @@ int tws_event_process(tws_instance_t *ti)
     case EXECUTION_DATA_END: receive_execution_data_end(ti); break;
     case DELTA_NEUTRAL_VALIDATION: receive_delta_neutral_validation(ti); break;
     case TICK_SNAPSHOT_END: receive_tick_snapshot_end(ti); break;
+    case MARKET_DATA_TYPE: receive_market_data_type(ti); break;
     default: valid = 0; break;
     }
 
@@ -2072,6 +2142,36 @@ static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, send_com
 }
 
 /*
+Return 0 on error, !0 on successfully sending the tag list (a TagValue Vector in the original JAVA code).
+*/
+static int send_tag_list(tws_instance_t *ti, tr_tag_value_t *list, int list_size)
+{
+    send_int(ti, list_size);
+    if(list_size > 0) {
+        int j;
+        if (list == NULL) {
+#ifdef TWS_DEBUG
+            printf("send_tag_list: Algo Params array has not been properly set up: array is NULL\n");
+#endif
+			return 0;
+        }
+        else {
+            for(j = 0; j < list_size; j++) {
+                if (list[j].t_tag == NULL) {
+#ifdef TWS_DEBUG
+                    printf("send_tag_list: Algo Params array has not been properly set up: tag is NULL\n");
+#endif
+                    return 0;
+                }
+                send_str(ti, list[j].t_tag);
+                send_str(ti, list[j].t_val);
+            }
+        }
+    }
+	return 1;
+}
+
+/*
 similar to IB/TWS Java method:
 
     public synchronized void reqMktData(int tickerId, Contract contract,
@@ -2524,8 +2624,39 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
 		}
 	}
 
+    if (ti->server_version < MIN_SERVER_VER_HEDGE_ORDERS) {
+        if (!IS_EMPTY(order->o_hedge_type)) {
+#ifdef TWS_DEBUG
+            printf("tws_place_order: It does not support hedge orders.\n");
+#endif
+            return UPDATE_TWS;
+        }
+    }
+        
+    if (ti->server_version < MIN_SERVER_VER_OPT_OUT_SMART_ROUTING) {
+        if (order->o_opt_out_smart_routing) {
+#ifdef TWS_DEBUG
+            printf("tws_place_order: It does not support optOutSmartRouting parameter.\n");
+#endif
+            return UPDATE_TWS;
+        }
+    }
+        
+    if (ti->server_version < MIN_SERVER_VER_DELTA_NEUTRAL_CONID) {
+        if (order->o_delta_neutral_con_id > 0 
+        		|| !IS_EMPTY(order->o_delta_neutral_settling_firm)
+        		|| !IS_EMPTY(order->o_delta_neutral_clearing_account)
+        		|| !IS_EMPTY(order->o_delta_neutral_clearing_intent)
+        		) {
+#ifdef TWS_DEBUG
+            printf("tws_place_order: It does not support deltaNeutral parameters: ConId, SettlingFirm, ClearingAccount, ClearingIntent\n");
+#endif
+            return UPDATE_TWS;
+        }
+    }
+
     send_int(ti, PLACE_ORDER);
-    version = ti->server_version < MIN_SERVER_VER_NOT_HELD ? 27 : 32;
+    version = ti->server_version < MIN_SERVER_VER_NOT_HELD ? 27 : 35;
     send_int(ti, version);
     send_int(ti, id);
 
@@ -2586,6 +2717,13 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
     /* Send combo legs for BAG requests */
     if(ti->server_version >= 8 && !strcasecmp(contract->c_sectype, "BAG"))
         send_combolegs(ti, contract, COMBO_FOR_PLACE_ORDER);
+
+    if(ti->server_version >= MIN_SERVER_VER_SMART_COMBO_ROUTING_PARAMS && !strcasecmp(contract->c_sectype, "BAG")) {
+		if (!send_tag_list(ti, order->o_smart_combo_routing_params, order->o_smart_combo_routing_params_count)) {
+            // we may already have sent part of the constructed message so play it safe and discard the connection!
+            tws_disconnect(ti);
+		}
+    }
 
     if(ti->server_version >= 9)
         send_str(ti, ""); /* deprecated: shares allocation */
@@ -2653,6 +2791,13 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
         else {
             send_str(ti, order->o_delta_neutral_order_type);
             send_double_max(ti, order->o_delta_neutral_aux_price);
+                   
+            if (ti->server_version >= MIN_SERVER_VER_DELTA_NEUTRAL_CONID && !IS_EMPTY(order->o_delta_neutral_order_type)) {
+                send_int_max(ti, order->o_delta_neutral_con_id);
+                send_str(ti, order->o_delta_neutral_settling_firm);
+                send_str(ti, order->o_delta_neutral_clearing_account);
+                send_str(ti, order->o_delta_neutral_clearing_intent);
+            }
         }
 
         send_boolean(ti, order->o_continuous_update);
@@ -2689,6 +2834,10 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
 		}
 	}
 
+    if (ti->server_version >= MIN_SERVER_VER_OPT_OUT_SMART_ROUTING) {
+        send_boolean(ti, order->o_opt_out_smart_routing);
+    }
+           
     if(ti->server_version >= MIN_SERVER_VER_PTA_ORDERS) {
         send_str(ti, order->o_clearing_account);
         send_str(ti, order->o_clearing_intent);
@@ -2711,30 +2860,9 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
     if(ti->server_version >= MIN_SERVER_VER_ALGO_ORDERS) {
         send_str(ti, order->o_algo_strategy);
         if(!IS_EMPTY(order->o_algo_strategy)) {
-            send_int(ti, order->o_algo_params_count);
-            if(order->o_algo_params_count > 0) {
-                int j;
-                if (order->o_algo_params == NULL) {
-#ifdef TWS_DEBUG
-                    printf("tws_place_order: Algo Params array has not been properly set up: array is NULL\n");
-#endif
-                    // we may already have sent part of the constructed message so play it safe and discard the connection!
-                    tws_disconnect(ti);
-                }
-                else {
-                    for(j = 0; j < order->o_algo_params_count; j++) {
-                        if (order->o_algo_params[j].t_tag == NULL) {
-#ifdef TWS_DEBUG
-                            printf("tws_place_order: Algo Params array has not been properly set up: tag is NULL\n");
-#endif
-                            // we may already have sent part of the constructed message so play it safe and discard the connection!
-                            tws_disconnect(ti);
-                            break;
-                        }
-                        send_str(ti, order->o_algo_params[j].t_tag);
-                        send_str(ti, order->o_algo_params[j].t_val);
-                    }
-                }
+            if (!send_tag_list(ti, order->o_algo_params, order->o_algo_params_count)) {
+                // we may already have sent part of the constructed message so play it safe and discard the connection!
+                tws_disconnect(ti);
             }
         }
     }
@@ -3006,7 +3134,7 @@ similar to IB/TWS Java method:
     public synchronized void reqFundamentalData(int reqId, Contract contract,
             String reportType) {
 */
-int tws_req_fundamental_data(tws_instance_t *ti, int reqid, tr_contract_t *contract, char report_type[])
+int tws_req_fundamental_data(tws_instance_t *ti, int reqid, tr_contract_t *contract, const char report_type[])
 {
     if(ti->server_version < MIN_SERVER_VER_FUNDAMENTAL_DATA) {
 #ifdef TWS_DEBUG
@@ -3205,6 +3333,30 @@ int tws_req_global_cancel(tws_instance_t *ti)
     flush_message(ti);
 
     return ti->connected ? 0 : FAIL_SEND_REQGLOBALCANCEL;
+}
+
+/*
+similar to IB/TWS Java method:
+
+    public synchronized void reqMarketDataType(int marketDataType) {
+*/
+int tws_req_market_data_type(tws_instance_t *ti, market_data_type_t market_data_type)
+{
+    if (ti->server_version < MIN_SERVER_VER_REQ_MARKET_DATA_TYPE) {
+#ifdef TWS_DEBUG
+        printf("tws_req_market_data_type: It does not support marketDataType requests.\n");
+#endif
+        return UPDATE_TWS;
+    }
+        
+    // send the reqMarketDataType message
+    send_int(ti, REQ_MARKET_DATA_TYPE);
+    send_int(ti, 1 /*version*/);
+    send_int(ti, (int)market_data_type);
+
+    flush_message(ti);
+
+    return ti->connected ? 0 : FAIL_SEND_REQMARKETDATATYPE;
 }
 
 /*
