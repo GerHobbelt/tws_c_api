@@ -31,6 +31,13 @@
 #define DBL_NOTMAX(d) (fabs((d) - DBL_MAX) > DBL_EPSILON)
 #define IS_EMPTY(str)  (!(str) || ((str)[0] == '\0'))
 
+#if !defined(TRUE)
+#undef FALSE
+#define FALSE 0
+#define TRUE (!FALSE)
+#endif
+
+
 typedef struct {
     char str[512]; /* maximum conceivable string length */
 } tws_string_t;
@@ -105,10 +112,15 @@ static void free_string(tws_instance_t *ti, void *ptr)
     if (ptr)
     {
         unsigned int j = (unsigned int) ((tws_string_t *) ptr - &ti->mempool[0]);
-        unsigned int index = j / WORD_SIZE_IN_BITS;
-        unsigned long bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
 
-        ti->bitmask[index] &= ~bits;
+		// do NOT try to free a string which didn't originate from the pool!
+		if (j >= 0 && j < MAX_TWS_STRINGS)
+		{
+			unsigned int index = j / WORD_SIZE_IN_BITS;
+			unsigned long bits = 1UL << (j & (WORD_SIZE_IN_BITS - 1));
+
+			ti->bitmask[index] &= ~bits;
+		}
     }
 }
 
@@ -146,7 +158,7 @@ static void destroy_contract(tws_instance_t *ti, tr_contract_t *c)
     free_string(ti, c->c_symbol);
 }
 
-static void init_order(tws_instance_t *ti, tr_order_t *o)
+void tws_init_order(tws_instance_t *ti, tr_order_t *o)
 {
     memset(o, 0, sizeof *o);
 
@@ -176,10 +188,39 @@ static void init_order(tws_instance_t *ti, tr_order_t *o)
     o->o_delta_neutral_clearing_account = alloc_string(ti);
     o->o_delta_neutral_clearing_intent = alloc_string(ti);
 
-    o->o_exempt_code = -1;
+	o->o_lmt_price = DBL_MAX;
+	o->o_aux_price = DBL_MAX;
+	strcpy(o->o_open_close, "O");
+	o->o_origin = CUSTOMER;
+	o->o_transmit = TRUE;
+	o->o_exempt_code = -1;
+	o->o_min_qty = INTEGER_MAX_VALUE;
+	o->o_percent_offset = DBL_MAX;
+	o->o_nbbo_price_cap = DBL_MAX;
+	o->o_starting_price = DBL_MAX;
+	o->o_stock_ref_price = DBL_MAX;
+	o->o_delta = DBL_MAX;
+	o->o_stock_range_lower = DBL_MAX;
+	o->o_stock_range_upper = DBL_MAX;
+	o->o_volatility = DBL_MAX;
+	o->o_volatility_type = INTEGER_MAX_VALUE;
+	o->o_delta_neutral_aux_price = DBL_MAX;
+	o->o_reference_price_type = INTEGER_MAX_VALUE;
+	o->o_trail_stop_price = DBL_MAX;
+	o->o_trailing_percent = DBL_MAX;
+	o->o_basis_points = DBL_MAX;
+	o->o_basis_points_type = INTEGER_MAX_VALUE;
+	o->o_scale_init_level_size = INTEGER_MAX_VALUE;
+	o->o_scale_subs_level_size = INTEGER_MAX_VALUE;
+	o->o_scale_price_increment = DBL_MAX;
+	o->o_scale_price_adjust_value = DBL_MAX;
+	o->o_scale_price_adjust_interval = INTEGER_MAX_VALUE;
+	o->o_scale_profit_offset = DBL_MAX;
+	o->o_scale_init_position = INTEGER_MAX_VALUE;
+	o->o_scale_init_fill_qty = INTEGER_MAX_VALUE;
 }
 
-static void destroy_order(tws_instance_t *ti, tr_order_t *o)
+void tws_destroy_order(tws_instance_t *ti, tr_order_t *o)
 {
     free_string(ti, o->o_delta_neutral_clearing_intent);
     free_string(ti, o->o_delta_neutral_clearing_account);
@@ -358,6 +399,105 @@ void tws_destroy_tr_comboleg(tws_instance_t *ti, tr_comboleg_t *cl)
     free_string(ti, cl->co_exchange);
     free_string(ti, cl->co_designated_location);
 }
+
+void tws_init_exec_filter(tws_instance_t *ti, tr_exec_filter_t *filter)
+{
+    memset(filter, 0, sizeof(*filter));
+    filter->f_acctcode = alloc_string(ti);
+    filter->f_time = alloc_string(ti);
+    filter->f_symbol = alloc_string(ti);
+    filter->f_sectype = alloc_string(ti);
+    filter->f_exchange = alloc_string(ti);
+    filter->f_side = alloc_string(ti);
+}
+
+void tws_destroy_exec_filter(tws_instance_t *ti, tr_exec_filter_t *filter)
+{
+    free_string(ti, filter->f_acctcode);
+    free_string(ti, filter->f_time);
+    free_string(ti, filter->f_symbol);
+    free_string(ti, filter->f_sectype);
+    free_string(ti, filter->f_exchange);
+    free_string(ti, filter->f_side);
+}
+
+void tws_init_scanner_subscription(tws_instance_t *ti, tr_scanner_subscription_t *ss)
+{
+    memset(ss, 0, sizeof(*ss));
+
+    ss->scan_above_price = DBL_MAX;
+    ss->scan_below_price = DBL_MAX;
+    ss->scan_coupon_rate_above = DBL_MAX;
+    ss->scan_coupon_rate_below = DBL_MAX;
+    ss->scan_market_cap_above = DBL_MAX; 
+    ss->scan_market_cap_below = DBL_MAX;
+
+    ss->scan_exclude_convertible = alloc_string(ti);
+    ss->scan_instrument = alloc_string(ti);
+    ss->scan_location_code = alloc_string(ti);
+    ss->scan_maturity_date_above = alloc_string(ti);
+    ss->scan_maturity_date_below = alloc_string(ti);
+    ss->scan_moody_rating_above = alloc_string(ti);
+    ss->scan_moody_rating_below = alloc_string(ti);
+    ss->scan_code = alloc_string(ti);
+    ss->scan_sp_rating_above = alloc_string(ti);
+    ss->scan_sp_rating_below = alloc_string(ti);
+    ss->scan_scanner_setting_pairs = alloc_string(ti);
+    ss->scan_stock_type_filter = alloc_string(ti);
+
+    ss->scan_above_volume = INTEGER_MAX_VALUE;
+    ss->scan_number_of_rows = -1;
+    ss->scan_average_option_volume_above = INTEGER_MAX_VALUE;
+}
+
+void tws_destroy_scanner_subscription(tws_instance_t *ti, tr_scanner_subscription_t *ss)
+{
+    free_string(ti, ss->scan_exclude_convertible);
+    free_string(ti, ss->scan_instrument);
+    free_string(ti, ss->scan_location_code);
+    free_string(ti, ss->scan_maturity_date_above);
+    free_string(ti, ss->scan_maturity_date_below);
+    free_string(ti, ss->scan_moody_rating_above);
+    free_string(ti, ss->scan_moody_rating_below);
+    free_string(ti, ss->scan_code);
+    free_string(ti, ss->scan_sp_rating_above);
+    free_string(ti, ss->scan_sp_rating_below);
+    free_string(ti, ss->scan_scanner_setting_pairs);
+    free_string(ti, ss->scan_stock_type_filter);
+}
+
+void tws_init_tag_value(tws_instance_t *ti, tr_tag_value_t *t)
+{
+    memset(t, 0, sizeof(*t));
+    t->t_tag = alloc_string(ti);
+    t->t_val = alloc_string(ti);
+}
+
+void tws_destroy_tag_value(tws_instance_t *ti, tr_tag_value_t *t)
+{
+    free_string(ti, t->t_tag);
+    free_string(ti, t->t_val);
+}
+
+void tws_init_order_combo_leg(tws_instance_t *ti, tr_order_combo_leg_t *ocl)
+{
+    memset(ocl, 0, sizeof(*ocl));
+	ocl->cl_price = DBL_MAX;
+}
+
+void tws_destroy_order_combo_leg(tws_instance_t *ti, tr_order_combo_leg_t *ocl)
+{
+}
+
+void tws_init_under_comp(tws_instance_t *ti, under_comp_t *u)
+{
+    memset(u, 0, sizeof(*u));
+}
+
+void tws_destroy_under_comp(tws_instance_t *ti, under_comp_t *u)
+{
+}
+
 
 
 static void receive_tick_price(tws_instance_t *ti)
@@ -700,7 +840,7 @@ static void receive_open_order(tws_instance_t *ti)
     init_contract(ti, &contract);
     init_under_comp(ti, &und);
     contract.c_undercomp = &und;
-    init_order(ti, &order);
+    tws_init_order(ti, &order);
     init_order_status(ti, &ost);
 
     read_int(ti, &ival), version = ival;
@@ -725,13 +865,23 @@ static void receive_open_order(tws_instance_t *ti)
     lval = sizeof(tws_string_t), read_line(ti, order.o_action, &lval);
     read_int(ti, &order.o_total_quantity);
     lval = sizeof(tws_string_t), read_line(ti, order.o_order_type, &lval);
-    read_double(ti, &order.o_lmt_price);
-    read_double(ti, &order.o_aux_price);
+    if (version < 29) { 
+	    read_double(ti, &order.o_lmt_price);
+    }
+    else {
+	    read_double_max(ti, &order.o_lmt_price);
+    }
+    if (version < 30) { 
+	    read_double(ti, &order.o_aux_price);
+    }
+    else {
+	    read_double_max(ti, &order.o_aux_price);
+    }
     lval = sizeof(tws_string_t), read_line(ti, order.o_tif, &lval);
     lval = sizeof(tws_string_t), read_line(ti, order.o_oca_group, &lval);
     lval = sizeof(tws_string_t), read_line(ti, order.o_account, &lval);
     lval = sizeof(tws_string_t), read_line(ti, order.o_open_close, &lval);
-    read_int(ti, &ival), order.o_origin = ival;
+    read_int(ti, &ival), order.o_origin = (tr_origin_t)ival;
     lval = sizeof(tws_string_t), read_line(ti, order.o_orderref, &lval);
 
     if(version >= 3)
@@ -773,7 +923,7 @@ static void receive_open_order(tws_instance_t *ti)
 
     if(version >= 9) {
         lval = sizeof(tws_string_t), read_line(ti, order.o_rule80a, &lval);
-        read_double(ti, &order.o_percent_offset);
+        read_double_max(ti, &order.o_percent_offset);
         lval = sizeof(tws_string_t), read_line(ti, order.o_settling_firm, &lval);
         read_int(ti, &ival), order.o_short_sale_slot = ival;
         lval = sizeof(tws_string_t), read_line(ti, order.o_designated_location, &lval);
@@ -783,12 +933,12 @@ static void receive_open_order(tws_instance_t *ti)
         else if (version >= 23) {
             read_int(ti, &ival); order.o_exempt_code = ival;
         }
-        read_int(ti, &ival), order.o_auction_strategy = ival;
-        read_double(ti, &order.o_starting_price);
-        read_double(ti, &order.o_stock_ref_price);
-        read_double(ti, &order.o_delta);
-        read_double(ti, &order.o_stock_range_lower);
-        read_double(ti, &order.o_stock_range_upper);
+        read_int(ti, &ival), order.o_auction_strategy = (tr_auction_strategy_t)ival;
+        read_double_max(ti, &order.o_starting_price);
+        read_double_max(ti, &order.o_stock_ref_price);
+        read_double_max(ti, &order.o_delta);
+        read_double_max(ti, &order.o_stock_range_lower);
+        read_double_max(ti, &order.o_stock_range_upper);
         read_int(ti, &order.o_display_size);
 
         if(version < 18) /* "will never happen" comment */
@@ -797,11 +947,11 @@ static void receive_open_order(tws_instance_t *ti)
         read_int(ti, &ival), order.o_block_order = !!ival;
         read_int(ti, &ival), order.o_sweep_to_fill = !!ival;
         read_int(ti, &ival), order.o_all_or_none = !!ival;
-        read_int(ti, &order.o_min_qty);
-        read_int(ti, &ival), order.o_oca_type = ival;
+        read_int_max(ti, &order.o_min_qty);
+        read_int(ti, &ival), order.o_oca_type = (tr_oca_type_t)ival;
         read_int(ti, &ival), order.o_etrade_only = !!ival;
         read_int(ti, &ival), order.o_firm_quote_only = !!ival;
-        read_double(ti, &order.o_nbbo_price_cap);
+        read_double_max(ti, &order.o_nbbo_price_cap);
     }
 
     if(version >= 10) {
@@ -810,7 +960,7 @@ static void receive_open_order(tws_instance_t *ti)
     }
 
     if(version >= 11) {
-        read_double(ti, &order.o_volatility);
+        read_double_max(ti, &order.o_volatility);
         read_int(ti, &order.o_volatility_type);
 
         if(version == 11) {
@@ -818,7 +968,7 @@ static void receive_open_order(tws_instance_t *ti)
             strcpy(order.o_delta_neutral_order_type, (!ival ? "NONE" : "MKT"));
         } else {
             lval = sizeof(tws_string_t), read_line(ti, order.o_delta_neutral_order_type, &lval);
-            read_double(ti, &order.o_delta_neutral_aux_price);
+            read_double_max(ti, &order.o_delta_neutral_aux_price);
 
             if (version >= 27 && !IS_EMPTY(order.o_delta_neutral_order_type)) {
 	            read_int(ti, &ival); order.o_delta_neutral_con_id = ival;
@@ -837,19 +987,58 @@ static void receive_open_order(tws_instance_t *ti)
         read_int(ti, &order.o_reference_price_type);
     }
 
-    if(version >= 13)
-        read_double(ti, &order.o_trail_stop_price);
+    if(version >= 13) {
+        read_double_max(ti, &order.o_trail_stop_price);
+	}
+
+    if (version >= 30) {
+        read_double_max(ti, &order.o_trailing_percent);
+    }
 
     if(version >= 14) {
-        read_double(ti, &order.o_basis_points);
-        read_int(ti, &ival), order.o_basis_points_type = ival;
+        read_double_max(ti, &order.o_basis_points);
+        read_int_max(ti, &ival), order.o_basis_points_type = ival;
         lval = sizeof(tws_string_t); read_line(ti, contract.c_combolegs_descrip, &lval);
+    }
+                
+    if (version >= 29) {
+        read_int(ti, &ival); order.o_combo_legs_count = ival;
+        if (order.o_combo_legs_count > 0) {
+			int j;
+
+            contract.c_comboleg = (tr_comboleg_t *)calloc(order.o_combo_legs_count, sizeof(*contract.c_comboleg));
+            for (j = 0; j < order.o_combo_legs_count; j++) {
+				tr_comboleg_t *leg = &contract.c_comboleg[j];
+				
+				tws_init_tr_comboleg(ti, leg);
+				read_int(ti, &ival); leg->co_conid = ival;
+				read_int(ti, &ival); leg->co_ratio = ival;
+				lval = sizeof(tws_string_t); read_line(ti, leg->co_action, &lval);
+				lval = sizeof(tws_string_t); read_line(ti, leg->co_exchange, &lval);
+				read_int(ti, &ival); leg->co_open_close = (tr_comboleg_type_t)ival;
+				read_int(ti, &ival); leg->co_short_sale_slot = ival;
+				lval = sizeof(tws_string_t); read_line(ti, leg->co_designated_location, &lval);
+				read_int(ti, &ival); leg->co_exempt_code = ival;
+            }
+        }
+        
+		read_int(ti, &ival); order.o_combo_legs_count = ival;
+        if (order.o_combo_legs_count > 0) {
+			int j;
+
+            order.o_combo_legs = (tr_order_combo_leg_t *)calloc(order.o_combo_legs_count, sizeof(*order.o_combo_legs));
+            for (j = 0; j < order.o_combo_legs_count; j++) {
+				tr_order_combo_leg_t *leg = &order.o_combo_legs[j];
+
+				read_double_max(ti, &leg->cl_price);
+            }
+        }
     }
                 
     if (version >= 26) {
 		read_int(ti, &order.o_smart_combo_routing_params_count);
         if (order.o_smart_combo_routing_params_count > 0) {
-            order.o_smart_combo_routing_params = calloc(order.o_smart_combo_routing_params_count, sizeof(*order.o_smart_combo_routing_params));
+            order.o_smart_combo_routing_params = (tr_tag_value_t *)calloc(order.o_smart_combo_routing_params_count, sizeof(*order.o_smart_combo_routing_params));
             if(order.o_smart_combo_routing_params) {
                 int j;
                 for (j = 0; j < order.o_smart_combo_routing_params_count; j++) {
@@ -877,6 +1066,16 @@ static void receive_open_order(tws_instance_t *ti)
         }
 
         read_double_max(ti, &order.o_scale_price_increment);
+    }
+                
+    if (version >= 28 && order.o_scale_price_increment > 0.0 && DBL_NOTMAX(order.o_scale_price_increment)) {
+        read_double_max(ti, &order.o_scale_price_adjust_value);
+        read_int_max(ti, &order.o_scale_price_adjust_interval);
+        read_double_max(ti, &order.o_scale_profit_offset);
+        read_int(ti, &ival); order.o_scale_auto_reset = !!ival;
+        read_int_max(ti, &order.o_scale_init_position);
+        read_int_max(ti, &order.o_scale_init_fill_qty);
+        read_int(ti, &ival); order.o_scale_random_percent = !!ival;
     }
 
 	if(version >= 24) {
@@ -914,7 +1113,7 @@ static void receive_open_order(tws_instance_t *ti)
             read_int(ti, &order.o_algo_params_count);
 
             if (order.o_algo_params_count > 0) {
-                order.o_algo_params = calloc(order.o_algo_params_count, sizeof(*order.o_algo_params));
+                order.o_algo_params = (tr_tag_value_t *)calloc(order.o_algo_params_count, sizeof(*order.o_algo_params));
                 if(order.o_algo_params) {
                     int j;
                     for (j = 0; j < order.o_algo_params_count; j++) {
@@ -951,7 +1150,7 @@ static void receive_open_order(tws_instance_t *ti)
         event_open_order(ti->opaque, order.o_orderid, &contract, &order, &ost);
 
     destroy_order_status(ti, &ost);
-    destroy_order(ti, &order);
+    tws_destroy_order(ti, &order);
     destroy_contract(ti, &contract);
 }
 
@@ -1504,6 +1703,28 @@ static void receive_market_data_type(tws_instance_t *ti)
         event_market_data_type(ti->opaque, reqid, market_type);
 }
 
+static void receive_commission_report(tws_instance_t *ti)
+{
+	int ival;
+	size_t lval;
+	tr_commission_report_t report = {0};
+
+	report.cr_exec_id = alloc_string(ti);
+	report.cr_currency = alloc_string(ti);
+
+    read_int(ti, &ival); /* version ignored */
+	lval = sizeof(tws_string_t), read_line(ti, report.cr_exec_id, &lval);
+	read_double(ti, &report.cr_commission);
+	lval = sizeof(tws_string_t), read_line(ti, report.cr_currency, &lval);
+	read_double(ti, &report.cr_realized_pnl);
+	read_double(ti, &report.cr_yield);
+	read_int(ti, &ival); report.cr_yield_redemption_date = ival;
+
+    if(ti->connected)
+        event_commission_report(ti->opaque, &report);
+}
+
+
 /* allows for reading events from within the same thread or an externally
  * spawned thread, returns 0 on success, -1 on error,
  */
@@ -1552,6 +1773,7 @@ int tws_event_process(tws_instance_t *ti)
     case DELTA_NEUTRAL_VALIDATION: receive_delta_neutral_validation(ti); break;
     case TICK_SNAPSHOT_END: receive_tick_snapshot_end(ti); break;
     case MARKET_DATA_TYPE: receive_market_data_type(ti); break;
+	case COMMISSION_REPORT: receive_commission_report(ti); break;
     default: valid = 0; break;
     }
 
@@ -1906,7 +2128,7 @@ static int read_int(tws_instance_t *ti, int *val)
     size_t len = sizeof line;
     int err = read_line(ti, line, &len);
 
-    /* return an impossibly large negative number on error to fail careless callers*/
+    /* return an impossibly large negative number on error to fail careless callers */
     *val = err < 0 ? ~(1 << 30) : atoi(line);
     return err;
 }
@@ -2176,6 +2398,47 @@ similar to IB/TWS Java method:
 
     public synchronized void reqMktData(int tickerId, Contract contract,
             String genericTickList, boolean snapshot) {
+
+Starting with API version 9.0 (client version 30), version 6 of the 
+REQ_MKT_DATA message is sent containing a new field that specifies the 
+requested ticks as a list of comma-delimited integer Ids (generic tick types). 
+Requests for these ticks will be answered if the tick type requested pertains 
+to the contract at issue. 
+
+Note that Generic Tick Tags cannot be specified if you elect to use the 
+Snapshot market data subscription.
+
+The generic market data tick types are:
+
+Integer			Tick Type									Resulting 
+ID Value													Tick Value
+ 
+100		Option Volume (currently for stocks)				29, 30
+ 
+101		Option Open Interest (currently for stocks)			27, 28
+ 
+104		Historical Volatility (currently for stocks)		23
+ 
+106		Option Implied Volatility (currently for stocks)	24
+ 
+162		Index Future Premium								31
+ 
+165		Miscellaneous Stats									15, 16, 17, 18, 19, 20, 21
+ 
+221		Mark Price (used in TWS P&L computations)			37
+ 
+225		Auction values (volume, price and imbalance)		34, 35, 36
+ 
+233		RTVolume											48
+ 
+236		Shortable											46
+ 
+256		Inventory											-
+ 
+258		Fundamental Ratios									47
+ 
+411		Realtime Historical Volatility						58
+
 */
 int tws_req_mkt_data(tws_instance_t *ti, int ticker_id, tr_contract_t *contract, const char generic_tick_list[], int snapshot)
 {
@@ -2655,8 +2918,52 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
         }
     }
 
+    if (ti->server_version < MIN_SERVER_VER_SCALE_ORDERS3) {
+        if (order->o_scale_price_increment > 0 && DBL_NOTMAX(order->o_scale_price_increment)) {
+        	if (DBL_NOTMAX(order->o_scale_price_adjust_value) ||
+        		order->o_scale_price_adjust_interval != INTEGER_MAX_VALUE ||
+        		DBL_NOTMAX(order->o_scale_profit_offset) ||
+        		order->o_scale_auto_reset ||
+        		order->o_scale_init_position != INTEGER_MAX_VALUE ||
+        		order->o_scale_init_fill_qty != INTEGER_MAX_VALUE ||
+        		order->o_scale_random_percent) {
+#ifdef TWS_DEBUG
+		        printf("tws_place_order: It does not support Scale order parameters: PriceAdjustValue, PriceAdjustInterval, "
+        				"ProfitOffset, AutoReset, InitPosition, InitFillQty and RandomPercent\n");
+#endif
+				return UPDATE_TWS;
+			}
+		}
+    }
+        
+    if (ti->server_version < MIN_SERVER_VER_ORDER_COMBO_LEGS_PRICE && !strcasecmp(contract->c_sectype, "BAG")) {
+        if (order->o_combo_legs_count > 0) {
+			int j;
+
+        	for (j = 0; j < order->o_combo_legs_count; j++) {
+				tr_order_combo_leg_t *leg = &order->o_combo_legs[j];
+
+        		if (DBL_NOTMAX(leg->cl_price)) {
+#ifdef TWS_DEBUG
+			        printf("tws_place_order: It does not support per-leg prices for order combo legs.\n");
+#endif
+					return UPDATE_TWS;
+				}
+			}
+        }
+    }
+        
+    if (ti->server_version < MIN_SERVER_VER_TRAILING_PERCENT) {
+        if (DBL_NOTMAX(order->o_trailing_percent)) {
+#ifdef TWS_DEBUG
+			printf("tws_place_order: It does not support trailing percent parameter\n");
+#endif
+			return UPDATE_TWS;
+        }
+    }
+        
     send_int(ti, PLACE_ORDER);
-    version = ti->server_version < MIN_SERVER_VER_NOT_HELD ? 27 : 35;
+    version = ti->server_version < MIN_SERVER_VER_NOT_HELD ? 27 : 38;
     send_int(ti, version);
     send_int(ti, id);
 
@@ -2689,8 +2996,18 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
     send_str(ti, order->o_action);
     send_int(ti, order->o_total_quantity);
     send_str(ti, order->o_order_type);
-    send_double(ti, order->o_lmt_price);
-    send_double(ti, order->o_aux_price);
+    if (ti->server_version < MIN_SERVER_VER_ORDER_COMBO_LEGS_PRICE) {
+	    send_double(ti, DBL_NOTMAX(order->o_lmt_price) ? order->o_lmt_price : 0);
+    }
+    else {
+	    send_double_max(ti, order->o_lmt_price);
+    }
+    if (ti->server_version < MIN_SERVER_VER_TRAILING_PERCENT) {
+	    send_double(ti, DBL_NOTMAX(order->o_aux_price) ? order->o_aux_price : 0);
+    }
+    else {
+	    send_double_max(ti, order->o_aux_price);
+    }
 
     /* send extended order fields */
     send_str(ti, order->o_tif);
@@ -2717,6 +3034,18 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
     /* Send combo legs for BAG requests */
     if(ti->server_version >= 8 && !strcasecmp(contract->c_sectype, "BAG"))
         send_combolegs(ti, contract, COMBO_FOR_PLACE_ORDER);
+
+    // Send order combo legs for BAG requests
+    if(ti->server_version >= MIN_SERVER_VER_ORDER_COMBO_LEGS_PRICE && !strcasecmp(contract->c_sectype, "BAG")) {
+		int j;
+
+        send_int(ti, order->o_combo_legs_count);
+        for (j = 0; j < order->o_combo_legs_count; j++) {
+            tr_order_combo_leg_t *leg = &order->o_combo_legs[j];
+
+			send_double_max(ti, leg->cl_price);
+        }
+    }
 
     if(ti->server_version >= MIN_SERVER_VER_SMART_COMBO_ROUTING_PARAMS && !strcasecmp(contract->c_sectype, "BAG")) {
 		if (!send_tag_list(ti, order->o_smart_combo_routing_params, order->o_smart_combo_routing_params_count)) {
@@ -2814,6 +3143,10 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
     if(ti->server_version >= 30) /* TRAIL_STOP_LIMIT stop price */
         send_double_max(ti, order->o_trail_stop_price);
 
+    if( ti->server_version >= MIN_SERVER_VER_TRAILING_PERCENT) {
+        send_double_max(ti, order->o_trailing_percent);
+    }
+           
     if(ti->server_version >= MIN_SERVER_VER_SCALE_ORDERS) {
         if(ti->server_version >= MIN_SERVER_VER_SCALE_ORDERS2) {
             send_int_max(ti, order->o_scale_init_level_size);
@@ -2824,6 +3157,16 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
         }
 
         send_double_max(ti, order->o_scale_price_increment);
+    }
+
+    if (ti->server_version >= MIN_SERVER_VER_SCALE_ORDERS3 && order->o_scale_price_increment > 0.0 && DBL_NOTMAX(order->o_scale_price_increment)) {
+        send_double_max(ti, order->o_scale_price_adjust_value);
+        send_int_max(ti, order->o_scale_price_adjust_interval);
+        send_double_max(ti, order->o_scale_profit_offset);
+        send_boolean(ti, order->o_scale_auto_reset);
+        send_int_max(ti, order->o_scale_init_position);
+        send_int_max(ti, order->o_scale_init_fill_qty);
+        send_boolean(ti, order->o_scale_random_percent);
     }
 
 	// HEDGE orders

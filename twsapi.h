@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 /* public C API */
-#define TWSCLIENT_VERSION 53
+#define TWSCLIENT_VERSION 57
 
 typedef struct under_comp {
     double u_price;
@@ -43,6 +43,163 @@ typedef enum {
     COMBOLEG_UNKNOWN = 3,
 } tr_comboleg_type_t;
 
+/*
+API orders only mimic the behavior of Trader Workstation (TWS). Test each 
+order type, ensuring that you can successfully submit each one in TWS, 
+before you submit the same order using the API.
+
+Order Type											Abbreviation
+==================================================+================== 
+Limit Risk
+--------------------------------------------------+------------------ 
+ 
+Bracket
+  
+Market-to-Limit										MTL
+ 
+Market with Protection								MKT PRT
+ 
+Request for Quote									QUOTE
+ 
+Stop												STP
+ 
+Stop Limit											STP LMT
+ 
+Trailing Limit if Touched							TRAIL LIT
+ 
+Trailing Market If Touched							TRAIL MIT
+ 
+Trailing Stop										TRAIL
+ 
+Trailing Stop Limit									TRAIL LIMIT
+ 
+==================================================+================== 
+Speed of Execution
+--------------------------------------------------+------------------ 
+ 
+At Auction
+ 
+Discretionary
+ 
+Market												MKT
+ 
+Market-if-Touched									MIT
+ 
+Market-on-Close										MOC
+ 
+Market-on-Open										MOO
+ 
+Pegged-to-Market									PEG MKT
+ 
+Relative											REL
+ 
+Sweep-to-Fill										 
+ 
+==================================================+================== 
+Price Improvement
+--------------------------------------------------+------------------ 
+ 
+Box Top												BOX TOP
+ 
+Price Improvement Auction
+ 
+Block
+ 
+Limit-on-Close										LOC
+ 
+Limit-on-Open										LOO
+ 
+Limit if Touched									LIT
+ 
+Pegged-to-Midpoint									PEG MID
+ 
+==================================================+================== 
+Privacy
+--------------------------------------------------+------------------ 
+ 
+Hidden
+ 
+Iceberg/Reserve
+ 
+VWAP - Guaranteed									VWAP
+ 
+==================================================+================== 
+Time to Market
+--------------------------------------------------+------------------ 
+ 
+All-or-None
+ 
+Fill-or-Kill
+ 
+Good-after-Time/Date								GAT
+ 
+Good-till-Date/Time									GTD
+ 
+Good-till-Canceled									GTC
+ 
+Immediate-or-Cancel									IOC
+ 
+==================================================+================== 
+Advanced Trading
+--------------------------------------------------+------------------ 
+ 
+One-Cancels-All										OCA
+ 
+Spreads
+ 
+Volatility											VOL
+ 
+==================================================+================== 
+Algorithmic Trading (Algos)
+--------------------------------------------------+------------------ 
+ 
+Arrival Price
+ 
+Balance Impact and Risk
+ 
+Minimize Impact
+ 
+Percent of volume
+ 
+Scale
+ 
+TWAP
+ 
+VWAP - Best Effort
+ 
+Accumulate/Distribute
+  
+*/ 
+#define ORDER_TYPE_MARKET_TO_LIMIT										"MTL"
+#define ORDER_TYPE_MARKET_WITH_PROTECTION								"MKT PRT"
+#define ORDER_TYPE_REQUEST_FOR_QUOTE									"QUOTE"
+#define ORDER_TYPE_STOP													"STP"
+#define ORDER_TYPE_STOP_LIMIT											"STP LMT"
+#define ORDER_TYPE_TRAILING_LIMIT_IF_TOUCHED							"TRAIL LIT"
+#define ORDER_TYPE_TRAILING_MARKET_IF_TOUCHED							"TRAIL MIT"
+#define ORDER_TYPE_TRAILING_STOP										"TRAIL"
+#define ORDER_TYPE_TRAILING_STOP_LIMIT									"TRAIL LIMIT"
+#define ORDER_TYPE_MARKET												"MKT"
+#define ORDER_TYPE_MARKET_IF_TOUCHED									"MIT"
+#define ORDER_TYPE_MARKET_ON_CLOSE										"MOC"
+#define ORDER_TYPE_MARKET_ON_OPEN										"MOO"
+#define ORDER_TYPE_PEGGED_TO_MARKET										"PEG MKT"
+#define ORDER_TYPE_RELATIVE												"REL"
+#define ORDER_TYPE_BOX_TOP												"BOX TOP"
+#define ORDER_TYPE_LIMIT_ON_CLOSE										"LOC"
+#define ORDER_TYPE_LIMIT_ON_OPEN										"LOO"
+#define ORDER_TYPE_LIMIT_IF_TOUCHED										"LIT"
+#define ORDER_TYPE_PEGGED_TO_MIDPOINT									"PEG MID"
+#define ORDER_TYPE_VWAP_GUARANTEED										"VWAP"
+#define ORDER_TYPE_GOOD_AFTER_TIME_DATE									"GAT"
+#define ORDER_TYPE_GOOD_TILL_DATE_TIME									"GTD"
+#define ORDER_TYPE_GOOD_TILL_CANCELED									"GTC"
+#define ORDER_TYPE_IMMEDIATE_OR_CANCEL									"IOC"
+#define ORDER_TYPE_ONE_CANCELS_ALL										"OCA"
+#define ORDER_TYPE_VOLATILITY											"VOL"
+ 
+
+
 typedef struct tr_comboleg {
     char *co_action;                                    /* BUY/SELL/SSHORT/SSHORTX */
     char *co_exchange;
@@ -58,7 +215,7 @@ typedef struct tr_contract {
     under_comp_t  *c_undercomp;                         /* delta neutral */
     double         c_strike;                            /* strike price for options */
     char *         c_symbol;                            /* underlying symbol */
-    char *         c_sectype;                           /* security type ("BAG" -> transmits combo legs, "" -> does not transmit combo legs) */
+    char *         c_sectype;                           /* security type ("BAG" -> transmits combo legs, "" -> does not transmit combo legs, "BOND" -> strike/expiry/right/multiplier/local_symbol must be set) */
     char *         c_exchange;
     char *         c_primary_exch;                      /* for SMART orders, specify an actual exchange where the contract trades, e.g. ISLAND.  Pick a non-aggregate (ie not the SMART exchange) exchange that the contract trades on.  DO NOT SET TO SMART. */
     char *         c_expiry;                            /* expiration for futures and options */
@@ -136,6 +293,11 @@ typedef enum tr_auction_strategy
     AUCTION_TRANSPARENT = 3
 } tr_auction_strategy_t;
 
+typedef struct tr_order_combo_leg 
+{
+	double cl_price; /* price per leg */
+} tr_order_combo_leg_t;
+
 typedef struct tr_order {
     double   o_discretionary_amt;                       /* SMART routing only: amount you are willing to pay above your specified limit price */
     double   o_lmt_price;                               /* Basic Order Field: limit price  */
@@ -150,8 +312,11 @@ typedef struct tr_order {
     double   o_volatility;                              /* For Volatility orders only: volatility (percent) */
     double   o_delta_neutral_aux_price;
     double   o_trail_stop_price;                        /* Advanced order field: initial stop price for trailing stop (TRAIL) orders */
+    double   o_trailing_percent;
     double   o_basis_points;
-    double   o_scale_price_increment;
+    double   o_scale_price_increment;					/* For SCALE orders only */
+    double   o_scale_price_adjust_value;				/* For SCALE orders only */
+    double   o_scale_profit_offset;						/* For SCALE orders only */
     char *   o_algo_strategy;
     char *   o_good_after_time;                         /* Advanced order field: format: YYYYMMDD HH:MM:SS {time zone}  e.g. 20060505 08:00:00 EST */
     char *   o_good_till_date;                          /* Advanced order field: format: YYYYMMDD HH:MM:SS {time zone}  e.g. 20060505 08:00:00 EST */
@@ -181,8 +346,12 @@ typedef struct tr_order {
     tr_tag_value_t *o_algo_params;                      /* 'm_algoParams': array of length o_algo_params_count, API user responsible for alloc/free */
 	tr_tag_value_t *o_smart_combo_routing_params;		/* Smart combo routing params: 'm_smartComboRoutingParams': array of length o_smart_combo_routing_params, API user responsible for alloc/free */
 
+	tr_order_combo_leg_t *o_combo_legs;
+
     int      o_algo_params_count;                       /* how many tag values are in o_algo_params, 0 if unused */
 	int      o_smart_combo_routing_params_count;        /* how many tag values are in o_smart_combo_routing_params, 0 if unused */
+	int      o_combo_legs_count;                  /* how many tag values are in o_combo_legs, 0 if unused */
+
     int      o_orderid;                                 /* Basic Order Field: order id generated by API client */
     int      o_total_quantity;                          /* Basic Order Field: order size */
     tr_origin_t o_origin;                               /* For non-cleared (i.e. institutional) customers only: origin: 0=Customer, 1=Firm */
@@ -195,8 +364,11 @@ typedef struct tr_order {
     int      o_volatility_type;                         /* For Volatility orders only: volatility type: 1=daily, 2=annual */
     int      o_reference_price_type;                    /* For Volatility orders only: what to use as the current stock price: 1=bid/ask average, 2 = bid or ask */
     int      o_basis_points_type;
-    int      o_scale_subs_level_size;
-    int      o_scale_init_level_size;
+    int      o_scale_subs_level_size;					/* For SCALE orders only */
+    int      o_scale_init_level_size;					/* For SCALE orders only */
+    int      o_scale_price_adjust_interval;				/* For SCALE orders only */
+    int      o_scale_init_position;						/* For SCALE orders only */
+    int      o_scale_init_fill_qty;						/* For SCALE orders only */
     int      o_exempt_code;                             /* set to -1 if you do not use it */
     int      o_delta_neutral_con_id;					/* For Volatility orders only: */
     tr_oca_type_t o_oca_type;                           /* Advanced order field: OCA group type  1 = CANCEL_WITH_BLOCK, 2 = REDUCE_WITH_BLOCK, 3 = REDUCE_NON_BLOCK */
@@ -215,8 +387,13 @@ typedef struct tr_order {
     unsigned o_whatif: 1;                               /* if true, the order will not be submitted, but margin info will be returned */
     unsigned o_not_held: 1;
 	unsigned o_opt_out_smart_routing: 1;				/* SMART routing only: */
+    unsigned o_scale_auto_reset: 1;						/* For SCALE orders only */
+    unsigned o_scale_random_percent: 1;					/* For SCALE orders only */
 } tr_order_t;
 
+/*
+OrderState
+*/
 typedef struct tr_order_status {
     double ost_commission;
     double ost_min_commission;
@@ -279,6 +456,16 @@ typedef struct tr_scanner_subscription {
     int    scan_number_of_rows;
     int    scan_average_option_volume_above;
 } tr_scanner_subscription_t;
+
+typedef struct tr_commission_report
+{
+    char  *cr_exec_id;
+    char  *cr_currency;
+    double cr_commission;
+    double cr_realized_pnl;
+    double cr_yield;
+    int    cr_yield_redemption_date; /* YYYYMMDD format */
+} tr_commission_report_t;
 
 typedef enum tr_tick_type {
     TICK_UNDEFINED = -1,
@@ -394,6 +581,24 @@ int    tws_event_process(tws_instance_t *tws_instance); /* dispatches event to a
 /* init TWS structures to default values */
 void   tws_init_tr_comboleg(tws_instance_t *tws, tr_comboleg_t *comboleg_ref);
 void   tws_destroy_tr_comboleg(tws_instance_t *tws, tr_comboleg_t *comboleg_ref);
+
+void   tws_init_exec_filter(tws_instance_t *tws, tr_exec_filter_t *filter);
+void   tws_destroy_exec_filter(tws_instance_t *tws, tr_exec_filter_t *filter);
+
+void   tws_init_scanner_subscription(tws_instance_t *tws, tr_scanner_subscription_t *ss);
+void   tws_destroy_scanner_subscription(tws_instance_t *tws, tr_scanner_subscription_t *ss);
+
+void   tws_init_tag_value(tws_instance_t *tws, tr_tag_value_t *t);
+void   tws_destroy_tag_value(tws_instance_t *tws, tr_tag_value_t *t);
+
+void   tws_init_order_combo_leg(tws_instance_t *tws, tr_order_combo_leg_t *ocl);
+void   tws_destroy_order_combo_leg(tws_instance_t *tws, tr_order_combo_leg_t *ocl);
+
+void   tws_init_under_comp(tws_instance_t *tws, under_comp_t *u);
+void   tws_destroy_under_comp(tws_instance_t *tws, under_comp_t *u);
+
+void   tws_init_order(tws_instance_t *tws, tr_order_t *o);
+void   tws_destroy_order(tws_instance_t *tws, tr_order_t *o);
 
 /* transmit connect message and wait for response */
 int    tws_connect(tws_instance_t *tws, int client_id);
@@ -551,6 +756,8 @@ void event_acct_download_end(void *opaque, char acct_name[]);
 void event_tick_snapshot_end(void *opaque, int reqid);
 /* fired by: MARKET_DATA_TYPE */
 void event_market_data_type(void *opaque, int reqid, market_data_type_t data_type);
+/* fired by: COMMISSION_REPORT */
+void event_commission_report(void *opaque, tr_commission_report_t *report);
 
 /* outgoing message IDs */
 enum tws_outgoing_ids {
@@ -621,6 +828,9 @@ enum tws_outgoing_ids {
 #define  MIN_SERVER_VER_OPT_OUT_SMART_ROUTING 56
 #define  MIN_SERVER_VER_SMART_COMBO_ROUTING_PARAMS 57
 #define  MIN_SERVER_VER_DELTA_NEUTRAL_CONID 58
+#define  MIN_SERVER_VER_SCALE_ORDERS3 60
+#define  MIN_SERVER_VER_ORDER_COMBO_LEGS_PRICE 61
+#define  MIN_SERVER_VER_TRAILING_PERCENT 62
 
 
 enum tws_incoming_ids {
@@ -658,6 +868,7 @@ enum tws_incoming_ids {
     DELTA_NEUTRAL_VALIDATION = 56,
     TICK_SNAPSHOT_END = 57,
 	MARKET_DATA_TYPE = 58,
+	COMMISSION_REPORT = 59,
 };
 
 
@@ -1001,9 +1212,9 @@ struct twsclient_errmsg twsclient_err_indication[] = {
 
     /* System Message Codes */
     { 1100, "Connectivity between IB and TWS has been lost." },
-    { 1101, "Connectivity between IB and TWS has been restored- data lost.*" },
-    { 1102, "Connectivity between IB and TWS has been restored- data maintained." },
-    { 1300, "TWS socket port has been reset and this connection is being dropped.   Please reconnect on the new port - <port_num>   *Market and account data subscription requests must be resubmitted." },
+    { 1101, "Connectivity between IB and TWS has been restored - data lost. Market and account data subscription requests must be resubmitted." },
+    { 1102, "Connectivity between IB and TWS has been restored - data maintained." },
+    { 1300, "TWS socket port has been reset and this connection is being dropped. Please reconnect on the new port." },
 
     /* Warning Message Codes */
     { 2100, "New account data requested from TWS.  API client has been unsubscribed from account data." },
@@ -1120,7 +1331,6 @@ const struct twsclient_errmsg *tws_strerror(int errcode);
 #define tick_type_name(x) (((x) >= BID_SIZE && (x) < sizeof(tws_tick_type_names) / sizeof(tws_tick_type_names[0])) ? tws_tick_type_names[x] : 0)
 #define market_data_type_name(x) (((x) >= MDT_UNKNOWN && (x) <= FROZEN) ? tws_market_data_type_name[x] : 0)
 
-#define MODEL_OPTION 13
 
 #ifdef __cplusplus
 }
