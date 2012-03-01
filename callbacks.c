@@ -26,24 +26,26 @@ void event_tick_option_computation(void *opaque, int ticker_id, tr_tick_type_t t
 
 void event_tick_generic(void *opaque, int ticker_id, int type, double value)
 {
-    printf("tick_generic: opaque=%p, ticker_id=%d, type=%d, ...\n", opaque, ticker_id, type);
+    printf("tick_generic: opaque=%p, ticker_id=%d, type=%d, value=%f\n", opaque, ticker_id, type, value);
 }
 
 void event_tick_string(void *opaque, int ticker_id, int type, const char value[])
 {
-    printf("tick_string: opaque=%p, ticker_id=%d, type=%d, ...\n", opaque, ticker_id, type);
+    printf("tick_string: opaque=%p, ticker_id=%d, type=%d, value=[%s]\n", opaque, ticker_id, type, value);
 }
 
 void event_tick_efp(void *opaque, int ticker_id, int tick_type, double basis_points, const char formatted_basis_points[], double implied_futures_price, int hold_days, const char future_expiry[], double dividend_impact, double dividends_to_expiry)
 {
-    printf("tick_efp: opaque=%p, ticker_id=%d, type=%d, ...\n", opaque, ticker_id, tick_type);
+    printf("tick_efp: opaque=%p, ticker_id=%d, type=%d, basis_points=%f, formatted_basis_points=[%s], implied_futures_price=%f, hold_days=%d, future_expiry=[%s], dividend_impact=%f, dividends_to_expiry=%f\n", 
+		opaque, ticker_id, tick_type, basis_points, formatted_basis_points, implied_futures_price, hold_days, future_expiry, dividend_impact, dividends_to_expiry);
 }
 
 void event_order_status(void *opaque, int order_id, const char status[],
                         int filled, int remaining, double avg_fill_price, int perm_id,
                         int parent_id, double last_fill_price, int client_id, const char why_held[])
 {
-    printf("order_status: opaque=%p, order_id=%d, filled=%d remaining %d, avg_fill_price=%lf, last_fill_price=%lf, why_held=%s\n", opaque, order_id, filled, remaining, avg_fill_price, last_fill_price, why_held);
+    printf("order_status: opaque=%p, order_id=%d, filled=%d remaining %d, avg_fill_price=%f, last_fill_price=%f, why_held=[%s]\n", 
+		opaque, order_id, filled, remaining, avg_fill_price, last_fill_price, why_held);
 }
 
 void event_open_order(void *opaque, int order_id, const tr_contract_t *contract, const tr_order_t *order, const tr_order_status_t *ostatus)
@@ -68,13 +70,13 @@ void event_update_portfolio(void *opaque, const tr_contract_t *contract, int pos
                             double mkt_price, double mkt_value, double average_cost,
                             double unrealized_pnl, double realized_pnl, const char account_name[])
 {
-    printf("update_portfolio: %p, sym=%s, position=%d, mkt_price=%.4lf, mkt_value=%.4lf, avg_cost=%.4lf, unrealized_pnl=%.4lf, realized pnl=%.4lf name=%s\n",
+    printf("update_portfolio: %p, sym=%s, position=%d, mkt_price=%.4f, mkt_value=%.4f, avg_cost=%.4f, unrealized_pnl=%.4f, realized_pnl=%.4f name=%s\n",
            opaque, contract->c_symbol, position, mkt_price, mkt_value, average_cost, unrealized_pnl, realized_pnl, account_name);
 }
 
 void event_update_account_time(void *opaque, const char time_stamp[])
 {
-    printf("update_account_time: opaque=%p, ...\n", opaque);
+    printf("update_account_time: opaque=%p, time_stamp=[%s]\n", opaque, time_stamp);
 }
 
 void event_next_valid_id(void *opaque, int order_id)
@@ -86,7 +88,7 @@ void event_next_valid_id(void *opaque, int order_id)
      * Well behaved human and automatic TWS clients shall increment
      * this order_id atomically and cooperatively
      */
-    printf("next_valid_id for order placement %d\n", order_id);
+    printf("next_valid_id for order placement %d (opaque=%p)\n", order_id, opaque);
 }
 
 void event_contract_details(void *opaque, int req_id, const tr_contract_details_t *cd)
@@ -156,7 +158,7 @@ void event_receive_fa(void *opaque, int fa_data_type, const char cxml[])
 
 void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, int bar_count, double wap, int has_gaps)
 {
-    printf("historical: opaque=%p, reqid=%d, date=%s, %.3lf, %.3lf, %.3lf, %.3lf, %d, wap=%.3lf, has_gaps=%d\n", opaque, reqid, date, open, high, low, close, volume, wap, has_gaps);
+    printf("historical: opaque=%p, reqid=%d, date=%s, %.3f, %.3f, %.3f, %.3f, %d, wap=%.3f, has_gaps=%d\n", opaque, reqid, date, open, high, low, close, volume, wap, has_gaps);
 }
 
 void event_historical_data_end(void *opaque, int reqid, const char completion_from[], const char completion_to[])
@@ -171,8 +173,8 @@ void event_scanner_parameters(void *opaque, const char xml[])
 
 void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[], const char legs_str[])
 {
-    printf("scanner_data: opaque=%p, ticker_id=%d, rank=%d, distance=%s, benchmark=%s, projection=%s\n",
-           opaque, ticker_id, rank, distance, benchmark, projection);
+    printf("scanner_data: opaque=%p, ticker_id=%d, rank=%d, distance=%s, benchmark=%s, projection=%s, legs_str=%s\n",
+           opaque, ticker_id, rank, distance, benchmark, projection, legs_str);
     printf("scanner_data details: sym=%s, sectype=%s, expiry=%s, strike=%.3lf, right=%s, exch=%s, primary exch=%s, currency=%s, multiplier=%s, local_sym=%s, market_name=%s, trading_class=%s, conid=%d\n",
         cd->d_summary.c_symbol, cd->d_summary.c_sectype, cd->d_summary.c_expiry, cd->d_summary.c_strike, cd->d_summary.c_right, cd->d_summary.c_exchange, cd->d_summary.c_primary_exch,
         cd->d_summary.c_currency, cd->d_summary.c_multiplier, cd->d_summary.c_local_symbol, cd->d_market_name, cd->d_trading_class, cd->d_summary.c_conid);
@@ -239,5 +241,18 @@ void event_exec_details_end(void *opaque, int reqid)
 void event_tick_snapshot_end(void *opaque, int reqid)
 {
     printf("tick_snapshot_end: opaque=%p, reqid=%d\n", opaque, reqid);
+}
+
+void event_market_data_type(void *opaque, int reqid, market_data_type_t data_type)
+{
+	printf("market_data_type: opaque=%p, reqid=%d, data_type=%d\n", opaque, reqid, (int)data_type);
+}
+
+void event_commission_report(void *opaque, tr_commission_report_t *report)
+{
+	printf("commission_report: opaque=%p, ...\n", opaque);
+	printf("          cr_exec_id=[%s], cr_currency=[%s], cr_commission=%f, cr_realized_pnl=%f, cr_yield=%f, cr_yield_redemption_date=%d (%08X) (YYYYMMDD format)\n",
+		report->cr_exec_id, report->cr_currency, report->cr_commission, report->cr_realized_pnl, report->cr_yield, 
+		report->cr_yield_redemption_date, report->cr_yield_redemption_date);
 }
 
