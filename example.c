@@ -132,19 +132,13 @@ static void scan_market(void *ti)
 
     tws_req_scanner_parameters(ti);
 
-    memset(&s, 0, sizeof s);
-    s.scan_number_of_rows = -1;
-    s.scan_instrument = "STK";
-    s.scan_location_code = "STK.US";
-    s.scan_code = "TOP_PERC_GAIN"; /* see xml returned by tws_req_scanner_parameters for more choices */
+    tws_init_scanner_subscription(ti, &s);
+    tws_strcpy(s.scan_instrument, "STK");
+    tws_strcpy(s.scan_location_code, "STK.US");
+    tws_strcpy(s.scan_code, "TOP_PERC_GAIN"); /* see xml returned by tws_req_scanner_parameters for more choices */
 
     s.scan_above_price = 5.0;
-    s.scan_below_price = s.scan_coupon_rate_above = s.scan_coupon_rate_below = DBL_MAX;
     s.scan_above_volume = 2000*1000;
-    s.scan_market_cap_above = s.scan_market_cap_below = DBL_MAX;
-    s.scan_moody_rating_above = s.scan_moody_rating_below = s.scan_sp_rating_above = s.scan_sp_rating_below = s.scan_maturity_date_above = s.scan_maturity_date_below = s.scan_exclude_convertible = "";
-    s.scan_scanner_setting_pairs = "";
-    s.scan_stock_type_filter = "";
     tws_req_scanner_subscription(ti, 1, &s);
 }
 
@@ -180,18 +174,12 @@ int main(int argc, char *argv[])
     scan_market(ti);
 
     /* let's get some historical intraday data first */
-    memset(&c, 0, sizeof c);
-    c.c_symbol = "QQQQ";
-    c.c_sectype = "STK";
-    c.c_expiry = "";
-    c.c_right = "";
-    c.c_multiplier = "";
-    c.c_exchange = "SMART";
-    c.c_primary_exch = "SUPERSOES";
-    c.c_currency = "USD";
-    c.c_local_symbol = "";
-    c.c_secid_type = "";
-    c.c_secid = "";
+	tws_init_contract(ti, &c);
+    tws_strcpy(c.c_symbol, "QQQQ");
+    tws_strcpy(c.c_sectype, "STK");
+    tws_strcpy(c.c_exchange, "SMART");
+    tws_strcpy(c.c_primary_exch, "SUPERSOES");
+    tws_strcpy(c.c_currency, "USD");
 
     tws_req_historical_data(ti, 2, &c, /* make date current or retrieval may fail */ "20091005 13:26:44", "1 D", "1 hour", "TRADES", 0, 1);
     /* now request live data for QQQQ */
@@ -202,31 +190,12 @@ int main(int argc, char *argv[])
     do {
         tr_order_t o;
 
-        memset(&o, 0, sizeof o);
-        o.o_exempt_code = -1;
+        tws_init_order(ti, &o);
 
-        o.o_action = "BUY";
+        tws_strcpy(o.o_action, "BUY");
         o.o_total_quantity = 1;
-        o.o_order_type = "MKT";
+        tws_strcpy(o.o_order_type, "MKT");
         o.o_transmit = 1;
-
-        /* misc default initializations */
-        o.o_min_qty = ~(1U<< 31);
-        o.o_percent_offset = o.o_nbbo_price_cap = DBL_MAX;
-        o.o_starting_price = o.o_stock_ref_price = DBL_MAX;
-        o.o_delta = o.o_stock_range_lower = o.o_stock_range_upper = DBL_MAX;
-        o.o_volatility = o.o_delta_neutral_aux_price = DBL_MAX;
-        o.o_volatility_type = o.o_reference_price_type = ~(1U<< 31);
-        o.o_trail_stop_price = DBL_MAX;
-        o.o_scale_init_level_size =  o.o_scale_subs_level_size = ~(1U<< 31);
-        o.o_scale_price_increment = DBL_MAX;
-        o.o_tif = o.o_oca_group = o.o_account = o.o_open_close = "";
-        o.o_orderref = o.o_good_after_time = o.o_good_till_date = "";
-        o.o_fagroup = o.o_famethod = o.o_fapercentage = o.o_faprofile = "";
-        o.o_designated_location = o.o_rule80a = o.o_settling_firm = "";
-        o.o_delta_neutral_order_type = o.o_clearing_account = o.o_clearing_intent = "";
-        o.o_hedge_type = o.o_hedge_param = "";
-        o.o_algo_strategy = "";
 
         /* see comment in function event_next_valid_id() before placing the order */
         tws_place_order(ti, 1 /* change order_id */, &c, &o);
@@ -242,7 +211,7 @@ int main(int argc, char *argv[])
         while(0 == tws_event_process(ti));
     } else {
 #ifdef unix
-        while(1) select(1,0,0,0,0);
+        for(;;) select(1,0,0,0,0);
 #else
         Sleep(INFINITE);
 #endif

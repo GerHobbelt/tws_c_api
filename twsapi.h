@@ -1,5 +1,51 @@
-#ifndef TWSAPI_H_
+﻿#ifndef TWSAPI_H_
 #define TWSAPI_H_
+
+/*
+	As listed in http://files.meetup.com/1551526/Interactive_Brokers_API.pdf
+
+	Data Streams - Limitations:
+
+	● 50 Messages / sec
+	● 100 tickers simultaneously
+	● 3 Level II Feeds simultaneously
+	● Sampled Tick Stream
+	● Differential Tick Stream
+	● Aggregate higher time frames yourself
+	● No technical indicators
+	● Everyone has to reinvent the wheel
+
+
+	Gotchas:
+
+	1. GUI Check-boxes from TWS pollute API behavior
+	2. Throttling WRT historical data (60 reqs/10 min)
+	3. Unhanded Exceptions / Errors (not uniform)
+	4. Daily Server "Reboot"
+	5. Daily TWS “Reboot”
+	6. Security Device / Dongle
+	7. Paper Trade vs Live Trade machine restriction
+	8. Data Issues
+
+
+	Gotchas - Paper v.s. Live:
+	● Restrictions
+		○ both must be on same physical computer to run	simultaneously
+		○ combined they are under the same data throttles
+		○ another reason to create a data broker
+	● Paper uses only Top of the Book to simulate orders
+
+
+
+	Gotchas - Data Issues:
+
+	Strategy for dealing with bad data:
+	● Spikes?
+	● Bid / Ask Crossed?
+	● What does DanBot do?
+	● Clock Drift
+	● Flash Crash
+*/
 
 #ifdef __cplusplus
 extern "C" {
@@ -527,7 +573,7 @@ typedef enum tr_tick_type {
     TRADE_RATE = 55,
     VOLUME_RATE = 56,
     LAST_RTH_TRADE = 57,
-    RT_HISTORICAL_VOL = 58    /* realtime historical volatility -- according to the IB API docs at http://www.interactivebrokers.com/php/apiUsersGuide/apiguide/tables/generic_tick_types.htm */
+    RT_HISTORICAL_VOL = 58    /* real-time historical volatility -- according to the IB API docs at http://www.interactivebrokers.com/php/apiUsersGuide/apiguide/tables/generic_tick_types.htm */
 } tr_tick_type_t;
 
 
@@ -599,6 +645,24 @@ void   tws_destroy_under_comp(tws_instance_t *tws, under_comp_t *u);
 
 void   tws_init_order(tws_instance_t *tws, tr_order_t *o);
 void   tws_destroy_order(tws_instance_t *tws, tr_order_t *o);
+
+void   tws_init_contract(tws_instance_t *ti, tr_contract_t *c);
+void   tws_destroy_contract(tws_instance_t *ti, tr_contract_t *c);
+
+
+/* 
+  helper: as all strings (char * pointers) in the tws structs are initialized to dedicated storage
+  when you invoke the appropriate tws_init_....() call, you'll need the safe tws_strcpy() to copy
+  any string content into those structs.
+
+  tws_strcpy() also accepts src == NULL, which is treated as a src=="" value.
+
+  The function always returns the 'tws_string_ref' pointer. 
+
+  Use tws_strcpy() to prevent structure member overruns when copying string data into initialized
+  tws structs.
+*/
+char *tws_strcpy(char *tws_string_ref, const char *src);
 
 /* transmit connect message and wait for response */
 int    tws_connect(tws_instance_t *tws, int client_id);
@@ -984,7 +1048,7 @@ struct twsclient_errmsg twsclient_err_indication[] = {
     { FAIL_SEND_BULLETINS, "Request News Bulletins Sending Error - "},
     { FAIL_SEND_CBULLETINS, "Cancel News Bulletins Sending Error - "},
     { FAIL_SEND_REQIDS, "Request IDs Sending Error - "},
-    { FAIL_SEND_EXCERCISE_OPTIONS, "Excercise Options Sending Error - "},
+    { FAIL_SEND_EXCERCISE_OPTIONS, "Exercise Options Sending Error - "},
 
     /* -------------------------------------------------------------- */
     /* The following items are taken from the TWS API on-line documentation: the error code strings for errors reported by the TWS client in the non-5xx range: */
@@ -1021,15 +1085,15 @@ struct twsclient_errmsg twsclient_err_indication[] = {
     { 133, "Submit new order failed." },
     { 134, "Modify order failed." },
     { 135, "Can't find order with ID =" },
-    { 136, "This order cannot be cancelled." },
-    { 137, "VWAP orders can only be cancelled up to three minutes before the start time." },
+    { 136, "This order cannot be canceled." },
+    { 137, "VWAP orders can only be canceled up to three minutes before the start time." },
     { 138, "Could not parse ticker request:" },
     { 139, "Parsing error:" },
     { 140, "The size value should be an integer:" },
     { 141, "The price value should be a double:" },
     { 142, "Institutional customer account does not have account info" },
     { 143, "Requested ID is not an integer number." },
-    { 144, "Order size does not match total share allocation.  To adjust the share allocation, right-click on the order and select �Modify > Share Allocation.�" },
+    { 144, "Order size does not match total share allocation.  To adjust the share allocation, right-click on the order and select “Modify > Share Allocation.”" },
     { 145, "Error in validating entry fields -" },
     { 146, "Invalid trigger method." },
     { 147, "The conditional contract info is incomplete." },
@@ -1055,7 +1119,7 @@ struct twsclient_errmsg twsclient_err_indication[] = {
 
     { 200, "No security definition has been found for the request." },
     { 201, "Order rejected - Reason:" },
-    { 202, "Order cancelled - Reason:" },
+    { 202, "Order canceled - Reason:" },
     { 203, "The security <security> is not available or allowed for this account." },
 
     { 300, "Can't find EId with ticker Id:" },
@@ -1226,7 +1290,7 @@ struct twsclient_errmsg twsclient_err_indication[] = {
     { 2106, "A historical data farm is connected." },
     { 2107, "A historical data farm connection has become inactive but should be available upon demand." },
     { 2108, "A market data farm connection has become inactive but should be available upon demand." },
-    { 2109, "Order Event Warning: Attribute �Outside Regular Trading Hours� is ignored based on the order type and destination. PlaceOrder is now processed." },
+    { 2109, "Order Event Warning: Attribute “Outside Regular Trading Hours” is ignored based on the order type and destination. PlaceOrder is now processed." },
     { 2110, "Connectivity between TWS and server is broken. It will be restored automatically." },
 };
 

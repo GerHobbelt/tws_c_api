@@ -72,7 +72,7 @@ static int read_line_of_arbitrary_length(tws_instance_t *ti, char **val, size_t 
 static void reset_io_buffers(tws_instance_t *ti);
 
 /* access to these strings is single threaded
- * replace plain bitops with atomic test_and_set_bit/clear_bit + memory barriers
+ * replace plain bit ops with atomic test_and_set_bit/clear_bit + memory barriers
  * if multithreaded access is desired (not applicable at present)
  */
 static char *alloc_string(tws_instance_t *ti)
@@ -124,7 +124,29 @@ static void free_string(tws_instance_t *ti, void *ptr)
     }
 }
 
-static void init_contract(tws_instance_t *ti, tr_contract_t *c)
+
+char *tws_strcpy(char *tws_string_ref, const char *src)
+{
+	size_t srclen;
+
+	if (!tws_string_ref) 
+		return NULL;
+	if (!src) 
+		src = "";
+	srclen = strlen(src);
+	if (srclen > sizeof(tws_string_t) - 1) // len-1 to compensate for NUL sentinel
+		srclen = sizeof(tws_string_t) - 1;
+	// Do not use strncpy() as it'll spend useless time on NUL-filling the dst buffer entirely! 
+	// Still it doesn't do anything useful like /always/ NUL-terminating the copied string,
+	// hence we use memmove() -- which also allows copying from/to the same buffer.
+	memmove(tws_string_ref, src, srclen);
+	tws_string_ref[srclen] = 0;
+
+	return tws_string_ref;
+}
+
+
+void tws_init_contract(tws_instance_t *ti, tr_contract_t *c)
 {
     memset(c, 0, sizeof *c);
 
@@ -142,7 +164,7 @@ static void init_contract(tws_instance_t *ti, tr_contract_t *c)
     c->c_secid = alloc_string(ti);
 }
 
-static void destroy_contract(tws_instance_t *ti, tr_contract_t *c)
+void tws_destroy_contract(tws_instance_t *ti, tr_contract_t *c)
 {
     free_string(ti, c->c_secid);
     free_string(ti, c->c_secid_type);
@@ -298,7 +320,7 @@ static void destroy_order_status(tws_instance_t *ti, tr_order_status_t *ost)
 static void init_contract_details(tws_instance_t *ti, tr_contract_details_t *cd)
 {
     memset(cd, 0, sizeof *cd);
-    init_contract(ti, &cd->d_summary);
+    tws_init_contract(ti, &cd->d_summary);
 
     cd->d_market_name = alloc_string(ti);
     cd->d_trading_class = alloc_string(ti);
@@ -349,7 +371,7 @@ static void destroy_contract_details(tws_instance_t *ti, tr_contract_details_t *
     free_string(ti, cd->d_trading_class);
     free_string(ti, cd->d_market_name);
 
-    destroy_contract(ti, &cd->d_summary);
+    tws_destroy_contract(ti, &cd->d_summary);
 }
 
 static void init_execution(tws_instance_t *ti, tr_execution_t *exec)
@@ -372,15 +394,6 @@ static void destroy_execution(tws_instance_t *ti, tr_execution_t *exec)
     free_string(ti, exec->e_acct_number);
     free_string(ti, exec->e_time);
     free_string(ti, exec->e_execid);
-}
-
-static void init_under_comp(tws_instance_t *ti, under_comp_t *und)
-{
-    memset(und, 0, sizeof(*und));
-}
-
-static void destroy_under_comp(tws_instance_t *ti, under_comp_t *und)
-{
 }
 
 void tws_init_tr_comboleg(tws_instance_t *ti, tr_comboleg_t *cl)
@@ -747,7 +760,7 @@ static void receive_portfolio_value(tws_instance_t *ti)
 
     read_int(ti, &ival), version = ival;
 
-    init_contract(ti, &contract);
+    tws_init_contract(ti, &contract);
 
     if(version >= 6)
         read_int(ti, &contract.c_conid);
@@ -789,7 +802,7 @@ static void receive_portfolio_value(tws_instance_t *ti)
                                unrealized_pnl, realized_pnl, account_name);
 
     free_string(ti, account_name);
-    destroy_contract(ti, &contract);
+    tws_destroy_contract(ti, &contract);
 }
 
 static void receive_acct_update_time(tws_instance_t *ti)
@@ -837,8 +850,8 @@ static void receive_open_order(tws_instance_t *ti)
     size_t lval;
     int ival, version;
 
-    init_contract(ti, &contract);
-    init_under_comp(ti, &und);
+    tws_init_contract(ti, &contract);
+    tws_init_under_comp(ti, &und);
     contract.c_undercomp = &und;
     tws_init_order(ti, &order);
     init_order_status(ti, &ost);
@@ -1151,7 +1164,7 @@ static void receive_open_order(tws_instance_t *ti)
 
     destroy_order_status(ti, &ost);
     tws_destroy_order(ti, &order);
-    destroy_contract(ti, &contract);
+    tws_destroy_contract(ti, &contract);
 }
 
 static void receive_next_valid_id(tws_instance_t *ti)
@@ -1277,7 +1290,7 @@ static void receive_execution_data(tws_instance_t *ti)
     size_t lval;
     int ival, version, orderid, reqid = -1;
 
-    init_contract(ti, &contract);
+    tws_init_contract(ti, &contract);
     init_execution(ti, &exec);
 
     read_int(ti, &ival), version = ival;
@@ -1329,7 +1342,7 @@ static void receive_execution_data(tws_instance_t *ti)
     if(ti->connected)
         event_exec_details(ti->opaque, reqid, &contract, &exec);
 
-    destroy_contract(ti, &contract);
+    tws_destroy_contract(ti, &contract);
     destroy_execution(ti, &exec);
 }
 
@@ -2437,7 +2450,7 @@ ID Value													Tick Value
  
 258		Fundamental Ratios									47
  
-411		Realtime Historical Volatility						58
+411		Real-time Historical Volatility						58
 
 */
 int tws_req_mkt_data(tws_instance_t *ti, int ticker_id, tr_contract_t *contract, const char generic_tick_list[], int snapshot)
