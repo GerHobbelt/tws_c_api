@@ -1569,7 +1569,7 @@ static void receive_scanner_data(tws_instance_t *ti)
     }
 
     if(ti->connected)
-        event_scanner_data_end(ti->opaque, ticker_id);
+        event_scanner_data_end(ti->opaque, ticker_id, num_elements);
 
     destroy_contract_details(ti, &cdetails);
     free_string(ti, distance);

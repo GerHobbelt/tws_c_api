@@ -188,9 +188,9 @@ void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_detai
     /* it seems that NYSE traded stocks have different market_name and trading_class from NASDAQ */
 }
 
-void event_scanner_data_end(void *opaque, int ticker_id)
+void event_scanner_data_end(void *opaque, int ticker_id, int num_elements)
 {
-    printf("scanner_data_end: opaque=%p, ticker_id=%d\n", opaque, ticker_id);
+    printf("scanner_data_end: opaque=%p, ticker_id=%d, num_elements=%d\n", opaque, ticker_id, num_elements);
 }
 
 void event_current_time(void *opaque, long time)

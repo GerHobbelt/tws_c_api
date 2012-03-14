@@ -906,7 +906,7 @@ void event_scanner_parameters(void *opaque, const char xml[]);
 /* fired by: SCANNER_DATA (possibly multiple times per incoming message) */
 void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[], const char legs_str[]);
 /* fired by: SCANNER_DATA (once, after one or more invocations of event_scanner_data()) */
-void event_scanner_data_end(void *opaque, int ticker_id);
+void event_scanner_data_end(void *opaque, int ticker_id, int num_elements);
 /* fired by: CURRENT_TIME */
 void event_current_time(void *opaque, long time);
 /* fired by: REAL_TIME_BARS */
