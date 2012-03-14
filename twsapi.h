@@ -1309,7 +1309,7 @@ const char *tws_incoming_msg_names[] = {
     "current_time", "realtime_bars",
     "fundamental_data",
     "contract_data_end", "open_order_end", "acct_download_end", "execution_data_end",
-    "delta_neutral_validation", "tick_snapshot_end", "market_data_type"
+    "delta_neutral_validation", "tick_snapshot_end", "market_data_type", "commission_report"
 };
 
 /* map tr_tick_type_t to 'descriptive' string */
@@ -1394,6 +1394,7 @@ const struct twsclient_errmsg *tws_strerror(int errcode);
 #define fa_msg_type_name(x) (((x) >= GROUPS && (x) <= ALIASES) ? fa_msg_name[(x) - 1] : 0)
 #define tick_type_name(x) (((x) >= BID_SIZE && (x) < sizeof(tws_tick_type_names) / sizeof(tws_tick_type_names[0])) ? tws_tick_type_names[x] : 0)
 #define market_data_type_name(x) (((x) >= MDT_UNKNOWN && (x) <= FROZEN) ? tws_market_data_type_name[x] : 0)
+
 
 
 #ifdef __cplusplus
