@@ -22,6 +22,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #define MAX_TWS_STRINGS 127
 #define WORD_SIZE_IN_BITS (8*sizeof(unsigned long))
@@ -36,6 +37,10 @@
 #define FALSE 0
 #define TRUE (!FALSE)
 #endif
+
+#include "twsapi-debug.h"
+
+
 
 
 typedef struct {
@@ -97,9 +102,7 @@ static char *alloc_string(tws_instance_t *ti)
         }
     }
 
-#ifdef TWS_DEBUG
-    printf("alloc_string: ran out of strings, will crash shortly\n");
-#endif
+    TWS_DEBUG_PRINTF((ti->opaque, "alloc_string: ran out of strings, will crash shortly\n"));
 
     // close the connection when we run out of pool memory to prevent the currently processed message from making it through to the handler
     tws_disconnect(ti);
@@ -1061,9 +1064,7 @@ static void receive_open_order(tws_instance_t *ti)
                     lval = sizeof(tws_string_t); read_line(ti, order.o_smart_combo_routing_params[j].t_val, &lval);
                 }
             } else {
-#ifdef TWS_DEBUG
-                printf("receive_open_order: memory allocation failure\n");
-#endif
+                TWS_DEBUG_PRINTF((ti->opaque, "receive_open_order: memory allocation failure\n"));
                 tws_disconnect(ti);
             }
         }
@@ -1136,9 +1137,7 @@ static void receive_open_order(tws_instance_t *ti)
                         lval = sizeof(tws_string_t); read_line(ti, order.o_algo_params[j].t_val, &lval);
                     }
                 } else {
-#ifdef TWS_DEBUG
-                    printf("receive_open_order: memory allocation failure\n");
-#endif
+                    TWS_DEBUG_PRINTF((ti->opaque, "receive_open_order: memory allocation failure\n"));
                     tws_disconnect(ti);
                 }
             }
@@ -1790,10 +1789,7 @@ int tws_event_process(tws_instance_t *ti)
     default: valid = 0; break;
     }
 
-#ifdef TWS_DEBUG
-    printf("\nreceived id=%d, name=%s\n", (int)msgcode,
-           valid ? tws_incoming_msg_names[msgcode - 1] : "invalid id");
-#endif
+    TWS_DEBUG_PRINTF((ti->opaque, "\nreceived id=%d, name=%s\n", (int)msgcode, valid ? tws_incoming_msg_names[msgcode - 1] : "invalid id"));
     return valid ? 0 : -1;
 }
 
@@ -1973,9 +1969,7 @@ static int read_line(tws_instance_t *ti, char *line, size_t *len)
     int nread = -1, err = -1;
 
     if (line == NULL) {
-#ifdef TWS_DEBUG
-        printf("read_line: line buffer is NULL\n");
-#endif
+        TWS_DEBUG_PRINTF((ti->opaque, "read_line: line buffer is NULL\n"));
         goto out;
     }
 
@@ -1983,9 +1977,7 @@ static int read_line(tws_instance_t *ti, char *line, size_t *len)
     for(j = 0; j < *len; j++) {
         nread = read_char(ti);
         if(nread < 0) {
-#ifdef TWS_DEBUG
-            printf("read_line: going out 1, nread=%d\n", nread);
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "read_line: going out 1, nread=%d\n", nread));
             goto out;
         }
         line[j] = (char) nread;
@@ -1994,23 +1986,17 @@ static int read_line(tws_instance_t *ti, char *line, size_t *len)
     }
 
     if(j == *len) {
-#ifdef TWS_DEBUG
-        printf("read_line: going out 2 j=%ld\n", j);
-#endif
+        TWS_DEBUG_PRINTF((ti->opaque, "read_line: going out 2 j=%ld\n", j));
         goto out;
     }
 
-#ifdef TWS_DEBUG
-    printf("read_line: i read %s\n", line);
-#endif
+    TWS_DEBUG_PRINTF((ti->opaque, "read_line: i read %s\n", line));
     *len = j;
     err = 0;
 out:
     if(err < 0) {
         if(nread > 0) {
-#ifdef TWS_DEBUG
-            printf("read_line: corruption happened (string longer than max)\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "read_line: corruption happened (string longer than max)\n"));
         }
         // always close the connection in buffer overflow / error conditions; the next element fetch will be corrupt anyway and this way we prevent nasty surprises downrange.
         tws_disconnect(ti);
@@ -2045,9 +2031,7 @@ static int read_line_of_arbitrary_length(tws_instance_t *ti, char **val, size_t 
         malloced = 1;
         if (line == NULL)
         {
-#ifdef TWS_DEBUG
-            printf("read_line_of_arbitrary_length: going out 0, heap alloc failure\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "read_line_of_arbitrary_length: going out 0, heap alloc failure\n"));
             goto out;
         }
     }
@@ -2066,17 +2050,13 @@ static int read_line_of_arbitrary_length(tws_instance_t *ti, char **val, size_t 
             }
             malloced = 1;
             if (line == NULL) {
-#ifdef TWS_DEBUG
-                printf("read_line_of_arbitrary_length: going out 1, heap alloc failure\n");
-#endif
+                TWS_DEBUG_PRINTF((ti->opaque, "read_line_of_arbitrary_length: going out 1, heap alloc failure\n"));
                 goto out;
             }
         }
         nread = read_char(ti);
         if(nread < 0) {
-#ifdef TWS_DEBUG
-            printf("read_line: going out 1, nread=%d\n", nread);
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "read_line: going out 1, nread=%d\n", nread));
             goto out;
         }
         line[j] = (char) nread;
@@ -2084,17 +2064,13 @@ static int read_line_of_arbitrary_length(tws_instance_t *ti, char **val, size_t 
             break;
     }
 
-#ifdef TWS_DEBUG
-    printf("read_line: i read %s\n", line);
-#endif
+    TWS_DEBUG_PRINTF((ti->opaque, "read_line: i read %s\n", line));
     *val = line;
     err = 0;
 out:
     if(err < 0) {
         if(nread > 0) {
-#ifdef TWS_DEBUG
-            printf("read_line: corruption happened (string longer than max)\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "read_line: corruption happened (string longer than max)\n"));
         }
         // always close the connection in buffer overflow conditions; the next element fetch will be corrupt anyway and this way we prevent nasty surprises downrange.
         tws_disconnect(ti);
@@ -2385,17 +2361,13 @@ static int send_tag_list(tws_instance_t *ti, tr_tag_value_t *list, int list_size
     if(list_size > 0) {
         int j;
         if (list == NULL) {
-#ifdef TWS_DEBUG
-            printf("send_tag_list: Algo Params array has not been properly set up: array is NULL\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "send_tag_list: Algo Params array has not been properly set up: array is NULL\n"));
 			return 0;
         }
         else {
             for(j = 0; j < list_size; j++) {
                 if (list[j].t_tag == NULL) {
-#ifdef TWS_DEBUG
-                    printf("send_tag_list: Algo Params array has not been properly set up: tag is NULL\n");
-#endif
+                    TWS_DEBUG_PRINTF((ti->opaque, "send_tag_list: Algo Params array has not been properly set up: tag is NULL\n"));
                     return 0;
                 }
                 send_str(ti, list[j].t_tag);
@@ -2456,26 +2428,20 @@ ID Value													Tick Value
 int tws_req_mkt_data(tws_instance_t *ti, int ticker_id, tr_contract_t *contract, const char generic_tick_list[], int snapshot)
 {
     if(ti->server_version < MIN_SERVER_VER_SNAPSHOT_MKT_DATA && snapshot) {
-#ifdef TWS_DEBUG
-        printf("tws_req_mkt_data does not support snapshot market data requests\n");
-#endif
+        TWS_DEBUG_PRINTF((ti->opaque, "tws_req_mkt_data does not support snapshot market data requests\n"));
         return UPDATE_TWS;
     }
 
     if(ti->server_version < MIN_SERVER_VER_UNDER_COMP) {
         if(contract->c_undercomp) {
-#ifdef TWS_DEBUG
-            printf("tws_req_mkt_data does not support delta neutral orders\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_req_mkt_data does not support delta neutral orders\n"));
             return UPDATE_TWS;
         }
     }
 
     if (ti->server_version < MIN_SERVER_VER_REQ_MKT_DATA_CONID) {
         if (contract->c_conid > 0) {
-#ifdef TWS_DEBUG
-            printf("tws_req_mkt_data does not support conId parameter\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_req_mkt_data does not support conId parameter\n"));
             return UPDATE_TWS;
         }
     }
@@ -2619,9 +2585,7 @@ int tws_req_contract_details(tws_instance_t *ti, int reqid, tr_contract_t *contr
 
     if(ti->server_version < MIN_SERVER_VER_SEC_ID_TYPE) {
         if(!IS_EMPTY(contract->c_secid_type) || !IS_EMPTY(contract->c_secid)) {
-#ifdef TWS_DEBUG
-            printf("tws_req_contract_details: it does not support secIdType and secId parameters.");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_req_contract_details: it does not support secIdType and secId parameters."));
             return UPDATE_TWS;
         }
     }
@@ -2777,9 +2741,7 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
     if(ti->server_version < MIN_SERVER_VER_SCALE_ORDERS) {
         if(order->o_scale_init_level_size != INTEGER_MAX_VALUE ||
             DBL_NOTMAX(order->o_scale_price_increment)) {
-#ifdef TWS_DEBUG
-                printf("tws_place_order: It does not support Scale orders\n");
-#endif
+                TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support Scale orders\n"));
                 return UPDATE_TWS;
         }
     }
@@ -2794,9 +2756,7 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
 
                 if(cl->co_short_sale_slot != 0 ||
                     !IS_EMPTY(cl->co_designated_location)) {
-#ifdef TWS_DEBUG
-                        printf("tws_place_order does not support SSHORT flag for combo legs\n");
-#endif
+                        TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order does not support SSHORT flag for combo legs\n"));
                         return UPDATE_TWS;
                 }
             }
@@ -2805,72 +2765,56 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
 
     if(ti->server_version < MIN_SERVER_VER_WHAT_IF_ORDERS) {
         if(order->o_whatif) {
-#ifdef TWS_DEBUG
-            printf("tws_place_order does not support what-if orders\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order does not support what-if orders\n"));
             return UPDATE_TWS;
         }
     }
 
     if(ti->server_version < MIN_SERVER_VER_UNDER_COMP) {
         if(contract->c_undercomp) {
-#ifdef TWS_DEBUG
-            printf("tws_place_order does not support delta-neutral orders\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order does not support delta-neutral orders\n"));
             return UPDATE_TWS;
         }
     }
 
     if(ti->server_version < MIN_SERVER_VER_SCALE_ORDERS2) {
         if(order->o_scale_subs_level_size != INTEGER_MAX_VALUE) {
-#ifdef TWS_DEBUG
-            printf("tws_place_order does not support Subsequent Level Size for Scale orders\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order does not support Subsequent Level Size for Scale orders\n"));
             return UPDATE_TWS;
         }
     }
 
     if(ti->server_version < MIN_SERVER_VER_ALGO_ORDERS) {
         if (!IS_EMPTY(order->o_algo_strategy)) {
-#ifdef TWS_DEBUG
-            printf("tws_place_order: It does not support algo orders\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support algo orders\n"));
             return UPDATE_TWS;
         }
     }
 
     if(ti->server_version < MIN_SERVER_VER_NOT_HELD) {
         if (order->o_not_held) {
-#ifdef TWS_DEBUG
-            printf("tws_place_order: It does not support notHeld parameter\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support notHeld parameter\n"));
             return UPDATE_TWS;
         }
     }
 
     if (ti->server_version < MIN_SERVER_VER_SEC_ID_TYPE) {
         if(!IS_EMPTY(contract->c_secid_type) || !IS_EMPTY(contract->c_secid)) {
-#ifdef TWS_DEBUG
-            printf("tws_place_order: It does not support secIdType and secId parameters\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support secIdType and secId parameters\n"));
             return UPDATE_TWS;
         }
     }
 
     if (ti->server_version < MIN_SERVER_VER_PLACE_ORDER_CONID) {
         if (contract->c_conid > 0) {
-#ifdef TWS_DEBUG
-            printf("tws_place_order: It does not support conId parameter\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support conId parameter\n"));
             return UPDATE_TWS;
         }
     }
 
     if (ti->server_version < MIN_SERVER_VER_SSHORTX) {
         if (order->o_exempt_code != -1) {
-#ifdef TWS_DEBUG
-            printf("tws_place_order: It does not support exemptCode parameter\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support exemptCode parameter\n"));
             return UPDATE_TWS;
         }
     }
@@ -2882,9 +2826,7 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
             for (i = 0; i < contract->c_num_combolegs; ++i) {
                 cl = &contract->c_comboleg[i];
                 if (cl->co_exempt_code != -1) {
-#ifdef TWS_DEBUG
-                    printf("tws_place_order: It does not support exemptCode parameter\n");
-#endif
+                    TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support exemptCode parameter\n"));
                     return UPDATE_TWS;
                 }
             }
@@ -2893,27 +2835,21 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
 
 	if (ti->server_version < MIN_SERVER_VER_HEDGE_ORDERS) {
 		if (!IS_EMPTY(order->o_hedge_type)) {
-#ifdef TWS_DEBUG
-            printf("tws_place_order: It does not support hedge orders\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support hedge orders\n"));
             return UPDATE_TWS;
 		}
 	}
 
     if (ti->server_version < MIN_SERVER_VER_HEDGE_ORDERS) {
         if (!IS_EMPTY(order->o_hedge_type)) {
-#ifdef TWS_DEBUG
-            printf("tws_place_order: It does not support hedge orders.\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support hedge orders.\n"));
             return UPDATE_TWS;
         }
     }
         
     if (ti->server_version < MIN_SERVER_VER_OPT_OUT_SMART_ROUTING) {
         if (order->o_opt_out_smart_routing) {
-#ifdef TWS_DEBUG
-            printf("tws_place_order: It does not support optOutSmartRouting parameter.\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support optOutSmartRouting parameter.\n"));
             return UPDATE_TWS;
         }
     }
@@ -2924,9 +2860,7 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
         		|| !IS_EMPTY(order->o_delta_neutral_clearing_account)
         		|| !IS_EMPTY(order->o_delta_neutral_clearing_intent)
         		) {
-#ifdef TWS_DEBUG
-            printf("tws_place_order: It does not support deltaNeutral parameters: ConId, SettlingFirm, ClearingAccount, ClearingIntent\n");
-#endif
+            TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support deltaNeutral parameters: ConId, SettlingFirm, ClearingAccount, ClearingIntent\n"));
             return UPDATE_TWS;
         }
     }
@@ -2940,10 +2874,7 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
         		order->o_scale_init_position != INTEGER_MAX_VALUE ||
         		order->o_scale_init_fill_qty != INTEGER_MAX_VALUE ||
         		order->o_scale_random_percent) {
-#ifdef TWS_DEBUG
-		        printf("tws_place_order: It does not support Scale order parameters: PriceAdjustValue, PriceAdjustInterval, "
-        				"ProfitOffset, AutoReset, InitPosition, InitFillQty and RandomPercent\n");
-#endif
+		        TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support Scale order parameters: PriceAdjustValue, PriceAdjustInterval, ProfitOffset, AutoReset, InitPosition, InitFillQty and RandomPercent\n"));
 				return UPDATE_TWS;
 			}
 		}
@@ -2957,9 +2888,7 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
 				tr_order_combo_leg_t *leg = &order->o_combo_legs[j];
 
         		if (DBL_NOTMAX(leg->cl_price)) {
-#ifdef TWS_DEBUG
-			        printf("tws_place_order: It does not support per-leg prices for order combo legs.\n");
-#endif
+			        TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support per-leg prices for order combo legs.\n"));
 					return UPDATE_TWS;
 				}
 			}
@@ -2968,9 +2897,7 @@ int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_orde
         
     if (ti->server_version < MIN_SERVER_VER_TRAILING_PERCENT) {
         if (DBL_NOTMAX(order->o_trailing_percent)) {
-#ifdef TWS_DEBUG
-			printf("tws_place_order: It does not support trailing percent parameter\n");
-#endif
+			TWS_DEBUG_PRINTF((ti->opaque, "tws_place_order: It does not support trailing percent parameter\n"));
 			return UPDATE_TWS;
         }
     }
@@ -3493,9 +3420,7 @@ similar to IB/TWS Java method:
 int tws_req_fundamental_data(tws_instance_t *ti, int reqid, tr_contract_t *contract, const char report_type[])
 {
     if(ti->server_version < MIN_SERVER_VER_FUNDAMENTAL_DATA) {
-#ifdef TWS_DEBUG
-        printf("tws_req_fundamental_data does not support fundamental data requests");
-#endif
+        TWS_DEBUG_PRINTF((ti->opaque, "tws_req_fundamental_data does not support fundamental data requests"));
         return UPDATE_TWS;
     }
 
@@ -3523,9 +3448,7 @@ similar to IB/TWS Java method:
 int tws_cancel_fundamental_data(tws_instance_t *ti, int reqid)
 {
     if(ti->server_version < MIN_SERVER_VER_FUNDAMENTAL_DATA) {
-#ifdef TWS_DEBUG
-        printf("tws_cancel_fundamental data does not support fundamental data requests.");
-#endif
+        TWS_DEBUG_PRINTF((ti->opaque, "tws_cancel_fundamental data does not support fundamental data requests."));
         return UPDATE_TWS;
     }
 
@@ -3547,9 +3470,7 @@ similar to IB/TWS Java method:
 int tws_calculate_implied_volatility(tws_instance_t *ti, int reqid, tr_contract_t *contract, double option_price, double under_price)
 {
     if (ti->server_version < MIN_SERVER_VER_REQ_CALC_IMPLIED_VOLAT) {
-#ifdef TWS_DEBUG
-        printf("tws_calculate_implied_volatility: It does not support calculate implied volatility requests\n");
-#endif
+        TWS_DEBUG_PRINTF((ti->opaque, "tws_calculate_implied_volatility: It does not support calculate implied volatility requests\n"));
         return UPDATE_TWS;
     }
 
@@ -3587,9 +3508,7 @@ similar to IB/TWS Java method:
 int tws_cancel_calculate_implied_volatility(tws_instance_t *ti, int reqid)
 {
     if (ti->server_version < MIN_SERVER_VER_CANCEL_CALC_IMPLIED_VOLAT) {
-#ifdef TWS_DEBUG
-        printf("tws_cancel_calculate_implied_volatility: It does not support calculate implied volatility cancellation\n");
-#endif
+        TWS_DEBUG_PRINTF((ti->opaque, "tws_cancel_calculate_implied_volatility: It does not support calculate implied volatility cancellation\n"));
         return UPDATE_TWS;
     }
 
@@ -3612,9 +3531,7 @@ similar to IB/TWS Java method:
 int tws_calculate_option_price(tws_instance_t *ti, int reqid, tr_contract_t *contract, double volatility, double under_price)
 {
     if (ti->server_version < MIN_SERVER_VER_REQ_CALC_OPTION_PRICE) {
-#ifdef TWS_DEBUG
-        printf("tws_calculate_option_price: It does not support calculate option price requests\n");
-#endif
+        TWS_DEBUG_PRINTF((ti->opaque, "tws_calculate_option_price: It does not support calculate option price requests\n"));
         return UPDATE_TWS;
     }
 
@@ -3652,9 +3569,7 @@ similar to IB/TWS Java method:
 int tws_cancel_calculate_option_price(tws_instance_t *ti, int reqid)
 {
     if (ti->server_version < MIN_SERVER_VER_CANCEL_CALC_OPTION_PRICE) {
-#ifdef TWS_DEBUG
-        printf("tws_cancel_calculate_option_price: It does not support calculate option price cancellation\n");
-#endif
+        TWS_DEBUG_PRINTF((ti->opaque, "tws_cancel_calculate_option_price: It does not support calculate option price cancellation\n"));
         return UPDATE_TWS;
     }
 
@@ -3676,9 +3591,7 @@ similar to IB/TWS Java method:
 int tws_req_global_cancel(tws_instance_t *ti)
 {
     if (ti->server_version < MIN_SERVER_VER_REQ_GLOBAL_CANCEL) {
-#ifdef TWS_DEBUG
-        printf("tws_req_global_cancel: It does not support globalCancel requests\n");
-#endif
+        TWS_DEBUG_PRINTF((ti->opaque, "tws_req_global_cancel: It does not support globalCancel requests\n"));
         return UPDATE_TWS;
     }
 
@@ -3699,9 +3612,7 @@ similar to IB/TWS Java method:
 int tws_req_market_data_type(tws_instance_t *ti, market_data_type_t market_data_type)
 {
     if (ti->server_version < MIN_SERVER_VER_REQ_MARKET_DATA_TYPE) {
-#ifdef TWS_DEBUG
-        printf("tws_req_market_data_type: It does not support marketDataType requests.\n");
-#endif
+        TWS_DEBUG_PRINTF((ti->opaque, "tws_req_market_data_type: It does not support marketDataType requests.\n"));
         return UPDATE_TWS;
     }
         
