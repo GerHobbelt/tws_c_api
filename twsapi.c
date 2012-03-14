@@ -441,11 +441,11 @@ void tws_init_scanner_subscription(tws_instance_t *ti, tr_scanner_subscription_t
 {
     memset(ss, 0, sizeof(*ss));
 
-    ss->scan_above_price = DBL_MAX;
+    ss->scan_above_price = 0; // DBL_MAX;
     ss->scan_below_price = DBL_MAX;
-    ss->scan_coupon_rate_above = DBL_MAX;
+    ss->scan_coupon_rate_above = 0; // DBL_MAX;
     ss->scan_coupon_rate_below = DBL_MAX;
-    ss->scan_market_cap_above = DBL_MAX; 
+    ss->scan_market_cap_above = 0; // DBL_MAX; 
     ss->scan_market_cap_below = DBL_MAX;
 
     ss->scan_exclude_convertible = alloc_string(ti);
@@ -461,9 +461,9 @@ void tws_init_scanner_subscription(tws_instance_t *ti, tr_scanner_subscription_t
     ss->scan_scanner_setting_pairs = alloc_string(ti);
     ss->scan_stock_type_filter = alloc_string(ti);
 
-    ss->scan_above_volume = INTEGER_MAX_VALUE;
+    ss->scan_above_volume = 0; // INTEGER_MAX_VALUE;
     ss->scan_number_of_rows = -1;
-    ss->scan_average_option_volume_above = INTEGER_MAX_VALUE;
+    ss->scan_average_option_volume_above = 0; // INTEGER_MAX_VALUE;
 }
 
 void tws_destroy_scanner_subscription(tws_instance_t *ti, tr_scanner_subscription_t *ss)
