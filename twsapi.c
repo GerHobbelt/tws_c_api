@@ -1533,6 +1533,9 @@ static void receive_scanner_data(tws_instance_t *ti)
     read_int(ti, &ival), ticker_id = ival;
     read_int(ti, &ival), num_elements = ival;
 
+    if(ti->connected)
+        event_scanner_data_start(ti->opaque, ticker_id, num_elements);
+
     for(j = 0; j < num_elements; j++) {
         char *legs_str = NULL;
 
