@@ -24,17 +24,17 @@ void event_tick_option_computation(void *opaque, int ticker_id, tr_tick_type_t t
            opaque, ticker_id, (int)type, implied_vol, delta, opt_price, pv_dividend, gamma, vega, theta, und_price);
 }
 
-void event_tick_generic(void *opaque, int ticker_id, int type, double value)
+void event_tick_generic(void *opaque, int ticker_id, tr_tick_type_t type, double value)
 {
     printf("tick_generic: opaque=%p, ticker_id=%d, type=%d, value=%f\n", opaque, ticker_id, type, value);
 }
 
-void event_tick_string(void *opaque, int ticker_id, int type, const char value[])
+void event_tick_string(void *opaque, int ticker_id, tr_tick_type_t type, const char value[])
 {
     printf("tick_string: opaque=%p, ticker_id=%d, type=%d, value=[%s]\n", opaque, ticker_id, type, value);
 }
 
-void event_tick_efp(void *opaque, int ticker_id, int tick_type, double basis_points, const char formatted_basis_points[], double implied_futures_price, int hold_days, const char future_expiry[], double dividend_impact, double dividends_to_expiry)
+void event_tick_efp(void *opaque, int ticker_id, tr_tick_type_t tick_type, double basis_points, const char formatted_basis_points[], double implied_futures_price, int hold_days, const char future_expiry[], double dividend_impact, double dividends_to_expiry)
 {
     printf("tick_efp: opaque=%p, ticker_id=%d, type=%d, basis_points=%f, formatted_basis_points=[%s], implied_futures_price=%f, hold_days=%d, future_expiry=[%s], dividend_impact=%f, dividends_to_expiry=%f\n", 
 		opaque, ticker_id, tick_type, basis_points, formatted_basis_points, implied_futures_price, hold_days, future_expiry, dividend_impact, dividends_to_expiry);
