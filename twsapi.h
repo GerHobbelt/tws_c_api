@@ -2,6 +2,19 @@
 #define TWSAPI_H_
 
 /*
+0: nothing
+1: enums only
+2: 1 + defines
+3: 2 + structures
+4: everything (except possibly the globals)
+*/
+#if !defined(TWS_DEFINITIONS)
+#define TWS_DEFINITIONS					4
+#endif
+
+#if TWS_DEFINITIONS > 0
+
+/*
 	As listed in http://files.meetup.com/1551526/Interactive_Brokers_API.pdf
 
 	Data Streams - Limitations:
@@ -47,34 +60,6 @@
 	● Flash Crash
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* public C API */
-#define TWSCLIENT_VERSION 57
-
-typedef struct under_comp {
-    double u_price;
-    double u_delta;
-    int    u_conid;
-} under_comp_t;
-
-#if 0
-typedef struct contract_details_summary {
-    double s_strike;
-    char  *s_symbol;
-    char  *s_sectype;
-    char  *s_expiry;
-    char  *s_right;
-    char  *s_exchange;
-    char  *s_primary_exch;
-    char  *s_currency;
-    char  *s_local_symbol;
-    char  *s_multiplier;
-    int    s_conid;
-} contract_details_summary_t;
-#endif
 
 typedef enum {
 	MDT_UNKNOWN = 0,
@@ -89,256 +74,6 @@ typedef enum {
     COMBOLEG_UNKNOWN = 3,
 } tr_comboleg_type_t;
 
-/*
-API orders only mimic the behavior of Trader Workstation (TWS). Test each 
-order type, ensuring that you can successfully submit each one in TWS, 
-before you submit the same order using the API.
-
-Order Type											Abbreviation
-==================================================+================== 
-Limit Risk
---------------------------------------------------+------------------ 
- 
-Bracket
-  
-Market-to-Limit										MTL
- 
-Market with Protection								MKT PRT
- 
-Request for Quote									QUOTE
- 
-Stop												STP
- 
-Stop Limit											STPLMT
- 
-Trailing Limit if Touched							TRAILLIT
- 
-Trailing Market If Touched							TRAILMIT
- 
-Trailing Stop										TRAIL
- 
-Trailing Stop Limit									TRAILLMT
- 
-==================================================+================== 
-Speed of Execution
---------------------------------------------------+------------------ 
- 
-At Auction
- 
-Discretionary
- 
-Market												MKT
- 
-Market-if-Touched									MIT
- 
-Market-on-Close										MOC
- 
-Market-on-Open										MOO
- 
-Pegged-to-Market									PEG MKT
- 
-Relative											REL
- 
-Sweep-to-Fill										 
- 
-==================================================+================== 
-Price Improvement
---------------------------------------------------+------------------ 
- 
-Box Top												BOX TOP
- 
-Price Improvement Auction
- 
-Block
- 
-Limit-on-Close										LOC
- 
-Limit-on-Open										LOO
- 
-Limit if Touched									LIT
- 
-Pegged-to-Midpoint									PEG MID
- 
-==================================================+================== 
-Privacy
---------------------------------------------------+------------------ 
- 
-Hidden
- 
-Iceberg/Reserve
- 
-VWAP - Guaranteed									VWAP
- 
-==================================================+================== 
-Time to Market
---------------------------------------------------+------------------ 
- 
-All-or-None
- 
-Fill-or-Kill
- 
-Good-after-Time/Date								GAT
- 
-Good-till-Date/Time									GTD
- 
-Good-till-Canceled									GTC
- 
-Immediate-or-Cancel									IOC
- 
-==================================================+================== 
-Advanced Trading
---------------------------------------------------+------------------ 
- 
-One-Cancels-All										OCA
- 
-Spreads
- 
-Volatility											VOL
- 
-==================================================+================== 
-Algorithmic Trading (Algos)
---------------------------------------------------+------------------ 
- 
-Arrival Price
- 
-Balance Impact and Risk
- 
-Minimize Impact
- 
-Percent of volume
- 
-Scale                                               SCALE   
- 
-TWAP
- 
-VWAP - Best Effort
- 
-Accumulate/Distribute
-  
-*/ 
-#define ORDER_TYPE_MARKET_TO_LIMIT										"MTL"
-#define ORDER_TYPE_MARKET_WITH_PROTECTION								"MKT PRT"
-#define ORDER_TYPE_REQUEST_FOR_QUOTE									"QUOTE"
-#define ORDER_TYPE_STOP													"STP"
-#define ORDER_TYPE_STOP_LIMIT											"STPLMT"
-#define ORDER_TYPE_TRAILING_LIMIT_IF_TOUCHED							"TRAILLIT"
-#define ORDER_TYPE_TRAILING_MARKET_IF_TOUCHED							"TRAILMIT"
-#define ORDER_TYPE_TRAILING_STOP										"TRAIL"
-#define ORDER_TYPE_TRAILING_STOP_LIMIT									"TRAILLMT" /* "TRAILLIMIT" */
-#define ORDER_TYPE_MARKET												"MKT"
-#define ORDER_TYPE_MARKET_IF_TOUCHED									"MIT"
-#define ORDER_TYPE_MARKET_ON_CLOSE										"MOC" /* "MKTCLS" */
-#define ORDER_TYPE_MARKET_ON_OPEN										"MOO"
-#define ORDER_TYPE_PEGGED_TO_MARKET										"PEGMKT"
-#define ORDER_TYPE_RELATIVE												"REL"
-#define ORDER_TYPE_BOX_TOP												"BOX TOP"
-#define ORDER_TYPE_LIMIT_ON_CLOSE										"LOC" /* "LMTCLS" */
-#define ORDER_TYPE_LIMIT_ON_OPEN										"LOO"
-#define ORDER_TYPE_LIMIT_IF_TOUCHED										"LIT"
-#define ORDER_TYPE_PEGGED_TO_MIDPOINT									"PEG MID"
-#define ORDER_TYPE_VWAP_GUARANTEED										"VWAP"
-#define ORDER_TYPE_GOOD_AFTER_TIME_DATE									"GAT"
-#define ORDER_TYPE_GOOD_TILL_DATE_TIME									"GTD"
-#define ORDER_TYPE_GOOD_TILL_CANCELED									"GTC"
-#define ORDER_TYPE_IMMEDIATE_OR_CANCEL									"IOC"
-#define ORDER_TYPE_ONE_CANCELS_ALL										"OCA"
-#define ORDER_TYPE_VOLATILITY											"VOL"
-
-#define ORDER_TYPE_LIMIT												"LMT"
-
-#define ORDER_TYPE_ACTIVETIM											"ACTIVETIM"
-#define ORDER_TYPE_ADJUST												"ADJUST"
-#define ORDER_TYPE_ALERT												"ALERT"
-#define ORDER_TYPE_ALLOC												"ALLOC"
-#define ORDER_TYPE_AVGCOST												"AVGCOST"
-#define ORDER_TYPE_BASKET												"BASKET"
-#define ORDER_TYPE_COND													"COND"
-#define ORDER_TYPE_CONDORDER											"CONDORDER"
-#define ORDER_TYPE_CONSCOST												"CONSCOST"
-#define ORDER_TYPE_DAY													"DAY"
-#define ORDER_TYPE_DEACT												"DEACT"
-#define ORDER_TYPE_DEACTDIS												"DEACTDIS"
-#define ORDER_TYPE_DEACTEOD												"DEACTEOD"
-#define ORDER_TYPE_GTT													"GTT"
-#define ORDER_TYPE_HID													"HID"
-#define ORDER_TYPE_LTH													"LTH"
-#define ORDER_TYPE_NONALGO												"NONALGO"
-#define ORDER_TYPE_SCALE												"SCALE"
-#define ORDER_TYPE_SCALERST												"SCALERST"
-#define ORDER_TYPE_WHATIF												"WHATIF"
-
-
-
-typedef struct tr_comboleg {
-    char *co_action;                                    /* BUY/SELL/SSHORT/SSHORTX */
-    char *co_exchange;
-    char *co_designated_location;                       /* set to "" if unused, as usual */
-    int   co_conid;
-    int   co_ratio;
-    tr_comboleg_type_t co_open_close;
-    int   co_short_sale_slot;                           /* 1 = clearing broker, 2 = third party */
-    int   co_exempt_code;                               /* set to -1 if you do not use it */
-} tr_comboleg_t;
-
-typedef struct tr_contract {
-    under_comp_t  *c_undercomp;                         /* delta neutral */
-    double         c_strike;                            /* strike price for options */
-    char *         c_symbol;                            /* underlying symbol */
-    char *         c_sectype;                           /* security type ("BAG" -> transmits combo legs, "" -> does not transmit combo legs, "BOND" -> strike/expiry/right/multiplier/local_symbol must be set) */
-    char *         c_exchange;
-    char *         c_primary_exch;                      /* for SMART orders, specify an actual exchange where the contract trades, e.g. ISLAND.  Pick a non-aggregate (ie not the SMART exchange) exchange that the contract trades on.  DO NOT SET TO SMART. */
-    char *         c_expiry;                            /* expiration for futures and options */
-    char *         c_currency;                          /* currency, e.g. USD */
-    char *         c_right;                             /* put or call (P or C) */
-    char *         c_local_symbol;                      /* local symbol for futures or options, e.g. ESZN for ES DEC09 contract  */
-    char *         c_multiplier;
-    char *         c_combolegs_descrip;                 /* received in open order version 14 and up for all combos */
-    char *         c_secid_type;                        /* CUSIP;SEDOL;ISIN;RIC */
-    char *         c_secid;
-    tr_comboleg_t *c_comboleg;                          /* COMBOS */
-    int            c_num_combolegs;
-    int            c_conid;                             /* contract id, returned from TWS */
-    unsigned       c_include_expired: 1;                /* for contract requests, specifies that even expired contracts should be returned.  Can not be set to true for orders. */
-} tr_contract_t;
-
-typedef struct tr_contract_details {
-    double                     d_mintick;
-    double                     d_coupon;                /* for bonds */
-    tr_contract_t              d_summary;
-    char *                     d_market_name;
-    char *                     d_trading_class;
-    char *                     d_order_types;
-    char *                     d_valid_exchanges;
-    char *                     d_cusip;                 /* for bonds */
-    char *                     d_maturity;              /* for bonds */
-    char *                     d_issue_date;            /* for bonds */
-    char *                     d_ratings;               /* for bonds */
-    char *                     d_bond_type;             /* for bonds */
-    char *                     d_coupon_type;           /* for bonds */
-    char *                     d_desc_append;           /* for bonds */
-    char *                     d_next_option_date;      /* for bonds */
-    char *                     d_next_option_type;      /* for bonds */
-    char *                     d_notes;                 /* for bonds */
-    char *                     d_long_name;
-    char *                     d_contract_month;
-    char *                     d_industry;
-    char *                     d_category;
-    char *                     d_subcategory;
-    char *                     d_timezone_id;
-    char *                     d_trading_hours;
-    char *                     d_liquid_hours;
-    int                        d_price_magnifier;
-    int                        d_under_conid;
-    unsigned                   d_convertible: 1;        /* for bonds */
-    unsigned                   d_callable: 1;           /* for bonds */
-    unsigned                   d_putable: 1;            /* for bonds */
-    unsigned                   d_next_option_partial:1; /* for bonds */
-} tr_contract_details_t;
-
-typedef struct tr_tag_value {
-    char *t_tag;
-    char *t_val;
-} tr_tag_value_t;
 
 typedef enum tr_origin
 {
@@ -362,280 +97,6 @@ typedef enum tr_auction_strategy
     AUCTION_TRANSPARENT = 3
 } tr_auction_strategy_t;
 
-typedef struct tr_order_combo_leg 
-{
-	double cl_price; /* price per leg */
-} tr_order_combo_leg_t;
-
-typedef struct tr_order {
-    double   o_discretionary_amt;                       /* SMART routing only: amount you are willing to pay above your specified limit price */
-    double   o_lmt_price;                               /* Basic Order Field: limit price  */
-    double   o_aux_price;                               /* Basic Order Field: stop price, trailing amount, or offset amount  */
-    double   o_percent_offset;                          /* Advanced order field: the offset amount for Relative (REL) orders, specified as a percent; specify either this OR the offset amount in m_auxPrice */
-    double   o_nbbo_price_cap;                          /* SMART routing only: see 'm_firmQuoteOnly' comment */
-    double   o_starting_price;                          /* For BOX option-pegged-to-stock orders only */
-    double   o_stock_ref_price;                         /* For BOX option-pegged-to-stock orders only */
-    double   o_delta;                                   /* For BOX option-pegged-to-stock orders only */
-    double   o_stock_range_lower;                       /* For Pegged-to-stock or Volatility orders only: if stock price moves below this price, order will be canceled */
-    double   o_stock_range_upper;                       /* For Pegged-to-stock or Volatility orders only: if stock price moves above this price, order will be canceled */
-    double   o_volatility;                              /* For Volatility orders only: volatility (percent) */
-    double   o_delta_neutral_aux_price;
-    double   o_trail_stop_price;                        /* Advanced order field: initial stop price for trailing stop (TRAIL) orders */
-    double   o_trailing_percent;
-    double   o_basis_points;
-    double   o_scale_price_increment;					/* For SCALE orders only */
-    double   o_scale_price_adjust_value;				/* For SCALE orders only */
-    double   o_scale_profit_offset;						/* For SCALE orders only */
-    char *   o_algo_strategy;
-    char *   o_good_after_time;                         /* Advanced order field: format: YYYYMMDD HH:MM:SS {time zone}  e.g. 20060505 08:00:00 EST */
-    char *   o_good_till_date;                          /* Advanced order field: format: YYYYMMDD HH:MM:SS {time zone}  e.g. 20060505 08:00:00 EST */
-    char *   o_fagroup;                                 /* For Financial advisors (FA) only: Advisor group, e.g. "All" */
-    char *   o_famethod;                                /* For Financial advisors (FA) only: Advisor method: PctChange, AvailableEquity, NetLiq, or EqualQuantity */
-    char *   o_fapercentage;                            /* For Financial advisors (FA) only: Advisor percentage, used when the method is set to PctChange */
-    char *   o_faprofile;                               /* For Financial advisors (FA) only: Advisor profile */
-    char *   o_action;                                  /* Basic Order Field: specify BUY or SELL; non-cleared customers can specify SSHORT */
-    char *   o_order_type;                              /* Basic Order Field: order type, e.g. LMT, MKT, STOP, TRAIL, REL */
-    char *   o_tif;                                     /* Advanced order field: Time in force, e.g. DAY, GTC */
-    char *   o_oca_group;                               /* Advanced order field: OCA group name (OCA = "one cancels all") */
-    char *   o_account;                                 /* Clearing info: IB account; can be left blank for users with only a single account   */
-    char *   o_open_close;                              /* For non-cleared (i.e. institutional) customers only: open/close flag: O=Open, C=Close */
-    char *   o_orderref;                                /* Advanced order field: order reference, enter any free-form text */
-    char *   o_designated_location;                     /* For non-cleared (i.e. institutional) customers only: specifies where the shares are held; set only when m_shortSaleSlot=2 */
-    char *   o_rule80a;                                 /* Advanced order field: Individual = 'I', Agency = 'A', AgentOtherMember = 'W', IndividualPTIA = 'J', AgencyPTIA = 'U', AgentOtherMemberPTIA = 'M', IndividualPT = 'K', AgencyPT = 'Y', AgentOtherMemberPT = 'N' */
-    char *   o_settling_firm;
-    char *   o_delta_neutral_order_type;
-    char *   o_clearing_account;                        /* Clearing info: True beneficiary of the order */
-    char *   o_clearing_intent;                         /* Clearing info: "" (Default), "IB", "Away", "PTA" (PostTrade) */
-	char *   o_hedge_type;								/* Hedge Orders: 'D' - delta, 'B' - beta, 'F' - FX, 'P' - pair */
-	char *   o_hedge_param;								/* Hedge Orders: 'beta=X' value for beta hedge, 'ratio=Y' for pair hedge */
-    char *   o_delta_neutral_settling_firm;				/* For Volatility orders only: */
-    char *   o_delta_neutral_clearing_account;			/* For Volatility orders only: */
-    char *   o_delta_neutral_clearing_intent;			/* For Volatility orders only: */
-
-    tr_tag_value_t *o_algo_params;                      /* 'm_algoParams': array of length o_algo_params_count, API user responsible for alloc/free */
-	tr_tag_value_t *o_smart_combo_routing_params;		/* Smart combo routing params: 'm_smartComboRoutingParams': array of length o_smart_combo_routing_params, API user responsible for alloc/free */
-
-	tr_order_combo_leg_t *o_combo_legs;
-
-    int      o_algo_params_count;                       /* how many tag values are in o_algo_params, 0 if unused */
-	int      o_smart_combo_routing_params_count;        /* how many tag values are in o_smart_combo_routing_params, 0 if unused */
-	int      o_combo_legs_count;                  /* how many tag values are in o_combo_legs, 0 if unused */
-
-    int      o_orderid;                                 /* Basic Order Field: order id generated by API client */
-    int      o_total_quantity;                          /* Basic Order Field: order size */
-    tr_origin_t o_origin;                               /* For non-cleared (i.e. institutional) customers only: origin: 0=Customer, 1=Firm */
-    int      o_clientid;                                /* Basic Order Field: client id of the API client that submitted the order */
-    int      o_permid;                                  /* Basic Order Field: TWS order ID (not specified by API) */
-    int      o_parentid;                                /* Advanced order field: order id of parent order, to associate attached stop, trailing stop, or bracket orders with parent order (Auto STP, TRAIL)  */
-    int      o_display_size;                            /* Advanced order field: the portion of the order that will be visible to the world */
-    int      o_trigger_method;                          /* Advanced order field: for stop orders:  0=Default, 1=Double_Bid_Ask, 2=Last, 3=Double_Last, 4=Bid_Ask, 7=Last_or_Bid_Ask, 8=Mid-point */
-    int      o_min_qty;                                 /* Advanced order field: no partial fills less than the size specified here */
-    int      o_volatility_type;                         /* For Volatility orders only: volatility type: 1=daily, 2=annual */
-    int      o_reference_price_type;                    /* For Volatility orders only: what to use as the current stock price: 1=bid/ask average, 2 = bid or ask */
-    int      o_basis_points_type;
-    int      o_scale_subs_level_size;					/* For SCALE orders only */
-    int      o_scale_init_level_size;					/* For SCALE orders only */
-    int      o_scale_price_adjust_interval;				/* For SCALE orders only */
-    int      o_scale_init_position;						/* For SCALE orders only */
-    int      o_scale_init_fill_qty;						/* For SCALE orders only */
-    int      o_exempt_code;                             /* set to -1 if you do not use it */
-    int      o_delta_neutral_con_id;					/* For Volatility orders only: */
-    tr_oca_type_t o_oca_type;                           /* Advanced order field: OCA group type  1 = CANCEL_WITH_BLOCK, 2 = REDUCE_WITH_BLOCK, 3 = REDUCE_NON_BLOCK */
-    tr_auction_strategy_t o_auction_strategy;           /* For BOX option-pegged-to-stock and Volatility orders only: 1=AUCTION_MATCH, 2=AUCTION_IMPROVEMENT, 3=AUCTION_TRANSPARENT */
-    unsigned o_short_sale_slot: 2;                      /* For non-cleared (i.e. institutional) customers only: specify only if m_action is "SSHORT": 1 if you hold the shares, 2 if they will be delivered from elsewhere */
-    unsigned o_override_percentage_constraints: 1;      /* Advanced order field: set true to override normal percentage constraint checks */
-    unsigned o_firm_quote_only: 1;                      /* SMART routing only: if true, specifies that order should be routed to exchanges showing a "firm" quote, but not if the exchange is off the NBBO by more than the 'm_nbboPriceCap' amount */
-    unsigned o_etrade_only: 1;
-    unsigned o_all_or_none: 1;                          /* Advanced order field: if set to true, there can be no partial fills for the order */
-    unsigned o_outside_rth: 1;                          /* Advanced order field: if true, order could fill or trigger anytime; if false, order will fill or trigger only during regular trading hours */
-    unsigned o_hidden: 1;                               /* Advanced order field: if true, order will be hidden, and will not be reflected in the market data or deep book */
-    unsigned o_transmit: 1;                             /* Advanced order field: if false, order will be created in TWS but not transmitted */
-    unsigned o_block_order: 1;                          /* Advanced order field: block order, for ISE option orders only */
-    unsigned o_sweep_to_fill: 1;                        /* Advanced order field: for SMART orders, specifies that orders should be split and sent to multiple exchanges at the same time */
-    unsigned o_continuous_update: 1;                    /* For Volatility orders only: if true, price will be continuously recalculated after order submission */
-    unsigned o_whatif: 1;                               /* if true, the order will not be submitted, but margin info will be returned */
-    unsigned o_not_held: 1;
-	unsigned o_opt_out_smart_routing: 1;				/* SMART routing only: */
-    unsigned o_scale_auto_reset: 1;						/* For SCALE orders only */
-    unsigned o_scale_random_percent: 1;					/* For SCALE orders only */
-} tr_order_t;
-
-/*
-OrderState
-*/
-typedef struct tr_order_status {
-    double ost_commission;
-    double ost_min_commission;
-    double ost_max_commission;
-    char  *ost_status;
-    char  *ost_init_margin;
-    char  *ost_maint_margin;
-    char  *ost_equity_with_loan;
-    char  *ost_commission_currency;
-    char  *ost_warning_text;
-} tr_order_status_t;
-
-typedef struct tr_execution {
-    double e_price;
-    double e_avg_price;
-    char  *e_execid;
-    char  *e_time;
-    char  *e_acct_number;
-    char  *e_exchange;
-    char  *e_side;
-	char  *e_orderref;
-    int    e_shares;
-    int    e_permid;
-    int    e_clientid;
-    int    e_liquidation;
-    int    e_orderid;
-    int    e_cum_qty;
-} tr_execution_t;
-
-typedef struct tr_exec_filter {
-    char *f_acctcode;
-    char *f_time;
-    char *f_symbol;
-    char *f_sectype;
-    char *f_exchange;
-    char *f_side;
-    int   f_clientid;
-} tr_exec_filter_t;
-
-
-/*
-scanner scan codes:
-*/
-#define TWS_SCANNER_BOND_CUSIP_AZ                           "BOND_CUSIP_AZ"
-#define TWS_SCANNER_BOND_CUSIP_ZA                           "BOND_CUSIP_ZA"
-#define TWS_SCANNER_FAR_MATURITY_DATE                       "FAR_MATURITY_DATE"
-#define TWS_SCANNER_HALTED                                  "HALTED"
-#define TWS_SCANNER_HIGHEST_SLB_BID                         "HIGHEST_SLB_BID"
-#define TWS_SCANNER_HIGH_BOND_ASK_CURRENT_YIELD_ALL         "HIGH_BOND_ASK_CURRENT_YIELD_ALL"
-#define TWS_SCANNER_HIGH_BOND_ASK_YIELD_ALL                 "HIGH_BOND_ASK_YIELD_ALL"
-#define TWS_SCANNER_HIGH_BOND_DEBT_2_BOOK_RATIO             "HIGH_BOND_DEBT_2_BOOK_RATIO"
-#define TWS_SCANNER_HIGH_BOND_DEBT_2_EQUITY_RATIO           "HIGH_BOND_DEBT_2_EQUITY_RATIO"
-#define TWS_SCANNER_HIGH_BOND_DEBT_2_TAN_BOOK_RATIO         "HIGH_BOND_DEBT_2_TAN_BOOK_RATIO"
-#define TWS_SCANNER_HIGH_BOND_EQUITY_2_BOOK_RATIO           "HIGH_BOND_EQUITY_2_BOOK_RATIO"
-#define TWS_SCANNER_HIGH_BOND_EQUITY_2_TAN_BOOK_RATIO       "HIGH_BOND_EQUITY_2_TAN_BOOK_RATIO"
-#define TWS_SCANNER_HIGH_BOND_SPREAD_ALL                    "HIGH_BOND_SPREAD_ALL"
-#define TWS_SCANNER_HIGH_COUPON_RATE                        "HIGH_COUPON_RATE"
-#define TWS_SCANNER_HIGH_DIVIDEND_YIELD                     "HIGH_DIVIDEND_YIELD"
-#define TWS_SCANNER_HIGH_DIVIDEND_YIELD_IB                  "HIGH_DIVIDEND_YIELD_IB"
-#define TWS_SCANNER_HIGH_GROWTH_RATE                        "HIGH_GROWTH_RATE"
-#define TWS_SCANNER_HIGH_MOODY_RATING_ALL                   "HIGH_MOODY_RATING_ALL"
-#define TWS_SCANNER_HIGH_OPEN_GAP                           "HIGH_OPEN_GAP"
-#define TWS_SCANNER_HIGH_OPT_IMP_VOLAT                      "HIGH_OPT_IMP_VOLAT"
-#define TWS_SCANNER_HIGH_OPT_IMP_VOLAT_OVER_HIST            "HIGH_OPT_IMP_VOLAT_OVER_HIST"
-#define TWS_SCANNER_HIGH_OPT_OPEN_INTEREST_PUT_CALL_RATIO   "HIGH_OPT_OPEN_INTEREST_PUT_CALL_RATIO"
-#define TWS_SCANNER_HIGH_OPT_OPEN_INT_PUT_CALL_RATIO        "HIGH_OPT_OPEN_INT_PUT_CALL_RATIO"
-#define TWS_SCANNER_HIGH_OPT_VOLUME_PUT_CALL_RATIO          "HIGH_OPT_VOLUME_PUT_CALL_RATIO"
-#define TWS_SCANNER_HIGH_PE_RATIO                           "HIGH_PE_RATIO"
-#define TWS_SCANNER_HIGH_PRICE_2_BOOK_RATIO                 "HIGH_PRICE_2_BOOK_RATIO"
-#define TWS_SCANNER_HIGH_PRICE_2_TAN_BOOK_RATIO             "HIGH_PRICE_2_TAN_BOOK_RATIO"
-#define TWS_SCANNER_HIGH_QUICK_RATIO                        "HIGH_QUICK_RATIO"
-#define TWS_SCANNER_HIGH_RETURN_ON_EQUITY                   "HIGH_RETURN_ON_EQUITY"
-#define TWS_SCANNER_HIGH_SYNTH_BID_REV_NAT_YIELD            "HIGH_SYNTH_BID_REV_NAT_YIELD"
-#define TWS_SCANNER_HIGH_VS_13W_HL                          "HIGH_VS_13W_HL"
-#define TWS_SCANNER_HIGH_VS_26W_HL                          "HIGH_VS_26W_HL"
-#define TWS_SCANNER_HIGH_VS_52W_HL                          "HIGH_VS_52W_HL"
-#define TWS_SCANNER_HOT_BY_OPT_VOLUME                       "HOT_BY_OPT_VOLUME"
-#define TWS_SCANNER_HOT_BY_PRICE                            "HOT_BY_PRICE"
-#define TWS_SCANNER_HOT_BY_PRICE_RANGE                      "HOT_BY_PRICE_RANGE"
-#define TWS_SCANNER_HOT_BY_VOLUME                           "HOT_BY_VOLUME"
-#define TWS_SCANNER_HOT_VOLUME                              "HOT_BY_VOLUME"
-#define TWS_SCANNER_LIMIT_UP_DOWN                           "LIMIT_UP_DOWN"
-#define TWS_SCANNER_LOWEST_SLB_ASK                          "LOWEST_SLB_ASK"
-#define TWS_SCANNER_LOW_BOND_BID_CURRENT_YIELD_ALL          "LOW_BOND_BID_CURRENT_YIELD_ALL"
-#define TWS_SCANNER_LOW_BOND_BID_YIELD_ALL                  "LOW_BOND_BID_YIELD_ALL"
-#define TWS_SCANNER_LOW_BOND_DEBT_2_BOOK_RATIO              "LOW_BOND_DEBT_2_BOOK_RATIO"
-#define TWS_SCANNER_LOW_BOND_DEBT_2_EQUITY_RATIO            "LOW_BOND_DEBT_2_EQUITY_RATIO"
-#define TWS_SCANNER_LOW_BOND_DEBT_2_TAN_BOOK_RATIO          "LOW_BOND_DEBT_2_TAN_BOOK_RATIO"
-#define TWS_SCANNER_LOW_BOND_EQUITY_2_BOOK_RATIO            "LOW_BOND_EQUITY_2_BOOK_RATIO"
-#define TWS_SCANNER_LOW_BOND_EQUITY_2_TAN_BOOK_RATIO        "LOW_BOND_EQUITY_2_TAN_BOOK_RATIO"
-#define TWS_SCANNER_LOW_BOND_SPREAD_ALL                     "LOW_BOND_SPREAD_ALL"
-#define TWS_SCANNER_LOW_COUPON_RATE                         "LOW_COUPON_RATE"
-#define TWS_SCANNER_LOW_GROWTH_RATE                         "LOW_GROWTH_RATE"
-#define TWS_SCANNER_LOW_MOODY_RATING_ALL                    "LOW_MOODY_RATING_ALL"
-#define TWS_SCANNER_LOW_OPEN_GAP                            "LOW_OPEN_GAP"
-#define TWS_SCANNER_LOW_OPT_IMP_VOLAT                       "LOW_OPT_IMP_VOLAT"
-#define TWS_SCANNER_LOW_OPT_IMP_VOLAT_OVER_HIST             "LOW_OPT_IMP_VOLAT_OVER_HIST"
-#define TWS_SCANNER_LOW_OPT_OPEN_INTEREST_PUT_CALL_RATIO    "LOW_OPT_OPEN_INTEREST_PUT_CALL_RATIO"
-#define TWS_SCANNER_LOW_OPT_OPEN_INT_PUT_CALL_RATIO         "LOW_OPT_OPEN_INT_PUT_CALL_RATIO"
-#define TWS_SCANNER_LOW_OPT_VOLUME_PUT_CALL_RATIO           "LOW_OPT_VOLUME_PUT_CALL_RATIO"
-#define TWS_SCANNER_LOW_PE_RATIO                            "LOW_PE_RATIO"
-#define TWS_SCANNER_LOW_PRICE_2_BOOK_RATIO                  "LOW_PRICE_2_BOOK_RATIO"
-#define TWS_SCANNER_LOW_PRICE_2_TAN_BOOK_RATIO              "LOW_PRICE_2_TAN_BOOK_RATIO"
-#define TWS_SCANNER_LOW_QUICK_RATIO                         "LOW_QUICK_RATIO"
-#define TWS_SCANNER_LOW_RETURN_ON_EQUITY                    "LOW_RETURN_ON_EQUITY"
-#define TWS_SCANNER_LOW_SYNTH_ASK_REV_NAT_YIELD             "LOW_SYNTH_ASK_REV_NAT_YIELD"
-#define TWS_SCANNER_LOW_VS_13W_HL                           "LOW_VS_13W_HL"
-#define TWS_SCANNER_LOW_VS_26W_HL                           "LOW_VS_26W_HL"
-#define TWS_SCANNER_LOW_VS_52W_HL                           "LOW_VS_52W_HL"
-#define TWS_SCANNER_LOW_WAR_REL_IMP_VOLAT                   "LOW_WAR_REL_IMP_VOLAT"
-#define TWS_SCANNER_MOST_ACTIVE                             "MOST_ACTIVE"
-#define TWS_SCANNER_MOST_ACTIVE_AVG_USD                     "MOST_ACTIVE_AVG_USD"
-#define TWS_SCANNER_MOST_ACTIVE_USD                         "MOST_ACTIVE_USD"
-#define TWS_SCANNER_NEAR_MATURITY_DATE                      "NEAR_MATURITY_DATE"
-#define TWS_SCANNER_NOT_OPEN                                "NOT_OPEN"
-#define TWS_SCANNER_OPT_OPEN_INTEREST_MOST_ACTIVE           "OPT_OPEN_INTEREST_MOST_ACTIVE"
-#define TWS_SCANNER_OPT_VOLUME_MOST_ACTIVE                  "OPT_VOLUME_MOST_ACTIVE"
-#define TWS_SCANNER_PMONITOR_AVAIL_CONTRACTS                "PMONITOR_AVAIL_CONTRACTS"
-#define TWS_SCANNER_PMONITOR_CTT                            "PMONITOR_CTT"
-#define TWS_SCANNER_PMONITOR_RFQ                            "PMONITOR_RFQ"
-#define TWS_SCANNER_TOP_OPEN_PERC_GAIN                      "TOP_OPEN_PERC_GAIN"
-#define TWS_SCANNER_TOP_OPEN_PERC_LOSE                      "TOP_OPEN_PERC_LOSE"
-#define TWS_SCANNER_TOP_OPT_IMP_VOLAT_GAIN                  "TOP_OPT_IMP_VOLAT_GAIN"
-#define TWS_SCANNER_TOP_OPT_IMP_VOLAT_LOSE                  "TOP_OPT_IMP_VOLAT_LOSE"
-#define TWS_SCANNER_TOP_PERC_GAIN                           "TOP_PERC_GAIN"
-#define TWS_SCANNER_TOP_PERC_LOSE                           "TOP_PERC_LOSE"
-#define TWS_SCANNER_TOP_PRICE_RANGE                         "TOP_PRICE_RANGE"
-#define TWS_SCANNER_TOP_TRADE_COUNT                         "TOP_TRADE_COUNT"
-#define TWS_SCANNER_TOP_TRADE_RATE                          "TOP_TRADE_RATE"
-#define TWS_SCANNER_TOP_VOLUME_RATE                         "TOP_VOLUME_RATE"
-#define TWS_SCANNER_WSH_NEXT_ANALYST_MEETING                "WSH_NEXT_ANALYST_MEETING"
-#define TWS_SCANNER_WSH_NEXT_EARNINGS                       "WSH_NEXT_EARNINGS"
-#define TWS_SCANNER_WSH_NEXT_EVENT                          "WSH_NEXT_EVENT"
-#define TWS_SCANNER_WSH_NEXT_MAJOR_EVENT                    "WSH_NEXT_MAJOR_EVENT"
-#define TWS_SCANNER_WSH_PREV_ANALYST_MEETING                "WSH_PREV_ANALYST_MEETING"
-#define TWS_SCANNER_WSH_PREV_EARNINGS                       "WSH_PREV_EARNINGS"
-#define TWS_SCANNER_WSH_PREV_EVENT                          "WSH_PREV_EVENT"
-
-
-
-typedef struct tr_scanner_subscription {
-    double scan_above_price;
-    double scan_below_price;
-    double scan_coupon_rate_above;
-    double scan_coupon_rate_below;
-    double scan_market_cap_above;
-    double scan_market_cap_below;
-    char  *scan_exclude_convertible;
-    char  *scan_instrument;
-    char  *scan_location_code;
-    char  *scan_maturity_date_above;
-    char  *scan_maturity_date_below;
-    char  *scan_moody_rating_above;
-    char  *scan_moody_rating_below;
-    char  *scan_code;
-    char  *scan_sp_rating_above;
-    char  *scan_sp_rating_below;
-    char  *scan_scanner_setting_pairs;
-    char  *scan_stock_type_filter;
-    int    scan_above_volume;
-    int    scan_number_of_rows;
-    int    scan_average_option_volume_above;
-} tr_scanner_subscription_t;
-
-typedef struct tr_commission_report
-{
-    char  *cr_exec_id;
-    char  *cr_currency;
-    double cr_commission;
-    double cr_realized_pnl;
-    double cr_yield;
-    int    cr_yield_redemption_date; /* YYYYMMDD format */
-} tr_commission_report_t;
 
 typedef enum tr_tick_type {
     TICK_UNDEFINED = -1,
@@ -701,254 +162,6 @@ typedef enum tr_tick_type {
 } tr_tick_type_t;
 
 
-/* what the heck are these? */
-#define OPT_UNKNOWN           "?"
-#define OPT_BROKER_DEALER     "b"
-#define OPT_CUSTOMER          "c"
-#define OPT_FIRM              "f"
-#define OPT_ISEMM             "m"
-#define OPT_FARMM             "n"
-#define OPT_SPECIALIST        "y"
-
-#define GROUPS         1
-#define PROFILES       2
-#define ALIASES        3
-
-
-// internal use structure, treat as a reference/handle:
-struct tws_instance;
-typedef struct tws_instance tws_instance_t;
-
-
-typedef void (*tws_func_t)(void *arg);
-
-typedef void (*external_func_t)(int state, void *arg);
-/* "func" calls this one once at startup and again at termination,
- * state == 0 indicates startup, state == 1 indicates termination, state == 2 indicates thread termination pending
- */
-
-/*
- * user must specify the send / recv and close callbacks to transmit, receive and close the network connection to TWS
- */
-typedef int tws_transmit_func_t(void *arg, const void *buf, unsigned int buflen);
-typedef int tws_receive_func_t(void *arg, void *buf, unsigned int max_bufsize);
-/* 'flush()' marks the end of the outgoing message: it should be transmitted ASAP */
-typedef int tws_flush_func_t(void *arg);
-/* open callback is invoked when tws_connect is invoked and no connection has been established yet (tws_connected() == false); return 0 on success; a twsclient_error_codes error code on failure. */
-typedef int tws_open_func_t(void *arg);
-/* close callback is invoked on error or when tws_disconnect is invoked */
-typedef int tws_close_func_t(void *arg);
-
-/* creates new tws client instance and
- * and records opaque user defined pointer to be supplied in all callbacks
- */
-tws_instance_t *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_open_func_t *open, tws_close_func_t *close);
-/* tws_destroy() implicitly calls tws_disconnect() but for reasons of symmetry it is advised to explicitly invoke tws_disconnect() (<-> tws_connect()) before invoking tws_destroy() (<->tws_create()) */
-void   tws_destroy(tws_instance_t *tws_instance);
-int    tws_connected(tws_instance_t *tws_instance); /* true=1 or false=0 */
-int    tws_event_process(tws_instance_t *tws_instance); /* dispatches event to a callback.c func */
-
-/* init TWS structures to default values */
-void   tws_init_tr_comboleg(tws_instance_t *tws, tr_comboleg_t *comboleg_ref);
-void   tws_destroy_tr_comboleg(tws_instance_t *tws, tr_comboleg_t *comboleg_ref);
-
-void   tws_init_exec_filter(tws_instance_t *tws, tr_exec_filter_t *filter);
-void   tws_destroy_exec_filter(tws_instance_t *tws, tr_exec_filter_t *filter);
-
-void   tws_init_scanner_subscription(tws_instance_t *tws, tr_scanner_subscription_t *ss);
-void   tws_destroy_scanner_subscription(tws_instance_t *tws, tr_scanner_subscription_t *ss);
-
-void   tws_init_tag_value(tws_instance_t *tws, tr_tag_value_t *t);
-void   tws_destroy_tag_value(tws_instance_t *tws, tr_tag_value_t *t);
-
-void   tws_init_order_combo_leg(tws_instance_t *tws, tr_order_combo_leg_t *ocl);
-void   tws_destroy_order_combo_leg(tws_instance_t *tws, tr_order_combo_leg_t *ocl);
-
-void   tws_init_under_comp(tws_instance_t *tws, under_comp_t *u);
-void   tws_destroy_under_comp(tws_instance_t *tws, under_comp_t *u);
-
-void   tws_init_order(tws_instance_t *tws, tr_order_t *o);
-void   tws_destroy_order(tws_instance_t *tws, tr_order_t *o);
-
-void   tws_init_contract(tws_instance_t *ti, tr_contract_t *c);
-void   tws_destroy_contract(tws_instance_t *ti, tr_contract_t *c);
-
-
-/* 
-  helper: as all strings (char * pointers) in the tws structs are initialized to dedicated storage
-  when you invoke the appropriate tws_init_....() call, you'll need the safe tws_strcpy() to copy
-  any string content into those structs.
-
-  tws_strcpy() also accepts src == NULL, which is treated as a src=="" value.
-
-  The function always returns the 'tws_string_ref' pointer. 
-
-  Use tws_strcpy() to prevent structure member overruns when copying string data into initialized
-  tws structs.
-*/
-char *tws_strcpy(char *tws_string_ref, const char *src);
-
-/* transmit connect message and wait for response */
-int    tws_connect(tws_instance_t *tws, int client_id);
-void   tws_disconnect(tws_instance_t *tws);
-
-/* sends message REQ_SCANNER_PARAMETERS to IB/TWS */
-int    tws_req_scanner_parameters(tws_instance_t *tws);
-/* sends message REQ_SCANNER_SUBSCRIPTION to IB/TWS */
-int    tws_req_scanner_subscription(tws_instance_t *tws, int ticker_id, tr_scanner_subscription_t *subscription);
-/* sends message CANCEL_SCANNER_SUBSCRIPTION to IB/TWS */
-int    tws_cancel_scanner_subscription(tws_instance_t *tws, int ticker_id);
-/* sends message REQ_MKT_DATA to IB/TWS */
-int    tws_req_mkt_data(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, const char generic_tick_list[], int snapshot);
-/* sends message REQ_HISTORICAL_DATA to IB/TWS */
-int    tws_req_historical_data(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], const char bar_size_setting[], const char what_to_show[], int use_rth, int format_date);
-/* sends message CANCEL_HISTORICAL_DATA to IB/TWS */
-int    tws_cancel_historical_data(tws_instance_t *tws, int ticker_id);
-/* sends message CANCEL_MKT_DATA to IB/TWS */
-int    tws_cancel_mkt_data(tws_instance_t *tws, int ticker_id);
-/* sends message EXERCISE_OPTIONS to IB/TWS */
-int    tws_exercise_options(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int exc_override);
-/* sends message PLACE_ORDER to IB/TWS */
-int    tws_place_order(tws_instance_t *tws, int order_id, tr_contract_t *contract, tr_order_t *order);
-/* sends message CANCEL_ORDER to IB/TWS */
-int    tws_cancel_order(tws_instance_t *tws, int order_id);
-/* sends message REQ_OPEN_ORDERS to IB/TWS */
-int    tws_req_open_orders(tws_instance_t *tws);
-/* sends message REQ_ACCOUNT_DATA to IB/TWS */
-int    tws_req_account_updates(tws_instance_t *tws, int subscribe, const char acct_code[]);
-/* sends message REQ_EXECUTIONS to IB/TWS */
-int    tws_req_executions(tws_instance_t *tws, int reqid, tr_exec_filter_t *filter);
-/* sends message REQ_IDS to IB/TWS */
-int    tws_req_ids(tws_instance_t *tws, int num_ids);
-/* sends message REQ_CONTRACT_DATA to IB/TWS */
-int    tws_req_contract_details(tws_instance_t *tws, int reqid, tr_contract_t *contract);
-/* sends message REQ_MKT_DEPTH to IB/TWS */
-int    tws_req_mkt_depth(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, int num_rows);
-/* sends message CANCEL_MKT_DEPTH to IB/TWS */
-int    tws_cancel_mkt_depth(tws_instance_t *tws, int ticker_id);
-/* sends message REQ_NEWS_BULLETINS to IB/TWS */
-int    tws_req_news_bulletins(tws_instance_t *tws, int all_msgs);
-/* sends message CANCEL_NEWS_BULLETINS to IB/TWS */
-int    tws_cancel_news_bulletins(tws_instance_t *tws);
-/* sends message SET_SERVER_LOGLEVEL to IB/TWS */
-int    tws_set_server_log_level(tws_instance_t *tws, int level);
-/* sends message REQ_AUTO_OPEN_ORDERS to IB/TWS */
-int    tws_req_auto_open_orders(tws_instance_t *tws, int auto_bind);
-/* sends message REQ_ALL_OPEN_ORDERS to IB/TWS */
-int    tws_req_all_open_orders(tws_instance_t *tws);
-/* sends message REQ_MANAGED_ACCTS to IB/TWS */
-int    tws_req_managed_accts(tws_instance_t *tws);
-/* sends message REQ_FA to IB/TWS */
-int    tws_request_fa(tws_instance_t *tws, int fa_data_type);
-/* sends message REPLACE_FA to IB/TWS */
-int    tws_replace_fa(tws_instance_t *tws, int fa_data_type, const char cxml[]);
-/* sends message REQ_CURRENT_TIME to IB/TWS */
-int    tws_req_current_time(tws_instance_t *tws);
-/* sends message REQ_FUNDAMENTAL_DATA to IB/TWS */
-int    tws_req_fundamental_data(tws_instance_t *tws, int reqid, tr_contract_t *contract, const char report_type[]);
-/* sends message CANCEL_FUNDAMENTAL_DATA to IB/TWS */
-int    tws_cancel_fundamental_data(tws_instance_t *tws, int reqid);
-/* sends message REQ_CALC_IMPLIED_VOLAT to IB/TWS */
-int    tws_calculate_implied_volatility(tws_instance_t *tws, int reqid, tr_contract_t *contract, double option_price, double under_price);
-/* sends message CANCEL_CALC_IMPLIED_VOLAT to IB/TWS */
-int    tws_cancel_calculate_implied_volatility(tws_instance_t *tws, int reqid);
-/* sends message REQ_CALC_OPTION_PRICE to IB/TWS */
-int    tws_calculate_option_price(tws_instance_t *tws, int reqid, tr_contract_t *contract, double volatility, double under_price);
-/* sends message CANCEL_CALC_OPTION_PRICE to IB/TWS */
-int    tws_cancel_calculate_option_price(tws_instance_t *tws, int reqid);
-/* sends message REQ_GLOBAL_CANCEL to IB/TWS */
-int    tws_req_global_cancel(tws_instance_t *tws);
-/* sends message REQ_MARKET_DATA_TYPE to IB/TWS */
-int    tws_req_market_data_type(tws_instance_t *tws, market_data_type_t market_data_type);
-/* sends message REQ_REAL_TIME_BARS to IB/TWS */
-int    tws_request_realtime_bars(tws_instance_t *tws, int ticker_id, tr_contract_t *c, int bar_size, const char what_to_show[], int use_rth);
-/* sends message CANCEL_REAL_TIME_BARS to IB/TWS */
-int    tws_cancel_realtime_bars(tws_instance_t *tws, int ticker_id);
-
-/**** 2 auxilliary routines */
-int    tws_server_version(tws_instance_t *tws);
-const char *tws_connection_time(tws_instance_t *tws);
-
-/************************************ callbacks *************************************/
-/* API users must implement some or all of these C functions; the comment before each function describes which incoming message(s) fire the given event: */
-
-/* fired by: TICK_PRICE */
-void event_tick_price(void *opaque, int ticker_id, tr_tick_type_t field, double price, int can_auto_execute);
-/* fired by: TICK_PRICE (for modern versions, then immediately preceeded by an invocation of event_tick_price()), TICK_SIZE */
-void event_tick_size(void *opaque, int ticker_id, tr_tick_type_t field, int size);
-/* fired by: TICK_OPTION_COMPUTATION */
-void event_tick_option_computation(void *opaque, int ticker_id, tr_tick_type_t type, double implied_vol, double delta, double opt_price, double pv_dividend, double gamma, double vega, double theta, double und_price);
-/* fired by: TICK_GENERIC */
-void event_tick_generic(void *opaque, int ticker_id, tr_tick_type_t type, double value);
-/* fired by: TICK_STRING */
-void event_tick_string(void *opaque, int ticker_id, tr_tick_type_t type, const char value[]);
-/* fired by: TICK_EFP */
-void event_tick_efp(void *opaque, int ticker_id, tr_tick_type_t tick_type, double basis_points, const char formatted_basis_points[], double implied_futures_price, int hold_days, const char future_expiry[], double dividend_impact, double dividends_to_expiry);
-/* fired by: ORDER_STATUS */
-void event_order_status(void *opaque, int order_id, const char status[], int filled, int remaining, double avg_fill_price, int perm_id, int parent_id, double last_fill_price, int client_id, const char why_held[]);
-/* fired by: OPEN_ORDER */
-void event_open_order(void *opaque, int order_id, const tr_contract_t *contract, const tr_order_t *order, const tr_order_status_t *ost);
-/* fired by: OPEN_ORDER_END */
-void event_open_order_end(void *opaque);
-/* fired by: ACCT_VALUE */
-void event_update_account_value(void *opaque, const char key[], const char val[], const char currency[], const char account_name[]);
-/* fired by: PORTFOLIO_VALUE */
-void event_update_portfolio(void *opaque, const tr_contract_t *contract, int position, double mkt_price, double mkt_value, double average_cost, double unrealized_pnl, double realized_pnl, const char account_name[]);
-/* fired by: ACCT_UPDATE_TIME */
-void event_update_account_time(void *opaque, const char time_stamp[]);
-/* fired by: NEXT_VALID_ID */
-void event_next_valid_id(void *opaque, int order_id);
-/* fired by: CONTRACT_DATA */
-void event_contract_details(void *opaque, int req_id, const tr_contract_details_t *contract_details);
-/* fired by: CONTRACT_DATA_END */
-void event_contract_details_end(void *opaque, int reqid);
-/* fired by: BOND_CONTRACT_DATA */
-void event_bond_contract_details(void *opaque, int req_id, const tr_contract_details_t *contract_details);
-/* fired by: EXECUTION_DATA */
-void event_exec_details(void *opaque, int order_id, const tr_contract_t *contract, const tr_execution_t *execution);
-/* fired by: EXECUTION_DATA_END */
-void event_exec_details_end(void *opaque, int reqid);
-/* fired by: ERR_MSG */
-void event_error(void *opaque, int id, int error_code, const char error_string[]);
-/* fired by: MARKET_DEPTH */
-void event_update_mkt_depth(void *opaque, int ticker_id, int position, int operation, int side, double price, int size);
-/* fired by: MARKET_DEPTH_L2 */
-void event_update_mkt_depth_l2(void *opaque, int ticker_id, int position, char *market_maker, int operation, int side, double price, int size);
-/* fired by: NEWS_BULLETINS */
-void event_update_news_bulletin(void *opaque, int msgid, int msg_type, const char news_msg[], const char origin_exch[]);
-/* fired by: MANAGED_ACCTS */
-void event_managed_accounts(void *opaque, const char accounts_list[]);
-/* fired by: RECEIVE_FA */
-void event_receive_fa(void *opaque, int fa_data_type, const char cxml[]);
-/* fired by: HISTORICAL_DATA (possibly multiple times per incoming message) */
-void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, int bar_count, double wap, int has_gaps);
-/* fired by: HISTORICAL_DATA  (once, after one or more invocations of event_historical_data()) */
-void event_historical_data_end(void *opaque, int reqid, const char completion_from[], const char completion_to[]);
-/* fired by: SCANNER_PARAMETERS */
-void event_scanner_parameters(void *opaque, const char xml[]);
-/* fired by: SCANNER_DATA (possibly multiple times per incoming message) */
-void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[], const char legs_str[]);
-/* fired by: SCANNER_DATA (once, after one or more invocations of event_scanner_data()) */
-void event_scanner_data_end(void *opaque, int ticker_id, int num_elements);
-/* fired by: SCANNER_DATA (once, before any invocations of event_scanner_data()) */
-void event_scanner_data_start(void *opaque, int ticker_id, int num_elements);
-/* fired by: CURRENT_TIME */
-void event_current_time(void *opaque, long time);
-/* fired by: REAL_TIME_BARS */
-void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long volume, double wap, int count);
-/* fired by: FUNDAMENTAL_DATA */
-void event_fundamental_data(void *opaque, int reqid, const char data[]);
-/* fired by: DELTA_NEUTRAL_VALIDATION */
-void event_delta_neutral_validation(void *opaque, int reqid, under_comp_t *und);
-/* fired by: ACCT_DOWNLOAD_END */
-void event_acct_download_end(void *opaque, char acct_name[]);
-/* fired by: TICK_SNAPSHOT_END */
-void event_tick_snapshot_end(void *opaque, int reqid);
-/* fired by: MARKET_DATA_TYPE */
-void event_market_data_type(void *opaque, int reqid, market_data_type_t data_type);
-/* fired by: COMMISSION_REPORT */
-void event_commission_report(void *opaque, tr_commission_report_t *report);
-
 /* outgoing message IDs */
 enum tws_outgoing_ids {
     REQ_MKT_DATA = 1,
@@ -988,39 +201,6 @@ enum tws_outgoing_ids {
     REQ_GLOBAL_CANCEL = 58,
 	REQ_MARKET_DATA_TYPE = 59,
 };
-
-#define  MIN_SERVER_VER_REAL_TIME_BARS 34
-#define  MIN_SERVER_VER_SCALE_ORDERS  35
-#define  MIN_SERVER_VER_SNAPSHOT_MKT_DATA 35
-#define  MIN_SERVER_VER_SSHORT_COMBO_LEGS 35
-#define  MIN_SERVER_VER_WHAT_IF_ORDERS 36
-#define  MIN_SERVER_VER_CONTRACT_CONID 37
-#define  MIN_SERVER_VER_PTA_ORDERS 39
-#define  MIN_SERVER_VER_FUNDAMENTAL_DATA  40
-#define  MIN_SERVER_VER_UNDER_COMP  40
-#define  MIN_SERVER_VER_CONTRACT_DATA_CHAIN  40
-#define  MIN_SERVER_VER_SCALE_ORDERS2  40
-#define  MIN_SERVER_VER_ALGO_ORDERS 41
-#define  MIN_SERVER_VER_EXECUTION_DATA_CHAIN 42
-#define  MIN_SERVER_VER_NOT_HELD 44
-#define  MIN_SERVER_VER_SEC_ID_TYPE 45
-#define  MIN_SERVER_VER_PLACE_ORDER_CONID 46
-#define  MIN_SERVER_VER_REQ_MKT_DATA_CONID 47
-#define  MIN_SERVER_VER_REQ_CALC_IMPLIED_VOLAT 49
-#define  MIN_SERVER_VER_REQ_CALC_OPTION_PRICE 50
-#define  MIN_SERVER_VER_CANCEL_CALC_IMPLIED_VOLAT 50
-#define  MIN_SERVER_VER_CANCEL_CALC_OPTION_PRICE 50
-#define  MIN_SERVER_VER_SSHORTX_OLD 51
-#define  MIN_SERVER_VER_SSHORTX 52
-#define  MIN_SERVER_VER_REQ_GLOBAL_CANCEL 53
-#define  MIN_SERVER_VER_HEDGE_ORDERS 54
-#define  MIN_SERVER_VER_REQ_MARKET_DATA_TYPE 55
-#define  MIN_SERVER_VER_OPT_OUT_SMART_ROUTING 56
-#define  MIN_SERVER_VER_SMART_COMBO_ROUTING_PARAMS 57
-#define  MIN_SERVER_VER_DELTA_NEUTRAL_CONID 58
-#define  MIN_SERVER_VER_SCALE_ORDERS3 60
-#define  MIN_SERVER_VER_ORDER_COMBO_LEGS_PRICE 61
-#define  MIN_SERVER_VER_TRAILING_PERCENT 62
 
 
 enum tws_incoming_ids {
@@ -1355,13 +535,888 @@ typedef enum twsclient_error_codes {
 
 } twsclient_error_code_t;
 
-struct twsclient_errmsg {
+
+
+#endif /* TWS_DEFINITIONS */
+
+#if TWS_DEFINITIONS > 1
+
+
+
+/* public C API */
+#define TWSCLIENT_VERSION 57
+
+/*
+API orders only mimic the behavior of Trader Workstation (TWS). Test each 
+order type, ensuring that you can successfully submit each one in TWS, 
+before you submit the same order using the API.
+
+Order Type											Abbreviation
+==================================================+================== 
+Limit Risk
+--------------------------------------------------+------------------ 
+ 
+Bracket
+  
+Market-to-Limit										MTL
+ 
+Market with Protection								MKT PRT
+ 
+Request for Quote									QUOTE
+ 
+Stop												STP
+ 
+Stop Limit											STPLMT
+ 
+Trailing Limit if Touched							TRAILLIT
+ 
+Trailing Market If Touched							TRAILMIT
+ 
+Trailing Stop										TRAIL
+ 
+Trailing Stop Limit									TRAILLMT
+ 
+==================================================+================== 
+Speed of Execution
+--------------------------------------------------+------------------ 
+ 
+At Auction
+ 
+Discretionary
+ 
+Market												MKT
+ 
+Market-if-Touched									MIT
+ 
+Market-on-Close										MOC
+ 
+Market-on-Open										MOO
+ 
+Pegged-to-Market									PEG MKT
+ 
+Relative											REL
+ 
+Sweep-to-Fill										 
+ 
+==================================================+================== 
+Price Improvement
+--------------------------------------------------+------------------ 
+ 
+Box Top												BOX TOP
+ 
+Price Improvement Auction
+ 
+Block
+ 
+Limit-on-Close										LOC
+ 
+Limit-on-Open										LOO
+ 
+Limit if Touched									LIT
+ 
+Pegged-to-Midpoint									PEG MID
+ 
+==================================================+================== 
+Privacy
+--------------------------------------------------+------------------ 
+ 
+Hidden
+ 
+Iceberg/Reserve
+ 
+VWAP - Guaranteed									VWAP
+ 
+==================================================+================== 
+Time to Market
+--------------------------------------------------+------------------ 
+ 
+All-or-None
+ 
+Fill-or-Kill
+ 
+Good-after-Time/Date								GAT
+ 
+Good-till-Date/Time									GTD
+ 
+Good-till-Canceled									GTC
+ 
+Immediate-or-Cancel									IOC
+ 
+==================================================+================== 
+Advanced Trading
+--------------------------------------------------+------------------ 
+ 
+One-Cancels-All										OCA
+ 
+Spreads
+ 
+Volatility											VOL
+ 
+==================================================+================== 
+Algorithmic Trading (Algos)
+--------------------------------------------------+------------------ 
+ 
+Arrival Price
+ 
+Balance Impact and Risk
+ 
+Minimize Impact
+ 
+Percent of volume
+ 
+Scale                                               SCALE   
+ 
+TWAP
+ 
+VWAP - Best Effort
+ 
+Accumulate/Distribute
+  
+*/ 
+#define ORDER_TYPE_MARKET_TO_LIMIT										"MTL"
+#define ORDER_TYPE_MARKET_WITH_PROTECTION								"MKT PRT"
+#define ORDER_TYPE_REQUEST_FOR_QUOTE									"QUOTE"
+#define ORDER_TYPE_STOP													"STP"
+#define ORDER_TYPE_STOP_LIMIT											"STPLMT"
+#define ORDER_TYPE_TRAILING_LIMIT_IF_TOUCHED							"TRAILLIT"
+#define ORDER_TYPE_TRAILING_MARKET_IF_TOUCHED							"TRAILMIT"
+#define ORDER_TYPE_TRAILING_STOP										"TRAIL"
+#define ORDER_TYPE_TRAILING_STOP_LIMIT									"TRAILLMT" /* "TRAILLIMIT" */
+#define ORDER_TYPE_MARKET												"MKT"
+#define ORDER_TYPE_MARKET_IF_TOUCHED									"MIT"
+#define ORDER_TYPE_MARKET_ON_CLOSE										"MOC" /* "MKTCLS" */
+#define ORDER_TYPE_MARKET_ON_OPEN										"MOO"
+#define ORDER_TYPE_PEGGED_TO_MARKET										"PEGMKT"
+#define ORDER_TYPE_RELATIVE												"REL"
+#define ORDER_TYPE_BOX_TOP												"BOX TOP"
+#define ORDER_TYPE_LIMIT_ON_CLOSE										"LOC" /* "LMTCLS" */
+#define ORDER_TYPE_LIMIT_ON_OPEN										"LOO"
+#define ORDER_TYPE_LIMIT_IF_TOUCHED										"LIT"
+#define ORDER_TYPE_PEGGED_TO_MIDPOINT									"PEG MID"
+#define ORDER_TYPE_VWAP_GUARANTEED										"VWAP"
+#define ORDER_TYPE_GOOD_AFTER_TIME_DATE									"GAT"
+#define ORDER_TYPE_GOOD_TILL_DATE_TIME									"GTD"
+#define ORDER_TYPE_GOOD_TILL_CANCELED									"GTC"
+#define ORDER_TYPE_IMMEDIATE_OR_CANCEL									"IOC"
+#define ORDER_TYPE_ONE_CANCELS_ALL										"OCA"
+#define ORDER_TYPE_VOLATILITY											"VOL"
+
+#define ORDER_TYPE_LIMIT												"LMT"
+
+#define ORDER_TYPE_ACTIVETIM											"ACTIVETIM"
+#define ORDER_TYPE_ADJUST												"ADJUST"
+#define ORDER_TYPE_ALERT												"ALERT"
+#define ORDER_TYPE_ALLOC												"ALLOC"
+#define ORDER_TYPE_AVGCOST												"AVGCOST"
+#define ORDER_TYPE_BASKET												"BASKET"
+#define ORDER_TYPE_COND													"COND"
+#define ORDER_TYPE_CONDORDER											"CONDORDER"
+#define ORDER_TYPE_CONSCOST												"CONSCOST"
+#define ORDER_TYPE_DAY													"DAY"
+#define ORDER_TYPE_DEACT												"DEACT"
+#define ORDER_TYPE_DEACTDIS												"DEACTDIS"
+#define ORDER_TYPE_DEACTEOD												"DEACTEOD"
+#define ORDER_TYPE_GTT													"GTT"
+#define ORDER_TYPE_HID													"HID"
+#define ORDER_TYPE_LTH													"LTH"
+#define ORDER_TYPE_NONALGO												"NONALGO"
+#define ORDER_TYPE_SCALE												"SCALE"
+#define ORDER_TYPE_SCALERST												"SCALERST"
+#define ORDER_TYPE_WHATIF												"WHATIF"
+
+
+/*
+scanner scan codes:
+*/
+#define TWS_SCANNER_BOND_CUSIP_AZ                           "BOND_CUSIP_AZ"
+#define TWS_SCANNER_BOND_CUSIP_ZA                           "BOND_CUSIP_ZA"
+#define TWS_SCANNER_FAR_MATURITY_DATE                       "FAR_MATURITY_DATE"
+#define TWS_SCANNER_HALTED                                  "HALTED"
+#define TWS_SCANNER_HIGHEST_SLB_BID                         "HIGHEST_SLB_BID"
+#define TWS_SCANNER_HIGH_BOND_ASK_CURRENT_YIELD_ALL         "HIGH_BOND_ASK_CURRENT_YIELD_ALL"
+#define TWS_SCANNER_HIGH_BOND_ASK_YIELD_ALL                 "HIGH_BOND_ASK_YIELD_ALL"
+#define TWS_SCANNER_HIGH_BOND_DEBT_2_BOOK_RATIO             "HIGH_BOND_DEBT_2_BOOK_RATIO"
+#define TWS_SCANNER_HIGH_BOND_DEBT_2_EQUITY_RATIO           "HIGH_BOND_DEBT_2_EQUITY_RATIO"
+#define TWS_SCANNER_HIGH_BOND_DEBT_2_TAN_BOOK_RATIO         "HIGH_BOND_DEBT_2_TAN_BOOK_RATIO"
+#define TWS_SCANNER_HIGH_BOND_EQUITY_2_BOOK_RATIO           "HIGH_BOND_EQUITY_2_BOOK_RATIO"
+#define TWS_SCANNER_HIGH_BOND_EQUITY_2_TAN_BOOK_RATIO       "HIGH_BOND_EQUITY_2_TAN_BOOK_RATIO"
+#define TWS_SCANNER_HIGH_BOND_SPREAD_ALL                    "HIGH_BOND_SPREAD_ALL"
+#define TWS_SCANNER_HIGH_COUPON_RATE                        "HIGH_COUPON_RATE"
+#define TWS_SCANNER_HIGH_DIVIDEND_YIELD                     "HIGH_DIVIDEND_YIELD"
+#define TWS_SCANNER_HIGH_DIVIDEND_YIELD_IB                  "HIGH_DIVIDEND_YIELD_IB"
+#define TWS_SCANNER_HIGH_GROWTH_RATE                        "HIGH_GROWTH_RATE"
+#define TWS_SCANNER_HIGH_MOODY_RATING_ALL                   "HIGH_MOODY_RATING_ALL"
+#define TWS_SCANNER_HIGH_OPEN_GAP                           "HIGH_OPEN_GAP"
+#define TWS_SCANNER_HIGH_OPT_IMP_VOLAT                      "HIGH_OPT_IMP_VOLAT"
+#define TWS_SCANNER_HIGH_OPT_IMP_VOLAT_OVER_HIST            "HIGH_OPT_IMP_VOLAT_OVER_HIST"
+#define TWS_SCANNER_HIGH_OPT_OPEN_INTEREST_PUT_CALL_RATIO   "HIGH_OPT_OPEN_INTEREST_PUT_CALL_RATIO"
+#define TWS_SCANNER_HIGH_OPT_OPEN_INT_PUT_CALL_RATIO        "HIGH_OPT_OPEN_INT_PUT_CALL_RATIO"
+#define TWS_SCANNER_HIGH_OPT_VOLUME_PUT_CALL_RATIO          "HIGH_OPT_VOLUME_PUT_CALL_RATIO"
+#define TWS_SCANNER_HIGH_PE_RATIO                           "HIGH_PE_RATIO"
+#define TWS_SCANNER_HIGH_PRICE_2_BOOK_RATIO                 "HIGH_PRICE_2_BOOK_RATIO"
+#define TWS_SCANNER_HIGH_PRICE_2_TAN_BOOK_RATIO             "HIGH_PRICE_2_TAN_BOOK_RATIO"
+#define TWS_SCANNER_HIGH_QUICK_RATIO                        "HIGH_QUICK_RATIO"
+#define TWS_SCANNER_HIGH_RETURN_ON_EQUITY                   "HIGH_RETURN_ON_EQUITY"
+#define TWS_SCANNER_HIGH_SYNTH_BID_REV_NAT_YIELD            "HIGH_SYNTH_BID_REV_NAT_YIELD"
+#define TWS_SCANNER_HIGH_VS_13W_HL                          "HIGH_VS_13W_HL"
+#define TWS_SCANNER_HIGH_VS_26W_HL                          "HIGH_VS_26W_HL"
+#define TWS_SCANNER_HIGH_VS_52W_HL                          "HIGH_VS_52W_HL"
+#define TWS_SCANNER_HOT_BY_OPT_VOLUME                       "HOT_BY_OPT_VOLUME"
+#define TWS_SCANNER_HOT_BY_PRICE                            "HOT_BY_PRICE"
+#define TWS_SCANNER_HOT_BY_PRICE_RANGE                      "HOT_BY_PRICE_RANGE"
+#define TWS_SCANNER_HOT_BY_VOLUME                           "HOT_BY_VOLUME"
+#define TWS_SCANNER_HOT_VOLUME                              "HOT_BY_VOLUME"
+#define TWS_SCANNER_LIMIT_UP_DOWN                           "LIMIT_UP_DOWN"
+#define TWS_SCANNER_LOWEST_SLB_ASK                          "LOWEST_SLB_ASK"
+#define TWS_SCANNER_LOW_BOND_BID_CURRENT_YIELD_ALL          "LOW_BOND_BID_CURRENT_YIELD_ALL"
+#define TWS_SCANNER_LOW_BOND_BID_YIELD_ALL                  "LOW_BOND_BID_YIELD_ALL"
+#define TWS_SCANNER_LOW_BOND_DEBT_2_BOOK_RATIO              "LOW_BOND_DEBT_2_BOOK_RATIO"
+#define TWS_SCANNER_LOW_BOND_DEBT_2_EQUITY_RATIO            "LOW_BOND_DEBT_2_EQUITY_RATIO"
+#define TWS_SCANNER_LOW_BOND_DEBT_2_TAN_BOOK_RATIO          "LOW_BOND_DEBT_2_TAN_BOOK_RATIO"
+#define TWS_SCANNER_LOW_BOND_EQUITY_2_BOOK_RATIO            "LOW_BOND_EQUITY_2_BOOK_RATIO"
+#define TWS_SCANNER_LOW_BOND_EQUITY_2_TAN_BOOK_RATIO        "LOW_BOND_EQUITY_2_TAN_BOOK_RATIO"
+#define TWS_SCANNER_LOW_BOND_SPREAD_ALL                     "LOW_BOND_SPREAD_ALL"
+#define TWS_SCANNER_LOW_COUPON_RATE                         "LOW_COUPON_RATE"
+#define TWS_SCANNER_LOW_GROWTH_RATE                         "LOW_GROWTH_RATE"
+#define TWS_SCANNER_LOW_MOODY_RATING_ALL                    "LOW_MOODY_RATING_ALL"
+#define TWS_SCANNER_LOW_OPEN_GAP                            "LOW_OPEN_GAP"
+#define TWS_SCANNER_LOW_OPT_IMP_VOLAT                       "LOW_OPT_IMP_VOLAT"
+#define TWS_SCANNER_LOW_OPT_IMP_VOLAT_OVER_HIST             "LOW_OPT_IMP_VOLAT_OVER_HIST"
+#define TWS_SCANNER_LOW_OPT_OPEN_INTEREST_PUT_CALL_RATIO    "LOW_OPT_OPEN_INTEREST_PUT_CALL_RATIO"
+#define TWS_SCANNER_LOW_OPT_OPEN_INT_PUT_CALL_RATIO         "LOW_OPT_OPEN_INT_PUT_CALL_RATIO"
+#define TWS_SCANNER_LOW_OPT_VOLUME_PUT_CALL_RATIO           "LOW_OPT_VOLUME_PUT_CALL_RATIO"
+#define TWS_SCANNER_LOW_PE_RATIO                            "LOW_PE_RATIO"
+#define TWS_SCANNER_LOW_PRICE_2_BOOK_RATIO                  "LOW_PRICE_2_BOOK_RATIO"
+#define TWS_SCANNER_LOW_PRICE_2_TAN_BOOK_RATIO              "LOW_PRICE_2_TAN_BOOK_RATIO"
+#define TWS_SCANNER_LOW_QUICK_RATIO                         "LOW_QUICK_RATIO"
+#define TWS_SCANNER_LOW_RETURN_ON_EQUITY                    "LOW_RETURN_ON_EQUITY"
+#define TWS_SCANNER_LOW_SYNTH_ASK_REV_NAT_YIELD             "LOW_SYNTH_ASK_REV_NAT_YIELD"
+#define TWS_SCANNER_LOW_VS_13W_HL                           "LOW_VS_13W_HL"
+#define TWS_SCANNER_LOW_VS_26W_HL                           "LOW_VS_26W_HL"
+#define TWS_SCANNER_LOW_VS_52W_HL                           "LOW_VS_52W_HL"
+#define TWS_SCANNER_LOW_WAR_REL_IMP_VOLAT                   "LOW_WAR_REL_IMP_VOLAT"
+#define TWS_SCANNER_MOST_ACTIVE                             "MOST_ACTIVE"
+#define TWS_SCANNER_MOST_ACTIVE_AVG_USD                     "MOST_ACTIVE_AVG_USD"
+#define TWS_SCANNER_MOST_ACTIVE_USD                         "MOST_ACTIVE_USD"
+#define TWS_SCANNER_NEAR_MATURITY_DATE                      "NEAR_MATURITY_DATE"
+#define TWS_SCANNER_NOT_OPEN                                "NOT_OPEN"
+#define TWS_SCANNER_OPT_OPEN_INTEREST_MOST_ACTIVE           "OPT_OPEN_INTEREST_MOST_ACTIVE"
+#define TWS_SCANNER_OPT_VOLUME_MOST_ACTIVE                  "OPT_VOLUME_MOST_ACTIVE"
+#define TWS_SCANNER_PMONITOR_AVAIL_CONTRACTS                "PMONITOR_AVAIL_CONTRACTS"
+#define TWS_SCANNER_PMONITOR_CTT                            "PMONITOR_CTT"
+#define TWS_SCANNER_PMONITOR_RFQ                            "PMONITOR_RFQ"
+#define TWS_SCANNER_TOP_OPEN_PERC_GAIN                      "TOP_OPEN_PERC_GAIN"
+#define TWS_SCANNER_TOP_OPEN_PERC_LOSE                      "TOP_OPEN_PERC_LOSE"
+#define TWS_SCANNER_TOP_OPT_IMP_VOLAT_GAIN                  "TOP_OPT_IMP_VOLAT_GAIN"
+#define TWS_SCANNER_TOP_OPT_IMP_VOLAT_LOSE                  "TOP_OPT_IMP_VOLAT_LOSE"
+#define TWS_SCANNER_TOP_PERC_GAIN                           "TOP_PERC_GAIN"
+#define TWS_SCANNER_TOP_PERC_LOSE                           "TOP_PERC_LOSE"
+#define TWS_SCANNER_TOP_PRICE_RANGE                         "TOP_PRICE_RANGE"
+#define TWS_SCANNER_TOP_TRADE_COUNT                         "TOP_TRADE_COUNT"
+#define TWS_SCANNER_TOP_TRADE_RATE                          "TOP_TRADE_RATE"
+#define TWS_SCANNER_TOP_VOLUME_RATE                         "TOP_VOLUME_RATE"
+#define TWS_SCANNER_WSH_NEXT_ANALYST_MEETING                "WSH_NEXT_ANALYST_MEETING"
+#define TWS_SCANNER_WSH_NEXT_EARNINGS                       "WSH_NEXT_EARNINGS"
+#define TWS_SCANNER_WSH_NEXT_EVENT                          "WSH_NEXT_EVENT"
+#define TWS_SCANNER_WSH_NEXT_MAJOR_EVENT                    "WSH_NEXT_MAJOR_EVENT"
+#define TWS_SCANNER_WSH_PREV_ANALYST_MEETING                "WSH_PREV_ANALYST_MEETING"
+#define TWS_SCANNER_WSH_PREV_EARNINGS                       "WSH_PREV_EARNINGS"
+#define TWS_SCANNER_WSH_PREV_EVENT                          "WSH_PREV_EVENT"
+
+
+/* what the heck are these? */
+#define OPT_UNKNOWN           "?"
+#define OPT_BROKER_DEALER     "b"
+#define OPT_CUSTOMER          "c"
+#define OPT_FIRM              "f"
+#define OPT_ISEMM             "m"
+#define OPT_FARMM             "n"
+#define OPT_SPECIALIST        "y"
+
+#define GROUPS         1
+#define PROFILES       2
+#define ALIASES        3
+
+
+#define  MIN_SERVER_VER_REAL_TIME_BARS 34
+#define  MIN_SERVER_VER_SCALE_ORDERS  35
+#define  MIN_SERVER_VER_SNAPSHOT_MKT_DATA 35
+#define  MIN_SERVER_VER_SSHORT_COMBO_LEGS 35
+#define  MIN_SERVER_VER_WHAT_IF_ORDERS 36
+#define  MIN_SERVER_VER_CONTRACT_CONID 37
+#define  MIN_SERVER_VER_PTA_ORDERS 39
+#define  MIN_SERVER_VER_FUNDAMENTAL_DATA  40
+#define  MIN_SERVER_VER_UNDER_COMP  40
+#define  MIN_SERVER_VER_CONTRACT_DATA_CHAIN  40
+#define  MIN_SERVER_VER_SCALE_ORDERS2  40
+#define  MIN_SERVER_VER_ALGO_ORDERS 41
+#define  MIN_SERVER_VER_EXECUTION_DATA_CHAIN 42
+#define  MIN_SERVER_VER_NOT_HELD 44
+#define  MIN_SERVER_VER_SEC_ID_TYPE 45
+#define  MIN_SERVER_VER_PLACE_ORDER_CONID 46
+#define  MIN_SERVER_VER_REQ_MKT_DATA_CONID 47
+#define  MIN_SERVER_VER_REQ_CALC_IMPLIED_VOLAT 49
+#define  MIN_SERVER_VER_REQ_CALC_OPTION_PRICE 50
+#define  MIN_SERVER_VER_CANCEL_CALC_IMPLIED_VOLAT 50
+#define  MIN_SERVER_VER_CANCEL_CALC_OPTION_PRICE 50
+#define  MIN_SERVER_VER_SSHORTX_OLD 51
+#define  MIN_SERVER_VER_SSHORTX 52
+#define  MIN_SERVER_VER_REQ_GLOBAL_CANCEL 53
+#define  MIN_SERVER_VER_HEDGE_ORDERS 54
+#define  MIN_SERVER_VER_REQ_MARKET_DATA_TYPE 55
+#define  MIN_SERVER_VER_OPT_OUT_SMART_ROUTING 56
+#define  MIN_SERVER_VER_SMART_COMBO_ROUTING_PARAMS 57
+#define  MIN_SERVER_VER_DELTA_NEUTRAL_CONID 58
+#define  MIN_SERVER_VER_SCALE_ORDERS3 60
+#define  MIN_SERVER_VER_ORDER_COMBO_LEGS_PRICE 61
+#define  MIN_SERVER_VER_TRAILING_PERCENT 62
+
+
+
+#endif /* TWS_DEFINITIONS */
+
+#if TWS_DEFINITIONS > 2
+
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+typedef struct under_comp {
+    double u_price;
+    double u_delta;
+    int    u_conid;
+} under_comp_t;
+
+#if 0
+typedef struct contract_details_summary {
+    double s_strike;
+    char  *s_symbol;
+    char  *s_sectype;
+    char  *s_expiry;
+    char  *s_right;
+    char  *s_exchange;
+    char  *s_primary_exch;
+    char  *s_currency;
+    char  *s_local_symbol;
+    char  *s_multiplier;
+    int    s_conid;
+} contract_details_summary_t;
+#endif
+
+
+typedef struct tr_comboleg {
+    char *co_action;                                    /* BUY/SELL/SSHORT/SSHORTX */
+    char *co_exchange;
+    char *co_designated_location;                       /* set to "" if unused, as usual */
+    int   co_conid;
+    int   co_ratio;
+    tr_comboleg_type_t co_open_close;
+    int   co_short_sale_slot;                           /* 1 = clearing broker, 2 = third party */
+    int   co_exempt_code;                               /* set to -1 if you do not use it */
+} tr_comboleg_t;
+
+typedef struct tr_contract {
+    under_comp_t  *c_undercomp;                         /* delta neutral */
+    double         c_strike;                            /* strike price for options */
+    char *         c_symbol;                            /* underlying symbol */
+    char *         c_sectype;                           /* security type ("BAG" -> transmits combo legs, "" -> does not transmit combo legs, "BOND" -> strike/expiry/right/multiplier/local_symbol must be set) */
+    char *         c_exchange;
+    char *         c_primary_exch;                      /* for SMART orders, specify an actual exchange where the contract trades, e.g. ISLAND.  Pick a non-aggregate (ie not the SMART exchange) exchange that the contract trades on.  DO NOT SET TO SMART. */
+    char *         c_expiry;                            /* expiration for futures and options */
+    char *         c_currency;                          /* currency, e.g. USD */
+    char *         c_right;                             /* put or call (P or C) */
+    char *         c_local_symbol;                      /* local symbol for futures or options, e.g. ESZN for ES DEC09 contract  */
+    char *         c_multiplier;
+    char *         c_combolegs_descrip;                 /* received in open order version 14 and up for all combos */
+    char *         c_secid_type;                        /* CUSIP;SEDOL;ISIN;RIC */
+    char *         c_secid;
+    tr_comboleg_t *c_comboleg;                          /* COMBOS */
+    int            c_num_combolegs;
+    int            c_conid;                             /* contract id, returned from TWS */
+    unsigned       c_include_expired: 1;                /* for contract requests, specifies that even expired contracts should be returned.  Can not be set to true for orders. */
+} tr_contract_t;
+
+typedef struct tr_contract_details {
+    double                     d_mintick;
+    double                     d_coupon;                /* for bonds */
+    tr_contract_t              d_summary;
+    char *                     d_market_name;
+    char *                     d_trading_class;
+    char *                     d_order_types;
+    char *                     d_valid_exchanges;
+    char *                     d_cusip;                 /* for bonds */
+    char *                     d_maturity;              /* for bonds */
+    char *                     d_issue_date;            /* for bonds */
+    char *                     d_ratings;               /* for bonds */
+    char *                     d_bond_type;             /* for bonds */
+    char *                     d_coupon_type;           /* for bonds */
+    char *                     d_desc_append;           /* for bonds */
+    char *                     d_next_option_date;      /* for bonds */
+    char *                     d_next_option_type;      /* for bonds */
+    char *                     d_notes;                 /* for bonds */
+    char *                     d_long_name;
+    char *                     d_contract_month;
+    char *                     d_industry;
+    char *                     d_category;
+    char *                     d_subcategory;
+    char *                     d_timezone_id;
+    char *                     d_trading_hours;
+    char *                     d_liquid_hours;
+    int                        d_price_magnifier;
+    int                        d_under_conid;
+    unsigned                   d_convertible: 1;        /* for bonds */
+    unsigned                   d_callable: 1;           /* for bonds */
+    unsigned                   d_putable: 1;            /* for bonds */
+    unsigned                   d_next_option_partial:1; /* for bonds */
+} tr_contract_details_t;
+
+typedef struct tr_tag_value {
+    char *t_tag;
+    char *t_val;
+} tr_tag_value_t;
+
+typedef struct tr_order_combo_leg 
+{
+	double cl_price; /* price per leg */
+} tr_order_combo_leg_t;
+
+typedef struct tr_order {
+    double   o_discretionary_amt;                       /* SMART routing only: amount you are willing to pay above your specified limit price */
+    double   o_lmt_price;                               /* Basic Order Field: limit price  */
+    double   o_aux_price;                               /* Basic Order Field: stop price, trailing amount, or offset amount  */
+    double   o_percent_offset;                          /* Advanced order field: the offset amount for Relative (REL) orders, specified as a percent; specify either this OR the offset amount in m_auxPrice */
+    double   o_nbbo_price_cap;                          /* SMART routing only: see 'm_firmQuoteOnly' comment */
+    double   o_starting_price;                          /* For BOX option-pegged-to-stock orders only */
+    double   o_stock_ref_price;                         /* For BOX option-pegged-to-stock orders only */
+    double   o_delta;                                   /* For BOX option-pegged-to-stock orders only */
+    double   o_stock_range_lower;                       /* For Pegged-to-stock or Volatility orders only: if stock price moves below this price, order will be canceled */
+    double   o_stock_range_upper;                       /* For Pegged-to-stock or Volatility orders only: if stock price moves above this price, order will be canceled */
+    double   o_volatility;                              /* For Volatility orders only: volatility (percent) */
+    double   o_delta_neutral_aux_price;
+    double   o_trail_stop_price;                        /* Advanced order field: initial stop price for trailing stop (TRAIL) orders */
+    double   o_trailing_percent;
+    double   o_basis_points;
+    double   o_scale_price_increment;					/* For SCALE orders only */
+    double   o_scale_price_adjust_value;				/* For SCALE orders only */
+    double   o_scale_profit_offset;						/* For SCALE orders only */
+    char *   o_algo_strategy;
+    char *   o_good_after_time;                         /* Advanced order field: format: YYYYMMDD HH:MM:SS {time zone}  e.g. 20060505 08:00:00 EST */
+    char *   o_good_till_date;                          /* Advanced order field: format: YYYYMMDD HH:MM:SS {time zone}  e.g. 20060505 08:00:00 EST */
+    char *   o_fagroup;                                 /* For Financial advisors (FA) only: Advisor group, e.g. "All" */
+    char *   o_famethod;                                /* For Financial advisors (FA) only: Advisor method: PctChange, AvailableEquity, NetLiq, or EqualQuantity */
+    char *   o_fapercentage;                            /* For Financial advisors (FA) only: Advisor percentage, used when the method is set to PctChange */
+    char *   o_faprofile;                               /* For Financial advisors (FA) only: Advisor profile */
+    char *   o_action;                                  /* Basic Order Field: specify BUY or SELL; non-cleared customers can specify SSHORT */
+    char *   o_order_type;                              /* Basic Order Field: order type, e.g. LMT, MKT, STOP, TRAIL, REL */
+    char *   o_tif;                                     /* Advanced order field: Time in force, e.g. DAY, GTC */
+    char *   o_oca_group;                               /* Advanced order field: OCA group name (OCA = "one cancels all") */
+    char *   o_account;                                 /* Clearing info: IB account; can be left blank for users with only a single account   */
+    char *   o_open_close;                              /* For non-cleared (i.e. institutional) customers only: open/close flag: O=Open, C=Close */
+    char *   o_orderref;                                /* Advanced order field: order reference, enter any free-form text */
+    char *   o_designated_location;                     /* For non-cleared (i.e. institutional) customers only: specifies where the shares are held; set only when m_shortSaleSlot=2 */
+    char *   o_rule80a;                                 /* Advanced order field: Individual = 'I', Agency = 'A', AgentOtherMember = 'W', IndividualPTIA = 'J', AgencyPTIA = 'U', AgentOtherMemberPTIA = 'M', IndividualPT = 'K', AgencyPT = 'Y', AgentOtherMemberPT = 'N' */
+    char *   o_settling_firm;
+    char *   o_delta_neutral_order_type;
+    char *   o_clearing_account;                        /* Clearing info: True beneficiary of the order */
+    char *   o_clearing_intent;                         /* Clearing info: "" (Default), "IB", "Away", "PTA" (PostTrade) */
+	char *   o_hedge_type;								/* Hedge Orders: 'D' - delta, 'B' - beta, 'F' - FX, 'P' - pair */
+	char *   o_hedge_param;								/* Hedge Orders: 'beta=X' value for beta hedge, 'ratio=Y' for pair hedge */
+    char *   o_delta_neutral_settling_firm;				/* For Volatility orders only: */
+    char *   o_delta_neutral_clearing_account;			/* For Volatility orders only: */
+    char *   o_delta_neutral_clearing_intent;			/* For Volatility orders only: */
+
+    tr_tag_value_t *o_algo_params;                      /* 'm_algoParams': array of length o_algo_params_count, API user responsible for alloc/free */
+	tr_tag_value_t *o_smart_combo_routing_params;		/* Smart combo routing params: 'm_smartComboRoutingParams': array of length o_smart_combo_routing_params, API user responsible for alloc/free */
+
+	tr_order_combo_leg_t *o_combo_legs;
+
+    int      o_algo_params_count;                       /* how many tag values are in o_algo_params, 0 if unused */
+	int      o_smart_combo_routing_params_count;        /* how many tag values are in o_smart_combo_routing_params, 0 if unused */
+	int      o_combo_legs_count;                  /* how many tag values are in o_combo_legs, 0 if unused */
+
+    int      o_orderid;                                 /* Basic Order Field: order id generated by API client */
+    int      o_total_quantity;                          /* Basic Order Field: order size */
+    tr_origin_t o_origin;                               /* For non-cleared (i.e. institutional) customers only: origin: 0=Customer, 1=Firm */
+    int      o_clientid;                                /* Basic Order Field: client id of the API client that submitted the order */
+    int      o_permid;                                  /* Basic Order Field: TWS order ID (not specified by API) */
+    int      o_parentid;                                /* Advanced order field: order id of parent order, to associate attached stop, trailing stop, or bracket orders with parent order (Auto STP, TRAIL)  */
+    int      o_display_size;                            /* Advanced order field: the portion of the order that will be visible to the world */
+    int      o_trigger_method;                          /* Advanced order field: for stop orders:  0=Default, 1=Double_Bid_Ask, 2=Last, 3=Double_Last, 4=Bid_Ask, 7=Last_or_Bid_Ask, 8=Mid-point */
+    int      o_min_qty;                                 /* Advanced order field: no partial fills less than the size specified here */
+    int      o_volatility_type;                         /* For Volatility orders only: volatility type: 1=daily, 2=annual */
+    int      o_reference_price_type;                    /* For Volatility orders only: what to use as the current stock price: 1=bid/ask average, 2 = bid or ask */
+    int      o_basis_points_type;
+    int      o_scale_subs_level_size;					/* For SCALE orders only */
+    int      o_scale_init_level_size;					/* For SCALE orders only */
+    int      o_scale_price_adjust_interval;				/* For SCALE orders only */
+    int      o_scale_init_position;						/* For SCALE orders only */
+    int      o_scale_init_fill_qty;						/* For SCALE orders only */
+    int      o_exempt_code;                             /* set to -1 if you do not use it */
+    int      o_delta_neutral_con_id;					/* For Volatility orders only: */
+    tr_oca_type_t o_oca_type;                           /* Advanced order field: OCA group type  1 = CANCEL_WITH_BLOCK, 2 = REDUCE_WITH_BLOCK, 3 = REDUCE_NON_BLOCK */
+    tr_auction_strategy_t o_auction_strategy;           /* For BOX option-pegged-to-stock and Volatility orders only: 1=AUCTION_MATCH, 2=AUCTION_IMPROVEMENT, 3=AUCTION_TRANSPARENT */
+    unsigned o_short_sale_slot: 2;                      /* For non-cleared (i.e. institutional) customers only: specify only if m_action is "SSHORT": 1 if you hold the shares, 2 if they will be delivered from elsewhere */
+    unsigned o_override_percentage_constraints: 1;      /* Advanced order field: set true to override normal percentage constraint checks */
+    unsigned o_firm_quote_only: 1;                      /* SMART routing only: if true, specifies that order should be routed to exchanges showing a "firm" quote, but not if the exchange is off the NBBO by more than the 'm_nbboPriceCap' amount */
+    unsigned o_etrade_only: 1;
+    unsigned o_all_or_none: 1;                          /* Advanced order field: if set to true, there can be no partial fills for the order */
+    unsigned o_outside_rth: 1;                          /* Advanced order field: if true, order could fill or trigger anytime; if false, order will fill or trigger only during regular trading hours */
+    unsigned o_hidden: 1;                               /* Advanced order field: if true, order will be hidden, and will not be reflected in the market data or deep book */
+    unsigned o_transmit: 1;                             /* Advanced order field: if false, order will be created in TWS but not transmitted */
+    unsigned o_block_order: 1;                          /* Advanced order field: block order, for ISE option orders only */
+    unsigned o_sweep_to_fill: 1;                        /* Advanced order field: for SMART orders, specifies that orders should be split and sent to multiple exchanges at the same time */
+    unsigned o_continuous_update: 1;                    /* For Volatility orders only: if true, price will be continuously recalculated after order submission */
+    unsigned o_whatif: 1;                               /* if true, the order will not be submitted, but margin info will be returned */
+    unsigned o_not_held: 1;
+	unsigned o_opt_out_smart_routing: 1;				/* SMART routing only: */
+    unsigned o_scale_auto_reset: 1;						/* For SCALE orders only */
+    unsigned o_scale_random_percent: 1;					/* For SCALE orders only */
+} tr_order_t;
+
+/*
+OrderState
+*/
+typedef struct tr_order_status {
+    double ost_commission;
+    double ost_min_commission;
+    double ost_max_commission;
+    char  *ost_status;
+    char  *ost_init_margin;
+    char  *ost_maint_margin;
+    char  *ost_equity_with_loan;
+    char  *ost_commission_currency;
+    char  *ost_warning_text;
+} tr_order_status_t;
+
+typedef struct tr_execution {
+    double e_price;
+    double e_avg_price;
+    char  *e_execid;
+    char  *e_time;
+    char  *e_acct_number;
+    char  *e_exchange;
+    char  *e_side;
+	char  *e_orderref;
+    int    e_shares;
+    int    e_permid;
+    int    e_clientid;
+    int    e_liquidation;
+    int    e_orderid;
+    int    e_cum_qty;
+} tr_execution_t;
+
+typedef struct tr_exec_filter {
+    char *f_acctcode;
+    char *f_time;
+    char *f_symbol;
+    char *f_sectype;
+    char *f_exchange;
+    char *f_side;
+    int   f_clientid;
+} tr_exec_filter_t;
+
+
+typedef struct tr_scanner_subscription {
+    double scan_above_price;
+    double scan_below_price;
+    double scan_coupon_rate_above;
+    double scan_coupon_rate_below;
+    double scan_market_cap_above;
+    double scan_market_cap_below;
+    char  *scan_exclude_convertible;
+    char  *scan_instrument;
+    char  *scan_location_code;
+    char  *scan_maturity_date_above;
+    char  *scan_maturity_date_below;
+    char  *scan_moody_rating_above;
+    char  *scan_moody_rating_below;
+    char  *scan_code;
+    char  *scan_sp_rating_above;
+    char  *scan_sp_rating_below;
+    char  *scan_scanner_setting_pairs;
+    char  *scan_stock_type_filter;
+    int    scan_above_volume;
+    int    scan_number_of_rows;
+    int    scan_average_option_volume_above;
+} tr_scanner_subscription_t;
+
+typedef struct tr_commission_report
+{
+    char  *cr_exec_id;
+    char  *cr_currency;
+    double cr_commission;
+    double cr_realized_pnl;
+    double cr_yield;
+    int    cr_yield_redemption_date; /* YYYYMMDD format */
+} tr_commission_report_t;
+
+
+// internal use structure, treat as a reference/handle:
+struct tws_instance;
+typedef struct tws_instance tws_instance_t;
+
+
+typedef void (*tws_func_t)(void *arg);
+
+typedef void (*external_func_t)(int state, void *arg);
+/* "func" calls this one once at startup and again at termination,
+ * state == 0 indicates startup, state == 1 indicates termination, state == 2 indicates thread termination pending
+ */
+
+/*
+ * user must specify the send / recv and close callbacks to transmit, receive and close the network connection to TWS
+ */
+typedef int tws_transmit_func_t(void *arg, const void *buf, unsigned int buflen);
+typedef int tws_receive_func_t(void *arg, void *buf, unsigned int max_bufsize);
+/* 'flush()' marks the end of the outgoing message: it should be transmitted ASAP */
+typedef int tws_flush_func_t(void *arg);
+/* open callback is invoked when tws_connect is invoked and no connection has been established yet (tws_connected() == false); return 0 on success; a twsclient_error_codes error code on failure. */
+typedef int tws_open_func_t(void *arg);
+/* close callback is invoked on error or when tws_disconnect is invoked */
+typedef int tws_close_func_t(void *arg);
+
+
+typedef struct twsclient_errmsg {
     twsclient_error_code_t err_code;
     const char *err_msg;
-};
+} twsclient_errmsg_t;
+
+
+#ifdef __cplusplus
+}
+#endif
+
+
+
+
+#endif /* TWS_DEFINITIONS */
+
+#if TWS_DEFINITIONS > 3
+
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+/* creates new tws client instance and
+ * and records opaque user defined pointer to be supplied in all callbacks
+ */
+tws_instance_t *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_open_func_t *open, tws_close_func_t *close);
+/* tws_destroy() implicitly calls tws_disconnect() but for reasons of symmetry it is advised to explicitly invoke tws_disconnect() (<-> tws_connect()) before invoking tws_destroy() (<->tws_create()) */
+void   tws_destroy(tws_instance_t *tws_instance);
+int    tws_connected(tws_instance_t *tws_instance); /* true=1 or false=0 */
+int    tws_event_process(tws_instance_t *tws_instance); /* dispatches event to a callback.c func */
+
+/* init TWS structures to default values */
+void   tws_init_tr_comboleg(tws_instance_t *tws, tr_comboleg_t *comboleg_ref);
+void   tws_destroy_tr_comboleg(tws_instance_t *tws, tr_comboleg_t *comboleg_ref);
+
+void   tws_init_exec_filter(tws_instance_t *tws, tr_exec_filter_t *filter);
+void   tws_destroy_exec_filter(tws_instance_t *tws, tr_exec_filter_t *filter);
+
+void   tws_init_scanner_subscription(tws_instance_t *tws, tr_scanner_subscription_t *ss);
+void   tws_destroy_scanner_subscription(tws_instance_t *tws, tr_scanner_subscription_t *ss);
+
+void   tws_init_tag_value(tws_instance_t *tws, tr_tag_value_t *t);
+void   tws_destroy_tag_value(tws_instance_t *tws, tr_tag_value_t *t);
+
+void   tws_init_order_combo_leg(tws_instance_t *tws, tr_order_combo_leg_t *ocl);
+void   tws_destroy_order_combo_leg(tws_instance_t *tws, tr_order_combo_leg_t *ocl);
+
+void   tws_init_under_comp(tws_instance_t *tws, under_comp_t *u);
+void   tws_destroy_under_comp(tws_instance_t *tws, under_comp_t *u);
+
+void   tws_init_order(tws_instance_t *tws, tr_order_t *o);
+void   tws_destroy_order(tws_instance_t *tws, tr_order_t *o);
+
+void   tws_init_contract(tws_instance_t *ti, tr_contract_t *c);
+void   tws_destroy_contract(tws_instance_t *ti, tr_contract_t *c);
+
+
+/* 
+  helper: as all strings (char * pointers) in the tws structs are initialized to dedicated storage
+  when you invoke the appropriate tws_init_....() call, you'll need the safe tws_strcpy() to copy
+  any string content into those structs.
+
+  tws_strcpy() also accepts src == NULL, which is treated as a src=="" value.
+
+  The function always returns the 'tws_string_ref' pointer. 
+
+  Use tws_strcpy() to prevent structure member overruns when copying string data into initialized
+  tws structs.
+*/
+char *tws_strcpy(char *tws_string_ref, const char *src);
+
+/* transmit connect message and wait for response */
+int    tws_connect(tws_instance_t *tws, int client_id);
+void   tws_disconnect(tws_instance_t *tws);
+
+/* sends message REQ_SCANNER_PARAMETERS to IB/TWS */
+int    tws_req_scanner_parameters(tws_instance_t *tws);
+/* sends message REQ_SCANNER_SUBSCRIPTION to IB/TWS */
+int    tws_req_scanner_subscription(tws_instance_t *tws, int ticker_id, tr_scanner_subscription_t *subscription);
+/* sends message CANCEL_SCANNER_SUBSCRIPTION to IB/TWS */
+int    tws_cancel_scanner_subscription(tws_instance_t *tws, int ticker_id);
+/* sends message REQ_MKT_DATA to IB/TWS */
+int    tws_req_mkt_data(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, const char generic_tick_list[], int snapshot);
+/* sends message REQ_HISTORICAL_DATA to IB/TWS */
+int    tws_req_historical_data(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], const char bar_size_setting[], const char what_to_show[], int use_rth, int format_date);
+/* sends message CANCEL_HISTORICAL_DATA to IB/TWS */
+int    tws_cancel_historical_data(tws_instance_t *tws, int ticker_id);
+/* sends message CANCEL_MKT_DATA to IB/TWS */
+int    tws_cancel_mkt_data(tws_instance_t *tws, int ticker_id);
+/* sends message EXERCISE_OPTIONS to IB/TWS */
+int    tws_exercise_options(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int exc_override);
+/* sends message PLACE_ORDER to IB/TWS */
+int    tws_place_order(tws_instance_t *tws, int order_id, tr_contract_t *contract, tr_order_t *order);
+/* sends message CANCEL_ORDER to IB/TWS */
+int    tws_cancel_order(tws_instance_t *tws, int order_id);
+/* sends message REQ_OPEN_ORDERS to IB/TWS */
+int    tws_req_open_orders(tws_instance_t *tws);
+/* sends message REQ_ACCOUNT_DATA to IB/TWS */
+int    tws_req_account_updates(tws_instance_t *tws, int subscribe, const char acct_code[]);
+/* sends message REQ_EXECUTIONS to IB/TWS */
+int    tws_req_executions(tws_instance_t *tws, int reqid, tr_exec_filter_t *filter);
+/* sends message REQ_IDS to IB/TWS */
+int    tws_req_ids(tws_instance_t *tws, int num_ids);
+/* sends message REQ_CONTRACT_DATA to IB/TWS */
+int    tws_req_contract_details(tws_instance_t *tws, int reqid, tr_contract_t *contract);
+/* sends message REQ_MKT_DEPTH to IB/TWS */
+int    tws_req_mkt_depth(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, int num_rows);
+/* sends message CANCEL_MKT_DEPTH to IB/TWS */
+int    tws_cancel_mkt_depth(tws_instance_t *tws, int ticker_id);
+/* sends message REQ_NEWS_BULLETINS to IB/TWS */
+int    tws_req_news_bulletins(tws_instance_t *tws, int all_msgs);
+/* sends message CANCEL_NEWS_BULLETINS to IB/TWS */
+int    tws_cancel_news_bulletins(tws_instance_t *tws);
+/* sends message SET_SERVER_LOGLEVEL to IB/TWS */
+int    tws_set_server_log_level(tws_instance_t *tws, int level);
+/* sends message REQ_AUTO_OPEN_ORDERS to IB/TWS */
+int    tws_req_auto_open_orders(tws_instance_t *tws, int auto_bind);
+/* sends message REQ_ALL_OPEN_ORDERS to IB/TWS */
+int    tws_req_all_open_orders(tws_instance_t *tws);
+/* sends message REQ_MANAGED_ACCTS to IB/TWS */
+int    tws_req_managed_accts(tws_instance_t *tws);
+/* sends message REQ_FA to IB/TWS */
+int    tws_request_fa(tws_instance_t *tws, int fa_data_type);
+/* sends message REPLACE_FA to IB/TWS */
+int    tws_replace_fa(tws_instance_t *tws, int fa_data_type, const char cxml[]);
+/* sends message REQ_CURRENT_TIME to IB/TWS */
+int    tws_req_current_time(tws_instance_t *tws);
+/* sends message REQ_FUNDAMENTAL_DATA to IB/TWS */
+int    tws_req_fundamental_data(tws_instance_t *tws, int reqid, tr_contract_t *contract, const char report_type[]);
+/* sends message CANCEL_FUNDAMENTAL_DATA to IB/TWS */
+int    tws_cancel_fundamental_data(tws_instance_t *tws, int reqid);
+/* sends message REQ_CALC_IMPLIED_VOLAT to IB/TWS */
+int    tws_calculate_implied_volatility(tws_instance_t *tws, int reqid, tr_contract_t *contract, double option_price, double under_price);
+/* sends message CANCEL_CALC_IMPLIED_VOLAT to IB/TWS */
+int    tws_cancel_calculate_implied_volatility(tws_instance_t *tws, int reqid);
+/* sends message REQ_CALC_OPTION_PRICE to IB/TWS */
+int    tws_calculate_option_price(tws_instance_t *tws, int reqid, tr_contract_t *contract, double volatility, double under_price);
+/* sends message CANCEL_CALC_OPTION_PRICE to IB/TWS */
+int    tws_cancel_calculate_option_price(tws_instance_t *tws, int reqid);
+/* sends message REQ_GLOBAL_CANCEL to IB/TWS */
+int    tws_req_global_cancel(tws_instance_t *tws);
+/* sends message REQ_MARKET_DATA_TYPE to IB/TWS */
+int    tws_req_market_data_type(tws_instance_t *tws, market_data_type_t market_data_type);
+/* sends message REQ_REAL_TIME_BARS to IB/TWS */
+int    tws_request_realtime_bars(tws_instance_t *tws, int ticker_id, tr_contract_t *c, int bar_size, const char what_to_show[], int use_rth);
+/* sends message CANCEL_REAL_TIME_BARS to IB/TWS */
+int    tws_cancel_realtime_bars(tws_instance_t *tws, int ticker_id);
+
+/**** 2 auxilliary routines */
+int    tws_server_version(tws_instance_t *tws);
+const char *tws_connection_time(tws_instance_t *tws);
+
+/************************************ callbacks *************************************/
+/* API users must implement some or all of these C functions; the comment before each function describes which incoming message(s) fire the given event: */
+
+/* fired by: TICK_PRICE */
+void event_tick_price(void *opaque, int ticker_id, tr_tick_type_t field, double price, int can_auto_execute);
+/* fired by: TICK_PRICE (for modern versions, then immediately preceeded by an invocation of event_tick_price()), TICK_SIZE */
+void event_tick_size(void *opaque, int ticker_id, tr_tick_type_t field, int size);
+/* fired by: TICK_OPTION_COMPUTATION */
+void event_tick_option_computation(void *opaque, int ticker_id, tr_tick_type_t type, double implied_vol, double delta, double opt_price, double pv_dividend, double gamma, double vega, double theta, double und_price);
+/* fired by: TICK_GENERIC */
+void event_tick_generic(void *opaque, int ticker_id, tr_tick_type_t type, double value);
+/* fired by: TICK_STRING */
+void event_tick_string(void *opaque, int ticker_id, tr_tick_type_t type, const char value[]);
+/* fired by: TICK_EFP */
+void event_tick_efp(void *opaque, int ticker_id, tr_tick_type_t tick_type, double basis_points, const char formatted_basis_points[], double implied_futures_price, int hold_days, const char future_expiry[], double dividend_impact, double dividends_to_expiry);
+/* fired by: ORDER_STATUS */
+void event_order_status(void *opaque, int order_id, const char status[], int filled, int remaining, double avg_fill_price, int perm_id, int parent_id, double last_fill_price, int client_id, const char why_held[]);
+/* fired by: OPEN_ORDER */
+void event_open_order(void *opaque, int order_id, const tr_contract_t *contract, const tr_order_t *order, const tr_order_status_t *ost);
+/* fired by: OPEN_ORDER_END */
+void event_open_order_end(void *opaque);
+/* fired by: ACCT_VALUE */
+void event_update_account_value(void *opaque, const char key[], const char val[], const char currency[], const char account_name[]);
+/* fired by: PORTFOLIO_VALUE */
+void event_update_portfolio(void *opaque, const tr_contract_t *contract, int position, double mkt_price, double mkt_value, double average_cost, double unrealized_pnl, double realized_pnl, const char account_name[]);
+/* fired by: ACCT_UPDATE_TIME */
+void event_update_account_time(void *opaque, const char time_stamp[]);
+/* fired by: NEXT_VALID_ID */
+void event_next_valid_id(void *opaque, int order_id);
+/* fired by: CONTRACT_DATA */
+void event_contract_details(void *opaque, int req_id, const tr_contract_details_t *contract_details);
+/* fired by: CONTRACT_DATA_END */
+void event_contract_details_end(void *opaque, int reqid);
+/* fired by: BOND_CONTRACT_DATA */
+void event_bond_contract_details(void *opaque, int req_id, const tr_contract_details_t *contract_details);
+/* fired by: EXECUTION_DATA */
+void event_exec_details(void *opaque, int order_id, const tr_contract_t *contract, const tr_execution_t *execution);
+/* fired by: EXECUTION_DATA_END */
+void event_exec_details_end(void *opaque, int reqid);
+/* fired by: ERR_MSG */
+void event_error(void *opaque, int id, int error_code, const char error_string[]);
+/* fired by: MARKET_DEPTH */
+void event_update_mkt_depth(void *opaque, int ticker_id, int position, int operation, int side, double price, int size);
+/* fired by: MARKET_DEPTH_L2 */
+void event_update_mkt_depth_l2(void *opaque, int ticker_id, int position, char *market_maker, int operation, int side, double price, int size);
+/* fired by: NEWS_BULLETINS */
+void event_update_news_bulletin(void *opaque, int msgid, int msg_type, const char news_msg[], const char origin_exch[]);
+/* fired by: MANAGED_ACCTS */
+void event_managed_accounts(void *opaque, const char accounts_list[]);
+/* fired by: RECEIVE_FA */
+void event_receive_fa(void *opaque, int fa_data_type, const char cxml[]);
+/* fired by: HISTORICAL_DATA (possibly multiple times per incoming message) */
+void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, int bar_count, double wap, int has_gaps);
+/* fired by: HISTORICAL_DATA  (once, after one or more invocations of event_historical_data()) */
+void event_historical_data_end(void *opaque, int reqid, const char completion_from[], const char completion_to[]);
+/* fired by: SCANNER_PARAMETERS */
+void event_scanner_parameters(void *opaque, const char xml[]);
+/* fired by: SCANNER_DATA (possibly multiple times per incoming message) */
+void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_details_t *cd, const char distance[], const char benchmark[], const char projection[], const char legs_str[]);
+/* fired by: SCANNER_DATA (once, after one or more invocations of event_scanner_data()) */
+void event_scanner_data_end(void *opaque, int ticker_id, int num_elements);
+/* fired by: SCANNER_DATA (once, before any invocations of event_scanner_data()) */
+void event_scanner_data_start(void *opaque, int ticker_id, int num_elements);
+/* fired by: CURRENT_TIME */
+void event_current_time(void *opaque, long time);
+/* fired by: REAL_TIME_BARS */
+void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long volume, double wap, int count);
+/* fired by: FUNDAMENTAL_DATA */
+void event_fundamental_data(void *opaque, int reqid, const char data[]);
+/* fired by: DELTA_NEUTRAL_VALIDATION */
+void event_delta_neutral_validation(void *opaque, int reqid, under_comp_t *und);
+/* fired by: ACCT_DOWNLOAD_END */
+void event_acct_download_end(void *opaque, char acct_name[]);
+/* fired by: TICK_SNAPSHOT_END */
+void event_tick_snapshot_end(void *opaque, int reqid);
+/* fired by: MARKET_DATA_TYPE */
+void event_market_data_type(void *opaque, int reqid, market_data_type_t data_type);
+/* fired by: COMMISSION_REPORT */
+void event_commission_report(void *opaque, tr_commission_report_t *report);
+
+
 
 #ifdef TWSAPI_GLOBALS
-struct twsclient_errmsg twsclient_err_indication[] = {
+twsclient_errmsg_t twsclient_err_indication[] = {
     /* these correspond to enum twsclient_error_codes, save for code -1
      * usage: if(err_code >= 0) puts(twsclient_err_indication[err_code]);
      */
@@ -1747,7 +1802,7 @@ const char *tws_market_data_type_name[] = { "(unknown)", "Real Time", "Frozen" }
 static const unsigned int d_nan[2] = {~0U, ~(1U<<31)};
 const double *dNAN = (const double *)(const void *) d_nan;
 #else
-extern struct twsclient_errmsg twsclient_err_indication[];
+extern twsclient_errmsg_t twsclient_err_indication[];
 extern const char *tws_incoming_msg_names[];
 extern const char *tws_tick_type_names[];
 extern const char *fa_msg_name[];
@@ -1755,7 +1810,7 @@ extern const char *tws_market_data_type_name[];
 extern const double *dNAN;
 #endif /* TWSAPI_GLOBALS */
 
-const struct twsclient_errmsg *tws_strerror(int errcode);
+const twsclient_errmsg_t *tws_strerror(int errcode);
 
 
 #define fa_msg_type_name(x) (((x) >= GROUPS && (x) <= ALIASES) ? fa_msg_name[(x) - 1] : 0)
@@ -1763,9 +1818,12 @@ const struct twsclient_errmsg *tws_strerror(int errcode);
 #define market_data_type_name(x) (((x) >= MDT_UNKNOWN && (x) <= FROZEN) ? tws_market_data_type_name[x] : 0)
 
 
-
 #ifdef __cplusplus
 }
 #endif
+
+
+
+#endif /* TWS_DEFINITIONS */
 
 #endif /* TWSAPI_H_ */
