@@ -224,12 +224,12 @@ Accumulate/Distribute
 #define ORDER_TYPE_TRAILING_LIMIT_IF_TOUCHED							"TRAILLIT"
 #define ORDER_TYPE_TRAILING_MARKET_IF_TOUCHED							"TRAILMIT"
 #define ORDER_TYPE_TRAILING_STOP										"TRAIL"
-#define ORDER_TYPE_TRAILING_STOP_LIMIT									"TRAILLMT"
+#define ORDER_TYPE_TRAILING_STOP_LIMIT									"TRAILLMT" /* "TRAILLIMIT" */
 #define ORDER_TYPE_MARKET												"MKT"
 #define ORDER_TYPE_MARKET_IF_TOUCHED									"MIT"
 #define ORDER_TYPE_MARKET_ON_CLOSE										"MOC" /* "MKTCLS" */
 #define ORDER_TYPE_MARKET_ON_OPEN										"MOO"
-#define ORDER_TYPE_PEGGED_TO_MARKET										"PEG MKT" /* "PEGMKT" */
+#define ORDER_TYPE_PEGGED_TO_MARKET										"PEGMKT"
 #define ORDER_TYPE_RELATIVE												"REL"
 #define ORDER_TYPE_BOX_TOP												"BOX TOP"
 #define ORDER_TYPE_LIMIT_ON_CLOSE										"LOC" /* "LMTCLS" */
@@ -1743,7 +1743,7 @@ const char *tws_tick_type_names[] = {
 };
 
 const char *fa_msg_name[] = { "GROUPS", "PROFILES", "ALIASES" };
-const char *tws_market_data_type_name[] = { "Real Time", "Frozen" };
+const char *tws_market_data_type_name[] = { "(unknown)", "Real Time", "Frozen" };
 static const unsigned int d_nan[2] = {~0U, ~(1U<<31)};
 const double *dNAN = (const double *)(const void *) d_nan;
 #else
