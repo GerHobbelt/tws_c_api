@@ -109,15 +109,15 @@ Request for Quote									QUOTE
  
 Stop												STP
  
-Stop Limit											STP LMT
+Stop Limit											STPLMT
  
-Trailing Limit if Touched							TRAIL LIT
+Trailing Limit if Touched							TRAILLIT
  
-Trailing Market If Touched							TRAIL MIT
+Trailing Market If Touched							TRAILMIT
  
 Trailing Stop										TRAIL
  
-Trailing Stop Limit									TRAIL LIMIT
+Trailing Stop Limit									TRAILLMT
  
 ==================================================+================== 
 Speed of Execution
@@ -207,7 +207,7 @@ Minimize Impact
  
 Percent of volume
  
-Scale
+Scale                                               SCALE   
  
 TWAP
  
@@ -220,11 +220,11 @@ Accumulate/Distribute
 #define ORDER_TYPE_MARKET_WITH_PROTECTION								"MKT PRT"
 #define ORDER_TYPE_REQUEST_FOR_QUOTE									"QUOTE"
 #define ORDER_TYPE_STOP													"STP"
-#define ORDER_TYPE_STOP_LIMIT											"STP LMT" /* "STPLMT" */
-#define ORDER_TYPE_TRAILING_LIMIT_IF_TOUCHED							"TRAIL LIT"
-#define ORDER_TYPE_TRAILING_MARKET_IF_TOUCHED							"TRAIL MIT"
+#define ORDER_TYPE_STOP_LIMIT											"STPLMT"
+#define ORDER_TYPE_TRAILING_LIMIT_IF_TOUCHED							"TRAILLIT"
+#define ORDER_TYPE_TRAILING_MARKET_IF_TOUCHED							"TRAILMIT"
 #define ORDER_TYPE_TRAILING_STOP										"TRAIL"
-#define ORDER_TYPE_TRAILING_STOP_LIMIT									"TRAIL LIMIT"
+#define ORDER_TYPE_TRAILING_STOP_LIMIT									"TRAILLMT"
 #define ORDER_TYPE_MARKET												"MKT"
 #define ORDER_TYPE_MARKET_IF_TOUCHED									"MIT"
 #define ORDER_TYPE_MARKET_ON_CLOSE										"MOC" /* "MKTCLS" */
@@ -243,7 +243,30 @@ Accumulate/Distribute
 #define ORDER_TYPE_IMMEDIATE_OR_CANCEL									"IOC"
 #define ORDER_TYPE_ONE_CANCELS_ALL										"OCA"
 #define ORDER_TYPE_VOLATILITY											"VOL"
- 
+
+#define ORDER_TYPE_LIMIT												"LMT"
+
+#define ORDER_TYPE_ACTIVETIM											"ACTIVETIM"
+#define ORDER_TYPE_ADJUST												"ADJUST"
+#define ORDER_TYPE_ALERT												"ALERT"
+#define ORDER_TYPE_ALLOC												"ALLOC"
+#define ORDER_TYPE_AVGCOST												"AVGCOST"
+#define ORDER_TYPE_BASKET												"BASKET"
+#define ORDER_TYPE_COND													"COND"
+#define ORDER_TYPE_CONDORDER											"CONDORDER"
+#define ORDER_TYPE_CONSCOST												"CONSCOST"
+#define ORDER_TYPE_DAY													"DAY"
+#define ORDER_TYPE_DEACT												"DEACT"
+#define ORDER_TYPE_DEACTDIS												"DEACTDIS"
+#define ORDER_TYPE_DEACTEOD												"DEACTEOD"
+#define ORDER_TYPE_GTT													"GTT"
+#define ORDER_TYPE_HID													"HID"
+#define ORDER_TYPE_LTH													"LTH"
+#define ORDER_TYPE_NONALGO												"NONALGO"
+#define ORDER_TYPE_SCALE												"SCALE"
+#define ORDER_TYPE_SCALERST												"SCALERST"
+#define ORDER_TYPE_WHATIF												"WHATIF"
+
 
 
 typedef struct tr_comboleg {
@@ -1149,7 +1172,7 @@ typedef enum twsclient_error_codes {
 	FAIL_HISTORICAL_MARKET_DATA_SERVICE = 162,
 	FAIL_VIOLATE_PERCENTAGE_IN_ORDER_SETTINGS = 163,
 	FAIL_NO_MARKET_DATA_TO_CHECK_VIOLATIONS = 164,
-	FAIL_HISTORICAL_MARKET_DATA_SERVICE_QUERY = 165,
+	INFO_HISTORICAL_MARKET_DATA_SERVICE_QUERY = 165,
 	FAIL_HMDS_EXPIRED_CONTRACT_VIOLATION = 166,
 	FAIL_VWAP_ORDER_NOT_IN_FUTURE = 167,
 	FAIL_DISCRETIONARY_AMOUNT_MISMATCH = 168,
@@ -1456,7 +1479,7 @@ struct twsclient_errmsg twsclient_err_indication[] = {
 	{ FAIL_HISTORICAL_MARKET_DATA_SERVICE /* 162 */, "Historical market data Service error message." },
 	{ FAIL_VIOLATE_PERCENTAGE_IN_ORDER_SETTINGS /* 163 */, "The price specified would violate the percentage constraint specified in the default order settings." },
 	{ FAIL_NO_MARKET_DATA_TO_CHECK_VIOLATIONS /* 164 */, "There is no market data to check price percent violations." },
-	{ FAIL_HISTORICAL_MARKET_DATA_SERVICE_QUERY /* 165 */, "Historical market Data Service query message." },
+	{ INFO_HISTORICAL_MARKET_DATA_SERVICE_QUERY /* 165 */, "Historical market Data Service query message." },
 	{ FAIL_HMDS_EXPIRED_CONTRACT_VIOLATION /* 166 */, "HMDS Expired Contract Violation." },
 	{ FAIL_VWAP_ORDER_NOT_IN_FUTURE /* 167 */, "VWAP order time must be in the future." },
 	{ FAIL_DISCRETIONARY_AMOUNT_MISMATCH /* 168 */, "Discretionary amount does not conform to the minimum price variation for this contract." },

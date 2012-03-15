@@ -126,8 +126,6 @@ void event_exec_details(void *opaque, int order_id, const tr_contract_t *contrac
 
 void event_error(void *opaque, int ticker_id, int error_code, const char error_string[])
 {
-    struct my_tws_io_info *info = (struct my_tws_io_info *)opaque;
-
     printf("error: opaque=%p, id=%d, error_code=%d, msg=%s\n", opaque, ticker_id, error_code, error_string);
 }
 

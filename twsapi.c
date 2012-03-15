@@ -441,6 +441,9 @@ void tws_init_scanner_subscription(tws_instance_t *ti, tr_scanner_subscription_t
 {
     memset(ss, 0, sizeof(*ss));
 
+	// set sensible values instead of the ones set by the original IB/TWS code:
+	// http://www.traderslaboratory.com/forums/automated-trading/7870-interactive-brokers-api-market-scanners.html
+
     ss->scan_above_price = 0; // DBL_MAX;
     ss->scan_below_price = DBL_MAX;
     ss->scan_coupon_rate_above = 0; // DBL_MAX;
