@@ -61,6 +61,11 @@
 */
 
 
+#ifdef __cplusplus
+namespace tws {
+#endif
+
+
 typedef enum {
 	MDT_UNKNOWN = 0,
     REALTIME	= 1,
@@ -536,6 +541,11 @@ typedef enum twsclient_error_codes {
 } twsclient_error_code_t;
 
 
+#ifdef __cplusplus
+}
+#endif
+
+
 
 #endif /* TWS_DEFINITIONS */
 
@@ -873,6 +883,7 @@ scanner scan codes:
 
 
 
+
 #endif /* TWS_DEFINITIONS */
 
 #if TWS_DEFINITIONS > 2
@@ -880,7 +891,8 @@ scanner scan codes:
 
 
 #ifdef __cplusplus
-extern "C" {
+namespace tws {
+	extern "C" {
 #endif
 
 
@@ -1186,6 +1198,7 @@ typedef struct twsclient_errmsg {
 
 
 #ifdef __cplusplus
+	}
 }
 #endif
 
@@ -1199,7 +1212,8 @@ typedef struct twsclient_errmsg {
 
 
 #ifdef __cplusplus
-extern "C" {
+namespace tws {
+	extern "C" {
 #endif
 
 
@@ -1819,6 +1833,7 @@ const twsclient_errmsg_t *tws_strerror(int errcode);
 
 
 #ifdef __cplusplus
+	}
 }
 #endif
 
