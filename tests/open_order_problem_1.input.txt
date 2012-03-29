@@ -1,0 +1,42 @@
+#
+# The tws_decode_msg_util dump tool attempts to be 'smart': it can handle input formats where
+# new lines starting with a # are considered 'comment'; it can cope with the RAW TWS message format
+# which is field-based, NUL-terminated per field, and 'human readable' dump formats like the one below
+# (which is ripped from a message posted on the TWSAPI yahoo mailing list).
+#
+# Run as:
+#    tws_decode_msg_util -i tests/open_order_problem_1.input.txt
+#
+# --- yahoo TWSAPI message: ---
+#
+# I am looking for docs abt how to decode the message received from IB.
+# For example, when i enter a trade and check open orders using reqOpenOrders method, the message content i got back:
+#
+# The trade is to buy USD/JPY with amt of 25000 at 70, limit order, GTC.
+# However, i dont see any 70 value here.
+#
+# The [3] should be order id, [12] symbol, [24] account number 
+#
+
+[1] "5" "22" "237" "15016059" 
+[5] "USD" "CASH" "" "0" 
+[9] "?" "IDEALPRO" "JPY" "USD.JPY" 
+[13] "BUY" "25000" "LMT" "82.8" 
+[17] "0.0" "GTC" "" "DU15143" 
+[21] "O" "0" "" "1" 
+[25] "121390623" "0" "0" "0" 
+[29] "" "121390623.0/DU15143/100" "" "" 
+[33] "" "" "" "" 
+[37] "" "" "0" "" 
+[41] "0" "" "" "" 
+[45] "" "" "" "0" 
+[49] "0" "0" "" "3" 
+[53] "0" "0" "" "0" 
+[57] "0" "" "0" "None" 
+[61] "" "0" "0" "" 
+[65] "" "" "" "" 
+[69] "" "" "" "IB" 
+[73] "0" "0" "" "0" 
+[77] "Filled" "1.7976931348623157E308" "1.7976931348623157E308" "1.7976931348623157E308" 
+[81] "2.5" "" "" "USD" 
+[85] "" 
