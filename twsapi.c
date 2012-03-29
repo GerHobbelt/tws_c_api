@@ -3716,3 +3716,42 @@ const struct twsclient_errmsg *tws_strerror(int errcode)
     return &unknown_err;
 }
 
+#define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+
+const char *fa_msg_type_name(tr_fa_msg_type_t x)
+{
+	int idx = (int)x;
+	
+	if (idx >= 0 && idx < ARRAY_SIZE(fa_msg_name))
+	{
+		return fa_msg_name[idx];
+	}
+	return "(unknown)";
+}
+
+const char *tick_type_name(tr_tick_type_t x)
+{
+	int idx = (int)x;
+
+	if (idx >= 0 && idx < ARRAY_SIZE(tws_tick_type_names))
+	{
+		return tws_tick_type_names[idx];
+	}
+	return "(unknown)";
+}
+
+const char *market_data_type_name(market_data_type_t x)
+{
+	int idx = (int)x;
+	
+	if (idx >= 0 && idx < ARRAY_SIZE(tws_market_data_type_name))
+	{
+		return tws_market_data_type_name[idx];
+	}
+	return "(unknown)";
+}
+
+double get_NAN(void)
+{
+	return *dNAN;
+}
