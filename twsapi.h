@@ -1814,25 +1814,21 @@ const char *tws_tick_type_names[] = {
     "RTHistoricalVolatility"
 };
 
-const char *fa_msg_name[] = { "GROUPS", "PROFILES", "ALIASES" };
+const char *fa_msg_name[] = { "(unknown)", "GROUPS", "PROFILES", "ALIASES" };
 const char *tws_market_data_type_name[] = { "(unknown)", "Real Time", "Frozen" };
 static const unsigned int d_nan[2] = {~0U, ~(1U<<31)};
 const double *dNAN = (const double *)(const void *) d_nan;
 #else
-extern twsclient_errmsg_t twsclient_err_indication[];
-extern const char *tws_incoming_msg_names[];
-extern const char *tws_tick_type_names[];
-extern const char *fa_msg_name[];
-extern const char *tws_market_data_type_name[];
-extern const double *dNAN;
+/* do NOT export the global string arrays, use the getter functions instead */
 #endif /* TWSAPI_GLOBALS */
 
 const twsclient_errmsg_t *tws_strerror(int errcode);
 
+double get_NAN(void);
 
-#define fa_msg_type_name(x) (((x) >= GROUPS && (x) <= ALIASES) ? fa_msg_name[(x) - 1] : 0)
-#define tick_type_name(x) (((x) >= BID_SIZE && (x) < sizeof(tws_tick_type_names) / sizeof(tws_tick_type_names[0])) ? tws_tick_type_names[x] : 0)
-#define market_data_type_name(x) (((x) >= MDT_UNKNOWN && (x) <= FROZEN) ? tws_market_data_type_name[x] : 0)
+const char *fa_msg_type_name(tr_fa_msg_type_t x);
+const char *tick_type_name(tr_tick_type_t x);
+const char *market_data_type_name(market_data_type_t x);
 
 
 #ifdef __cplusplus
