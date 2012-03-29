@@ -1756,6 +1756,8 @@ int tws_event_process(tws_instance_t *ti)
     read_int(ti, &ival);
     msgcode = (tws_incoming_id_t)ival;
 
+    TWS_DEBUG_PRINTF((ti->opaque, "\nreceived id=%d, name=%s\n", (int)msgcode, tws_incoming_msg_name(msgcode)));
+
     switch(msgcode)
     {
     case TICK_PRICE: receive_tick_price(ti); break;
@@ -1796,7 +1798,6 @@ int tws_event_process(tws_instance_t *ti)
     default: valid = 0; break;
     }
 
-    TWS_DEBUG_PRINTF((ti->opaque, "\nreceived id=%d, name=%s\n", (int)msgcode, valid ? tws_incoming_msg_names[msgcode - 1] : "invalid id"));
     return valid ? 0 : -1;
 }
 
@@ -3717,6 +3718,17 @@ const struct twsclient_errmsg *tws_strerror(int errcode)
 }
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+
+const char *tws_incoming_msg_name(tws_incoming_id_t x)
+{
+	int idx = (int)x;
+	
+	if (idx >= 0 && idx < ARRAY_SIZE(tws_incoming_msg_names))
+	{
+		return tws_incoming_msg_names[idx];
+	}
+	return "(unknown)";
+}
 
 const char *fa_msg_type_name(tr_fa_msg_type_t x)
 {

@@ -1734,6 +1734,7 @@ twsclient_errmsg_t twsclient_err_indication[] = {
 };
 
 const char *tws_incoming_msg_names[] = {
+	"(unknown)",
     "tick_price", "tick_size", "order_status", "err_msg", "open_order",
     "acct_value", "portfolio_value", "acct_update_time", "next_valid_id",
     "contract_data", "execution_data", "market_depth", "market_depth_l2",
@@ -1829,6 +1830,7 @@ double get_NAN(void);
 /*
 getter functions: produce the descriptive name for the given enum type/value 
 */
+const char *tws_incoming_msg_name(tws_incoming_id_t x);
 const char *fa_msg_type_name(tr_fa_msg_type_t x);
 const char *tick_type_name(tr_tick_type_t x);
 const char *market_data_type_name(market_data_type_t x);
