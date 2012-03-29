@@ -174,7 +174,7 @@ typedef enum tr_tick_type {
 
 
 /* outgoing message IDs */
-enum tws_outgoing_ids {
+typedef enum tws_outgoing_ids {
     REQ_MKT_DATA = 1,
     CANCEL_MKT_DATA = 2,
     PLACE_ORDER = 3,
@@ -211,10 +211,10 @@ enum tws_outgoing_ids {
     CANCEL_CALC_OPTION_PRICE = 57,
     REQ_GLOBAL_CANCEL = 58,
 	REQ_MARKET_DATA_TYPE = 59,
-};
+} tws_outgoing_id_t;
 
 
-enum tws_incoming_ids {
+typedef enum tws_incoming_ids {
     TICK_PRICE = 1,
     TICK_SIZE = 2,
     ORDER_STATUS = 3,
@@ -250,7 +250,7 @@ enum tws_incoming_ids {
     TICK_SNAPSHOT_END = 57,
 	MARKET_DATA_TYPE = 58,
 	COMMISSION_REPORT = 59,
-};
+} tws_incoming_id_t;
 
 
 /* ERROR codes */

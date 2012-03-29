@@ -1751,10 +1751,10 @@ int tws_event_process(tws_instance_t *ti)
 {
     int ival;
     int valid = 1;
-    enum tws_incoming_ids msgcode;
+    tws_incoming_id_t msgcode;
 
     read_int(ti, &ival);
-    msgcode = (enum tws_incoming_ids)ival;
+    msgcode = (tws_incoming_id_t)ival;
 
     switch(msgcode)
     {
