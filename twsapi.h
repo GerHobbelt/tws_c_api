@@ -65,6 +65,12 @@
 namespace tws {
 #endif
 
+typedef enum {
+	FAMT_UNKNOWN  = 0,
+	GROUPS        = 1,
+	PROFILES      = 2,
+	ALIASES       = 3,
+} tr_fa_msg_type_t;
 
 typedef enum {
 	MDT_UNKNOWN = 0,
@@ -843,9 +849,6 @@ scanner scan codes:
 #define OPT_FARMM             "n"
 #define OPT_SPECIALIST        "y"
 
-#define GROUPS         1
-#define PROFILES       2
-#define ALIASES        3
 
 
 #define  MIN_SERVER_VER_REAL_TIME_BARS 34
@@ -1397,7 +1400,7 @@ void event_update_news_bulletin(void *opaque, int msgid, int msg_type, const cha
 /* fired by: MANAGED_ACCTS */
 void event_managed_accounts(void *opaque, const char accounts_list[]);
 /* fired by: RECEIVE_FA */
-void event_receive_fa(void *opaque, int fa_data_type, const char cxml[]);
+void event_receive_fa(void *opaque, tr_fa_msg_type_t fa_data_type, const char cxml[]);
 /* fired by: HISTORICAL_DATA (possibly multiple times per incoming message) */
 void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, int bar_count, double wap, int has_gaps);
 /* fired by: HISTORICAL_DATA  (once, after one or more invocations of event_historical_data()) */

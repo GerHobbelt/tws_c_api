@@ -1437,10 +1437,11 @@ static void receive_fa(tws_instance_t *ti)
 {
     char *str;
     char *xml;
-    int ival, fadata_type;
+    int ival;
+	tr_fa_msg_type_t fadata_type;
 
     read_int(ti, &ival); /*version*/
-    read_int(ti, &ival), fadata_type = ival;
+    read_int(ti, &ival), fadata_type = (tr_fa_msg_type_t)ival;
 
     xml = str = alloc_string(ti);
     read_line_of_arbitrary_length(ti, &xml, sizeof(tws_string_t)); /* xml */
