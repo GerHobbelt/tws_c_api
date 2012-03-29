@@ -21,7 +21,7 @@ void tws_debug_printf(void *opaque, const char *fmt, ...)
 /*
 sample/default implementation of the TWSAPI event callbacks.c print call.
 */
-void tws_cb_printf(void *opaque, const char *fmt, ...)
+void tws_cb_printf(void *opaque, int indent_level, const char *fmt, ...)
 {
 	va_list ap;
 

@@ -254,7 +254,7 @@ int tws_close_func(void *arg)
 #include "callbacks.c"
 
 
-void tws_cb_printf(void *opaque, const char *msg, ...)
+void tws_cb_printf(void *opaque, int indent_level, const char *msg, ...)
 {
 	va_list args;
 	tws_client_custom_data_t *cd = (tws_client_custom_data_t *)opaque;

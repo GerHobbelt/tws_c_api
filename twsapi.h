@@ -1402,7 +1402,7 @@ void event_managed_accounts(void *opaque, const char accounts_list[]);
 /* fired by: RECEIVE_FA */
 void event_receive_fa(void *opaque, tr_fa_msg_type_t fa_data_type, const char cxml[]);
 /* fired by: HISTORICAL_DATA (possibly multiple times per incoming message) */
-void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, int volume, int bar_count, double wap, int has_gaps);
+void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, long int volume, int bar_count, double wap, int has_gaps);
 /* fired by: HISTORICAL_DATA  (once, after one or more invocations of event_historical_data()) */
 void event_historical_data_end(void *opaque, int reqid, const char completion_from[], const char completion_to[]);
 /* fired by: SCANNER_PARAMETERS */
@@ -1416,7 +1416,7 @@ void event_scanner_data_start(void *opaque, int ticker_id, int num_elements);
 /* fired by: CURRENT_TIME */
 void event_current_time(void *opaque, long time);
 /* fired by: REAL_TIME_BARS */
-void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long volume, double wap, int count);
+void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long int volume, double wap, int count);
 /* fired by: FUNDAMENTAL_DATA */
 void event_fundamental_data(void *opaque, int reqid, const char data[]);
 /* fired by: DELTA_NEUTRAL_VALIDATION */
@@ -1834,7 +1834,10 @@ const char *tws_incoming_msg_name(tws_incoming_id_t x);
 const char *fa_msg_type_name(tr_fa_msg_type_t x);
 const char *tick_type_name(tr_tick_type_t x);
 const char *market_data_type_name(market_data_type_t x);
-
+const char *tr_comboleg_type_name(tr_comboleg_type_t x);
+const char *tr_origin_name(tr_origin_t x);
+const char *tr_oca_type_name(tr_oca_type_t x);
+const char *tr_auction_strategy_name(tr_auction_strategy_t x);
 
 #ifdef __cplusplus
 	}

@@ -1460,7 +1460,8 @@ static void receive_historical_data(tws_instance_t *ti)
     double open, high, low, close, wap;
     int j;
     size_t lval;
-    int ival, version, reqid, item_count, volume, gaps, bar_count;
+    int ival, version, reqid, item_count, gaps, bar_count;
+	long int volume;
     char *date = alloc_string(ti), *has_gaps = alloc_string(ti), *completion_from = alloc_string(ti), *completion_to = alloc_string(ti);
 
     read_int(ti, &ival), version = ival;
@@ -1478,7 +1479,7 @@ static void receive_historical_data(tws_instance_t *ti)
         read_double(ti, &high);
         read_double(ti, &low);
         read_double(ti, &close);
-        read_int(ti, &ival), volume = ival;
+        read_long(ti, &volume);
         read_double(ti, &wap);
         lval = sizeof(tws_string_t); read_line(ti, has_gaps, &lval);
         gaps = !!strncasecmp(has_gaps, "false", 5);
@@ -1598,20 +1599,20 @@ static void receive_current_time(tws_instance_t *ti)
 
 static void receive_realtime_bars(tws_instance_t *ti)
 {
-    long lval, time, volume;
+    long time, volume;
     double open, high, low, close, wap;
     int ival, reqid, count;
 
     read_int(ti, &ival); /* version unused */
-    read_int(ti, &ival), reqid=ival;
-    read_long(ti, &lval), time=lval;
+    read_int(ti, &reqid);
+    read_long(ti, &time);
     read_double(ti, &open);
     read_double(ti, &high);
     read_double(ti, &low);
     read_double(ti, &close);
-    read_long(ti, &lval), volume=lval;
+    read_long(ti, &volume);
     read_double(ti, &wap);
-    read_int(ti, &ival), count = ival;
+    read_int(ti, &count);
 
     if(ti->connected)
         event_realtime_bar(ti->opaque, reqid, time, open, high, low, close, volume, wap, count);
@@ -2145,13 +2146,13 @@ static int read_int_max(tws_instance_t *ti, int *val)
 }
 
 /* return -1 on error, 0 if successful */
-static int read_long(tws_instance_t *ti, long *val)
+static int read_long(tws_instance_t *ti, long int *val)
 {
     char line[3 * sizeof *val];
     size_t len = sizeof line;
     int err = read_line(ti, line, &len);
 
-    /* return an impossibly large negative number on error to fail careless callers*/
+    /* return an impossibly large negative number on error to fail careless callers */
     *val = err < 0 ? ~(1 << 30) : atol(line);
     return err;
 }
@@ -3762,6 +3763,63 @@ const char *market_data_type_name(market_data_type_t x)
 	}
 	return "(unknown)";
 }
+
+const char *tr_comboleg_type_name(tr_comboleg_type_t x)
+{
+	int idx = (int)x;
+	static const char *names[] = {
+		"SAME", "OPEN", "CLOSE", "(unknown)"
+	};
+	
+	if (idx >= 0 && idx < ARRAY_SIZE(names))
+	{
+		return names[idx];
+	}
+	return "(unknown)";
+}
+
+const char *tr_origin_name(tr_origin_t x)
+{
+	int idx = (int)x;
+	static const char *names[] = {
+		"CUSTOMER", "FIRM"
+	};
+
+	if (idx >= 0 && idx < ARRAY_SIZE(names))
+	{
+		return names[idx];
+	}
+	return "(unknown)";
+}
+
+const char *tr_oca_type_name(tr_oca_type_t x)
+{
+	int idx = (int)x;
+	static const char *names[] = {
+		"UNDEFINED", "CANCEL_WITH_BLOCK", "REDUCE_WITH_BLOCK", "REDUCE_NON_BLOCK"
+	};
+	
+	if (idx >= 0 && idx < ARRAY_SIZE(names))
+	{
+		return names[idx];
+	}
+	return "(unknown)";
+}
+
+const char *tr_auction_strategy_name(tr_auction_strategy_t x)
+{
+	int idx = (int)x;
+	static const char *names[] = {
+		"UNDEFINED", "MATCH", "IMPROVEMENT", "TRANSPARENT"
+	};
+	
+	if (idx >= 0 && idx < ARRAY_SIZE(names))
+	{
+		return names[idx];
+	}
+	return "(unknown)";
+}
+
 
 double get_NAN(void)
 {
