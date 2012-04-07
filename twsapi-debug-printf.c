@@ -17,15 +17,3 @@ void tws_debug_printf(void *opaque, const char *fmt, ...)
 	vprintf(fmt, ap);
 	va_end(ap);
 }
-
-/*
-sample/default implementation of the TWSAPI event callbacks.c print call.
-*/
-void tws_cb_printf(void *opaque, int indent_level, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	vprintf(fmt, ap);
-	va_end(ap);
-}
