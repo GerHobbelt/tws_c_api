@@ -1228,6 +1228,30 @@ static void receive_contract_data(tws_instance_t *ti)
         lval = sizeof(tws_string_t), read_line(ti, cdetails.d_liquid_hours, &lval);
     }
 
+	if(version >= 8) {
+		lval = sizeof(tws_string_t), read_line(ti, cdetails.d_ev_rule, &lval);
+		read_double(ti, &cdetails.d_ev_multiplier);
+	}
+
+	if(version >= 7) {
+		read_int(ti, &cdetails.d_sec_id_list_count);
+		if (cdetails.d_sec_id_list_count > 0) {
+			cdetails.d_sec_id_list = (tr_tag_value_t *)calloc(cdetails.d_sec_id_list_count, sizeof(*cdetails.d_sec_id_list));
+			if(cdetails.d_sec_id_list) {
+				int j;
+				for (j = 0; j < cdetails.d_sec_id_list_count; j++) {
+					cdetails.d_sec_id_list[j].t_tag = alloc_string(ti);
+					cdetails.d_sec_id_list[j].t_val = alloc_string(ti);
+					lval = sizeof(tws_string_t); read_line(ti, cdetails.d_sec_id_list[j].t_tag, &lval);
+					lval = sizeof(tws_string_t); read_line(ti, cdetails.d_sec_id_list[j].t_val, &lval);
+				}
+			} else {
+				TWS_DEBUG_PRINTF((ti->opaque, "receive_contract_data: memory allocation failure\n"));
+				tws_disconnect(ti);
+			}
+		}
+	}
+
     if(ti->connected)
         event_contract_details(ti->opaque, req_id, &cdetails);
 
@@ -1279,6 +1303,30 @@ static void receive_bond_contract_data(tws_instance_t *ti)
     if(version >= 4)
         lval = sizeof(tws_string_t), read_line(ti, cdetails.d_long_name, &lval);
 
+	if(version >= 6) {
+		lval = sizeof(tws_string_t), read_line(ti, cdetails.d_ev_rule, &lval);
+		read_double(ti, &cdetails.d_ev_multiplier);
+	}
+
+	if(version >= 5) {
+		read_int(ti, &cdetails.d_sec_id_list_count);
+		if (cdetails.d_sec_id_list_count > 0) {
+			cdetails.d_sec_id_list = (tr_tag_value_t *)calloc(cdetails.d_sec_id_list_count, sizeof(*cdetails.d_sec_id_list));
+			if(cdetails.d_sec_id_list) {
+				int j;
+				for (j = 0; j < cdetails.d_sec_id_list_count; j++) {
+					cdetails.d_sec_id_list[j].t_tag = alloc_string(ti);
+					cdetails.d_sec_id_list[j].t_val = alloc_string(ti);
+					lval = sizeof(tws_string_t); read_line(ti, cdetails.d_sec_id_list[j].t_tag, &lval);
+					lval = sizeof(tws_string_t); read_line(ti, cdetails.d_sec_id_list[j].t_val, &lval);
+				}
+			} else {
+				TWS_DEBUG_PRINTF((ti->opaque, "receive_bond_contract_data: memory allocation failure\n"));
+				tws_disconnect(ti);
+			}
+		}
+	}
+
     if(ti->connected)
         event_bond_contract_details(ti->opaque, req_id, &cdetails);
 
@@ -1310,6 +1358,9 @@ static void receive_execution_data(tws_instance_t *ti)
     lval = sizeof(tws_string_t), read_line(ti, contract.c_expiry, &lval);
     read_double(ti, &contract.c_strike);
     lval = sizeof(tws_string_t), read_line(ti, contract.c_right, &lval);
+	if(version >= 9) {
+	    lval = sizeof(tws_string_t), read_line(ti, contract.c_multiplier, &lval);
+	}
     lval = sizeof(tws_string_t), read_line(ti, contract.c_exchange, &lval);
     lval = sizeof(tws_string_t), read_line(ti, contract.c_currency, &lval);
     lval = sizeof(tws_string_t), read_line(ti, contract.c_local_symbol, &lval);
@@ -1340,6 +1391,11 @@ static void receive_execution_data(tws_instance_t *ti)
     if (version >= 8) {
 	    lval = sizeof(tws_string_t), read_line(ti, exec.e_orderref, &lval);
     }
+
+	if(version >= 9) {
+		lval = sizeof(tws_string_t), read_line(ti, exec.e_ev_rule, &lval);
+		read_double(ti, &exec.e_ev_multiplier);
+	}
 
     if(ti->connected)
         event_exec_details(ti->opaque, reqid, &contract, &exec);
