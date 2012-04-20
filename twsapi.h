@@ -1365,21 +1365,21 @@ void   tws_disconnect(tws_instance_t *tws);
 /* sends message REQ_SCANNER_PARAMETERS to IB/TWS */
 int    tws_req_scanner_parameters(tws_instance_t *tws);
 /* sends message REQ_SCANNER_SUBSCRIPTION to IB/TWS */
-int    tws_req_scanner_subscription(tws_instance_t *tws, int ticker_id, tr_scanner_subscription_t *subscription);
+int    tws_req_scanner_subscription(tws_instance_t *tws, int ticker_id, const tr_scanner_subscription_t *subscription);
 /* sends message CANCEL_SCANNER_SUBSCRIPTION to IB/TWS */
 int    tws_cancel_scanner_subscription(tws_instance_t *tws, int ticker_id);
 /* sends message REQ_MKT_DATA to IB/TWS */
-int    tws_req_mkt_data(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, const char generic_tick_list[], int snapshot);
+int    tws_req_mkt_data(tws_instance_t *tws, int ticker_id, const tr_contract_t *contract, const char generic_tick_list[], int snapshot);
 /* sends message REQ_HISTORICAL_DATA to IB/TWS */
-int    tws_req_historical_data(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], const char bar_size_setting[], const char what_to_show[], int use_rth, int format_date);
+int    tws_req_historical_data(tws_instance_t *tws, int ticker_id, const tr_contract_t *contract, const char end_date_time[], const char duration_str[], const char bar_size_setting[], const char what_to_show[], int use_rth, int format_date);
 /* sends message CANCEL_HISTORICAL_DATA to IB/TWS */
 int    tws_cancel_historical_data(tws_instance_t *tws, int ticker_id);
 /* sends message CANCEL_MKT_DATA to IB/TWS */
 int    tws_cancel_mkt_data(tws_instance_t *tws, int ticker_id);
 /* sends message EXERCISE_OPTIONS to IB/TWS */
-int    tws_exercise_options(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int exc_override);
+int    tws_exercise_options(tws_instance_t *tws, int ticker_id, const tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int exc_override);
 /* sends message PLACE_ORDER to IB/TWS */
-int    tws_place_order(tws_instance_t *tws, int order_id, tr_contract_t *contract, tr_order_t *order);
+int    tws_place_order(tws_instance_t *tws, int order_id, const tr_contract_t *contract, const tr_order_t *order);
 /* sends message CANCEL_ORDER to IB/TWS */
 int    tws_cancel_order(tws_instance_t *tws, int order_id);
 /* sends message REQ_OPEN_ORDERS to IB/TWS */
@@ -1387,13 +1387,13 @@ int    tws_req_open_orders(tws_instance_t *tws);
 /* sends message REQ_ACCOUNT_DATA to IB/TWS */
 int    tws_req_account_updates(tws_instance_t *tws, int subscribe, const char acct_code[]);
 /* sends message REQ_EXECUTIONS to IB/TWS */
-int    tws_req_executions(tws_instance_t *tws, int reqid, tr_exec_filter_t *filter);
+int    tws_req_executions(tws_instance_t *tws, int reqid, const tr_exec_filter_t *filter);
 /* sends message REQ_IDS to IB/TWS */
 int    tws_req_ids(tws_instance_t *tws, int num_ids);
 /* sends message REQ_CONTRACT_DATA to IB/TWS */
-int    tws_req_contract_details(tws_instance_t *tws, int reqid, tr_contract_t *contract);
+int    tws_req_contract_details(tws_instance_t *tws, int reqid, const tr_contract_t *contract);
 /* sends message REQ_MKT_DEPTH to IB/TWS */
-int    tws_req_mkt_depth(tws_instance_t *tws, int ticker_id, tr_contract_t *contract, int num_rows);
+int    tws_req_mkt_depth(tws_instance_t *tws, int ticker_id, const tr_contract_t *contract, int num_rows);
 /* sends message CANCEL_MKT_DEPTH to IB/TWS */
 int    tws_cancel_mkt_depth(tws_instance_t *tws, int ticker_id);
 /* sends message REQ_NEWS_BULLETINS to IB/TWS */
@@ -1415,23 +1415,23 @@ int    tws_replace_fa(tws_instance_t *tws, int fa_data_type, const char cxml[]);
 /* sends message REQ_CURRENT_TIME to IB/TWS */
 int    tws_req_current_time(tws_instance_t *tws);
 /* sends message REQ_FUNDAMENTAL_DATA to IB/TWS */
-int    tws_req_fundamental_data(tws_instance_t *tws, int reqid, tr_contract_t *contract, const char report_type[]);
+int    tws_req_fundamental_data(tws_instance_t *tws, int reqid, const tr_contract_t *contract, const char report_type[]);
 /* sends message CANCEL_FUNDAMENTAL_DATA to IB/TWS */
 int    tws_cancel_fundamental_data(tws_instance_t *tws, int reqid);
 /* sends message REQ_CALC_IMPLIED_VOLAT to IB/TWS */
-int    tws_calculate_implied_volatility(tws_instance_t *tws, int reqid, tr_contract_t *contract, double option_price, double under_price);
+int    tws_calculate_implied_volatility(tws_instance_t *tws, int reqid, const tr_contract_t *contract, double option_price, double under_price);
 /* sends message CANCEL_CALC_IMPLIED_VOLAT to IB/TWS */
 int    tws_cancel_calculate_implied_volatility(tws_instance_t *tws, int reqid);
 /* sends message REQ_CALC_OPTION_PRICE to IB/TWS */
-int    tws_calculate_option_price(tws_instance_t *tws, int reqid, tr_contract_t *contract, double volatility, double under_price);
+int    tws_calculate_option_price(tws_instance_t *tws, int reqid, const tr_contract_t *contract, double volatility, double under_price);
 /* sends message CANCEL_CALC_OPTION_PRICE to IB/TWS */
 int    tws_cancel_calculate_option_price(tws_instance_t *tws, int reqid);
 /* sends message REQ_GLOBAL_CANCEL to IB/TWS */
 int    tws_req_global_cancel(tws_instance_t *tws);
 /* sends message REQ_MARKET_DATA_TYPE to IB/TWS */
-int    tws_req_market_data_type(tws_instance_t *tws, market_data_type_t market_data_type);
+int    tws_req_market_data_type(tws_instance_t *tws, const market_data_type_t market_data_type);
 /* sends message REQ_REAL_TIME_BARS to IB/TWS */
-int    tws_request_realtime_bars(tws_instance_t *tws, int ticker_id, tr_contract_t *c, int bar_size, const char what_to_show[], int use_rth);
+int    tws_request_realtime_bars(tws_instance_t *tws, int ticker_id, const tr_contract_t *c, int bar_size, const char what_to_show[], int use_rth);
 /* sends message CANCEL_REAL_TIME_BARS to IB/TWS */
 int    tws_cancel_realtime_bars(tws_instance_t *tws, int ticker_id);
 

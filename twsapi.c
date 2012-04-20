@@ -110,11 +110,11 @@ static char *alloc_string(tws_instance_t *ti)
     return 0;
 }
 
-static void free_string(tws_instance_t *ti, void *ptr)
+static void free_string(tws_instance_t *ti, const void *ptr)
 {
     if (ptr)
     {
-        unsigned int j = (unsigned int) ((tws_string_t *) ptr - &ti->mempool[0]);
+        unsigned int j = (unsigned int) ((const tws_string_t *) ptr - &ti->mempool[0]);
 
 		// do NOT try to free a string which didn't originate from the pool!
 		if (j >= 0 && j < MAX_TWS_STRINGS)
@@ -2324,7 +2324,7 @@ similar to IB/TWS Java method:
     public synchronized void reqScannerSubscription( int tickerId,
         ScannerSubscription subscription) {
 */
-int tws_req_scanner_subscription(tws_instance_t *ti, int ticker_id, tr_scanner_subscription_t *s)
+int tws_req_scanner_subscription(tws_instance_t *ti, int ticker_id, const tr_scanner_subscription_t *s)
 {
     if(ti->server_version < 24) return UPDATE_TWS;
 
@@ -2388,7 +2388,7 @@ typedef enum
     COMBO_FOR_PLACE_ORDER,
 } send_combolegs_mode;
 
-static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, send_combolegs_mode mode)
+static void send_combolegs(tws_instance_t *ti, const tr_contract_t *contract, const send_combolegs_mode mode)
 {
     int j;
 
@@ -2420,7 +2420,7 @@ static void send_combolegs(tws_instance_t *ti, tr_contract_t *contract, send_com
 /*
 Return 0 on error, !0 on successfully sending the tag list (a TagValue Vector in the original JAVA code).
 */
-static int send_tag_list(tws_instance_t *ti, tr_tag_value_t *list, int list_size)
+static int send_tag_list(tws_instance_t *ti, const tr_tag_value_t *list, int list_size)
 {
     send_int(ti, list_size);
     if(list_size > 0) {
@@ -2490,7 +2490,7 @@ ID Value													Tick Value
 411		Real-time Historical Volatility						58
 
 */
-int tws_req_mkt_data(tws_instance_t *ti, int ticker_id, tr_contract_t *contract, const char generic_tick_list[], int snapshot)
+int tws_req_mkt_data(tws_instance_t *ti, int ticker_id, const tr_contract_t *contract, const char generic_tick_list[], int snapshot)
 {
     if(ti->server_version < MIN_SERVER_VER_SNAPSHOT_MKT_DATA && snapshot) {
         TWS_DEBUG_PRINTF((ti->opaque, "tws_req_mkt_data does not support snapshot market data requests\n"));
@@ -2578,7 +2578,7 @@ similar to IB/TWS Java method:
                                                 String barSizeSetting, String whatToShow,
                                                 int useRTH, int formatDate) {
 */
-int tws_req_historical_data(tws_instance_t *ti, int ticker_id, tr_contract_t *contract, const char end_date_time[], const char duration_str[], const char bar_size_setting[], const char what_to_show[], int use_rth, int format_date)
+int tws_req_historical_data(tws_instance_t *ti, int ticker_id, const tr_contract_t *contract, const char end_date_time[], const char duration_str[], const char bar_size_setting[], const char what_to_show[], int use_rth, int format_date)
 {
     if(ti->server_version < 16)
         return UPDATE_TWS;
@@ -2642,7 +2642,7 @@ similar to IB/TWS Java method:
 
     public synchronized void reqContractDetails(int reqId, Contract contract)
 */
-int tws_req_contract_details(tws_instance_t *ti, int reqid, tr_contract_t *contract)
+int tws_req_contract_details(tws_instance_t *ti, int reqid, const tr_contract_t *contract)
 {
     /* This feature is only available for versions of TWS >=4 */
     if(ti->server_version < 4)
@@ -2695,7 +2695,7 @@ similar to IB/TWS Java method:
 
     public synchronized void reqMktDepth( int tickerId, Contract contract, int numRows)
 */
-int tws_req_mkt_depth(tws_instance_t *ti, int ticker_id, tr_contract_t *contract, int num_rows)
+int tws_req_mkt_depth(tws_instance_t *ti, int ticker_id, const tr_contract_t *contract, int num_rows)
 {
     /* This feature is only available for versions of TWS >=6 */
     if(ti->server_version < 6)
@@ -2767,7 +2767,7 @@ similar to IB/TWS Java method:
                                               int exerciseAction, int exerciseQuantity,
                                               String account, int override) {
 */
-int tws_exercise_options(tws_instance_t *ti, int ticker_id, tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int exc_override)
+int tws_exercise_options(tws_instance_t *ti, int ticker_id, const tr_contract_t *contract, int exercise_action, int exercise_quantity, const char account[], int exc_override)
 {
     if(ti->server_version < 21)
         return UPDATE_TWS;
@@ -2799,7 +2799,7 @@ similar to IB/TWS Java method:
 
     public synchronized void placeOrder( int id, Contract contract, Order order) {
 */
-int tws_place_order(tws_instance_t *ti, int id, tr_contract_t *contract, tr_order_t *order)
+int tws_place_order(tws_instance_t *ti, int id, const tr_contract_t *contract, const tr_order_t *order)
 {
     int vol26 = 0, version;
 
@@ -3248,7 +3248,7 @@ similar to IB/TWS Java method:
 
     public synchronized void reqExecutions(int reqId, ExecutionFilter filter) {
 */
-int tws_req_executions(tws_instance_t *ti, int reqid, tr_exec_filter_t *filter)
+int tws_req_executions(tws_instance_t *ti, int reqid, const tr_exec_filter_t *filter)
 {
     send_int(ti, REQ_EXECUTIONS);
     send_int(ti, 3 /*VERSION*/);
@@ -3482,7 +3482,7 @@ similar to IB/TWS Java method:
     public synchronized void reqFundamentalData(int reqId, Contract contract,
             String reportType) {
 */
-int tws_req_fundamental_data(tws_instance_t *ti, int reqid, tr_contract_t *contract, const char report_type[])
+int tws_req_fundamental_data(tws_instance_t *ti, int reqid, const tr_contract_t *contract, const char report_type[])
 {
     if(ti->server_version < MIN_SERVER_VER_FUNDAMENTAL_DATA) {
         TWS_DEBUG_PRINTF((ti->opaque, "tws_req_fundamental_data does not support fundamental data requests"));
@@ -3532,7 +3532,7 @@ similar to IB/TWS Java method:
     public synchronized void calculateImpliedVolatility(int reqId, Contract contract,
             double optionPrice, double underPrice) {
 */
-int tws_calculate_implied_volatility(tws_instance_t *ti, int reqid, tr_contract_t *contract, double option_price, double under_price)
+int tws_calculate_implied_volatility(tws_instance_t *ti, int reqid, const tr_contract_t *contract, double option_price, double under_price)
 {
     if (ti->server_version < MIN_SERVER_VER_REQ_CALC_IMPLIED_VOLAT) {
         TWS_DEBUG_PRINTF((ti->opaque, "tws_calculate_implied_volatility: It does not support calculate implied volatility requests\n"));
@@ -3593,7 +3593,7 @@ similar to IB/TWS Java method:
     public synchronized void calculateOptionPrice(int reqId, Contract contract,
             double volatility, double underPrice) {
 */
-int tws_calculate_option_price(tws_instance_t *ti, int reqid, tr_contract_t *contract, double volatility, double under_price)
+int tws_calculate_option_price(tws_instance_t *ti, int reqid, const tr_contract_t *contract, double volatility, double under_price)
 {
     if (ti->server_version < MIN_SERVER_VER_REQ_CALC_OPTION_PRICE) {
         TWS_DEBUG_PRINTF((ti->opaque, "tws_calculate_option_price: It does not support calculate option price requests\n"));
@@ -3674,7 +3674,7 @@ similar to IB/TWS Java method:
 
     public synchronized void reqMarketDataType(int marketDataType) {
 */
-int tws_req_market_data_type(tws_instance_t *ti, market_data_type_t market_data_type)
+int tws_req_market_data_type(tws_instance_t *ti, const market_data_type_t market_data_type)
 {
     if (ti->server_version < MIN_SERVER_VER_REQ_MARKET_DATA_TYPE) {
         TWS_DEBUG_PRINTF((ti->opaque, "tws_req_market_data_type: It does not support marketDataType requests.\n"));
@@ -3696,7 +3696,7 @@ similar to IB/TWS Java method:
 
     public synchronized void reqRealTimeBars(int tickerId, Contract contract, int barSize, String whatToShow, boolean useRTH) {
 */
-int tws_request_realtime_bars(tws_instance_t *ti, int ticker_id, tr_contract_t *c, int bar_size, const char what_to_show[], int use_rth)
+int tws_request_realtime_bars(tws_instance_t *ti, int ticker_id, const tr_contract_t *c, int bar_size, const char what_to_show[], int use_rth)
 {
     if(ti->server_version < MIN_SERVER_VER_REAL_TIME_BARS)
         return UPDATE_TWS;
