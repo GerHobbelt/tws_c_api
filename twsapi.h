@@ -1435,7 +1435,7 @@ int    tws_request_realtime_bars(tws_instance_t *tws, int ticker_id, const tr_co
 /* sends message CANCEL_REAL_TIME_BARS to IB/TWS */
 int    tws_cancel_realtime_bars(tws_instance_t *tws, int ticker_id);
 
-/**** 2 auxilliary routines */
+/**** 2 auxiliary routines */
 int    tws_server_version(tws_instance_t *tws);
 const char *tws_connection_time(tws_instance_t *tws);
 
@@ -1502,7 +1502,7 @@ void event_scanner_data(void *opaque, int ticker_id, int rank, tr_contract_detai
 void event_scanner_data_end(void *opaque, int ticker_id, int num_elements);
 /* fired by: SCANNER_DATA (once, before any invocations of event_scanner_data()) */
 void event_scanner_data_start(void *opaque, int ticker_id, int num_elements);
-/* fired by: CURRENT_TIME */
+/* fired by: CURRENT_TIME -- in response to REQ_CURRENT_TIME */
 void event_current_time(void *opaque, long time);
 /* fired by: REAL_TIME_BARS */
 void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long int volume, double wap, int count);

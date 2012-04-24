@@ -31,6 +31,7 @@
 #define INTEGER_MAX_VALUE ((int) ~(1U<<(8*sizeof(int) -1)))
 #define DBL_NOTMAX(d) (fabs((d) - DBL_MAX) > DBL_EPSILON)
 #define IS_EMPTY(str)  (!(str) || ((str)[0] == '\0'))
+#define DEFAULT_RX_BUFFERSIZE  4096
 
 #if !defined(TRUE)
 #undef FALSE
@@ -58,7 +59,7 @@ struct tws_instance {
     char connect_time[60]; /* server reported time */
     unsigned char tx_buf[512]; /* buffer up to 512 chars at a time for transmission */
     unsigned int tx_buf_next; /* index of next empty char slot in tx_buf */
-    unsigned char buf[240]; /* buffer up to 240 chars at a time */
+    unsigned char buf[DEFAULT_RX_BUFFERSIZE]; /* buffer up to N chars at a time */
     unsigned int buf_next, buf_last; /* index of next, last chars in buf */
     unsigned int server_version;
     volatile unsigned int connected;
@@ -1862,7 +1863,7 @@ int tws_event_process(tws_instance_t *ti)
 tws_instance_t *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_open_func_t *open, tws_close_func_t *close)
 {
     tws_instance_t *ti = (tws_instance_t *) calloc(1, sizeof *ti);
-    if(ti)
+    if (ti)
     {
         ti->opaque = opaque;
         ti->transmit = transmit;
@@ -2028,18 +2029,20 @@ out:
 }
 
 /* return -1 on error, 0 if successful, updates *len on success */
-static int read_line(tws_instance_t *ti, char *line, size_t *len)
+static int read_line(tws_instance_t *ti, char *line, size_t *len_ref)
 {
     size_t j;
+	size_t len = *len_ref;
     int nread = -1, err = -1;
 
+	*len_ref = 0;
     if (line == NULL) {
         TWS_DEBUG_PRINTF((ti->opaque, "read_line: line buffer is NULL\n"));
         goto out;
     }
 
     line[0] = '\0';
-    for(j = 0; j < *len; j++) {
+    for(j = 0; j < len; j++) {
         nread = read_char(ti);
         if(nread < 0) {
             TWS_DEBUG_PRINTF((ti->opaque, "read_line: going out 1, nread=%d\n", nread));
@@ -2050,13 +2053,13 @@ static int read_line(tws_instance_t *ti, char *line, size_t *len)
             break;
     }
 
-    if(j == *len) {
+    if(j == len) {
         TWS_DEBUG_PRINTF((ti->opaque, "read_line: going out 2 j=%ld\n", j));
         goto out;
     }
 
     TWS_DEBUG_PRINTF((ti->opaque, "read_line: i read %s\n", line));
-    *len = j;
+    *len_ref = j;
     err = 0;
 out:
     if(err < 0) {
@@ -2073,7 +2076,7 @@ out:
 /*
 When fetching a parameter string value of arbitrary length, we return a pointer to
 space allocated on the heap (we only use the string memory pool for shorter strings
-as that one is size limited and (in its entirity!) too small for several messages.
+as that one is size limited and (in its entirety!) too small for several messages.
 
 We don't want to take a buffer overflow risk like that any more, so we fix this by
 allowing arbitrary string length for this parameter type only.
