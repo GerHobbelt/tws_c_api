@@ -2132,7 +2132,9 @@ static int read_line_of_arbitrary_length(tws_instance_t *ti, char **val, size_t 
             break;
     }
 
-    TWS_DEBUG_PRINTF((ti->opaque, "read_line: i read %s\n", line));
+#undef MIN
+#define MIN(a, b)		((a) < (b) ? (a) : (b))
+    TWS_DEBUG_PRINTF((ti->opaque, "read_line: i read (len: %d) %.*s%s\n", (int)strlen(line), MIN((int)strlen(line), 500), line, (strlen(line) > 500 ? "(...)" : "")));
     *val = line;
     err = 0;
 out:
