@@ -67,7 +67,10 @@ void tws_cb_print_combolegs(void *opaque, int indent_level, int count, tr_combol
 void tws_cb_print_contract(void *opaque, int indent_level, const tr_contract_t *contract)
 {
     tws_cb_printf(opaque, indent_level, "CONTRACT: delta neutral:\n");
-	tws_cb_print_under_comp(opaque, indent_level + 1, contract->c_undercomp);
+	if (contract->c_undercomp)
+	{
+		tws_cb_print_under_comp(opaque, indent_level + 1, contract->c_undercomp);
+	}
     tws_cb_printf(opaque, indent_level + 1, "strike=%g, symbol=[%s], sectype=[%s], exchange=[%s], primary_exch=[%s], expiry=[%s], currency=[%s], right=[%s], local_symbol=[%s], multiplier=[%s], combolegs_descrip=[%s], secid_type=[%s], secid=[%s], conid=%d, include_expired=%d\n",
 		contract->c_strike, contract->c_symbol, contract->c_sectype, contract->c_exchange, contract->c_primary_exch, contract->c_expiry, contract->c_currency, contract->c_right, contract->c_local_symbol, contract->c_multiplier,
 		contract->c_combolegs_descrip, contract->c_secid_type, contract->c_secid, contract->c_conid, contract->c_include_expired);
@@ -80,28 +83,29 @@ void tws_cb_print_contract_details(void *opaque, const tr_contract_details_t *cd
 	tws_cb_print_contract(opaque, 2, &cd->d_summary);
     tws_cb_printf(opaque, 2, "min.tick: %g, coupon: %g, order types: [%s], valid exch: [%s], cusip: [%s], maturity: [%s], issue_date: [%s], ratings: [%s], bond_type: [%s], "
 		"coupon_type: [%s], notes: [%s], long name: [%s], industry: [%s], category: [%s], subcategory: [%s], timezone: [%s], trading hours: [%s], liquid hours: [%s], price_magnifier: %d, "
-        "under_conid: %d\n",
+        "under_conid: %d, ev_multiplier: %g, ev_rule: [%s]\n",
         cd->d_mintick, cd->d_coupon, cd->d_order_types, cd->d_valid_exchanges, cd->d_cusip, cd->d_maturity, cd->d_issue_date, cd->d_ratings, cd->d_bond_type,
         cd->d_coupon_type, cd->d_notes, cd->d_long_name, cd->d_industry, cd->d_category, cd->d_subcategory, cd->d_timezone_id, cd->d_trading_hours, cd->d_liquid_hours,
-        cd->d_price_magnifier, cd->d_under_conid);
+        cd->d_price_magnifier, cd->d_under_conid, cd->d_ev_multiplier, cd->d_ev_rule);
+	tws_cb_print_tag_value_set(opaque, 2, cd->d_sec_id_list_count, cd->d_sec_id_list);
 }
 
 void tws_cb_print_order(void *opaque, const tr_order_t *order)
 {
     tws_cb_printf(opaque, 1, "ORDER: discretionary_amt=%g, lmt_price=%g, aux_price=%g, percent_offset=%g, nbbo_price_cap=%g, starting_price=%g, stock_ref_price=%g, delta=%g, stock_range_lower=%g, stock_range_upper=%g, volatility=%g, delta_neutral_aux_price=%g, trail_stop_price=%g, trailing_percent=%g, basis_points=%g, scale_price_increment=%g, scale_price_adjust_value=%g, scale_profit_offset=%g\n",
-		order->o_discretionary_amt, order->o_lmt_price, order->o_aux_price, order->o_percent_offset, 
-		order->o_nbbo_price_cap, order->o_starting_price, order->o_stock_ref_price, order->o_delta, 
-		order->o_stock_range_lower, order->o_stock_range_upper, order->o_volatility, order->o_delta_neutral_aux_price, 
-		order->o_trail_stop_price, order->o_trailing_percent, order->o_basis_points, order->o_scale_price_increment, 
-		order->o_scale_price_adjust_value, order->o_scale_profit_offset); 
-		
+		order->o_discretionary_amt, order->o_lmt_price, order->o_aux_price, order->o_percent_offset,
+		order->o_nbbo_price_cap, order->o_starting_price, order->o_stock_ref_price, order->o_delta,
+		order->o_stock_range_lower, order->o_stock_range_upper, order->o_volatility, order->o_delta_neutral_aux_price,
+		order->o_trail_stop_price, order->o_trailing_percent, order->o_basis_points, order->o_scale_price_increment,
+		order->o_scale_price_adjust_value, order->o_scale_profit_offset);
+
 	tws_cb_printf(opaque, 2, "algo_strategy=[%s], good_after_time=[%s], good_till_date=[%s], fagroup=[%s], famethod=[%s], fapercentage=[%s], faprofile=[%s], action=[%s], order_type=[%s], tif=[%s], oca_group=[%s], account=[%s], open_close=[%s], orderref=[%s], designated_location=[%s], rule80a=[%s], settling_firm=[%s], delta_neutral_order_type=[%s], clearing_account=[%s], clearing_intent=[%s], hedge_type=[%s], hedge_param=[%s], delta_neutral_settling_firm=[%s], delta_neutral_clearing_account=[%s], delta_neutral_clearing_intent=[%s]\n",
-		order->o_algo_strategy, order->o_good_after_time, order->o_good_till_date, order->o_fagroup, 
-		order->o_famethod, order->o_fapercentage, order->o_faprofile, order->o_action, 
-		order->o_order_type, order->o_tif, order->o_oca_group, order->o_account, 
-		order->o_open_close, order->o_orderref, order->o_designated_location, order->o_rule80a, 
-		order->o_settling_firm, order->o_delta_neutral_order_type, order->o_clearing_account, order->o_clearing_intent, 
-		order->o_hedge_type, order->o_hedge_param, order->o_delta_neutral_settling_firm, order->o_delta_neutral_clearing_account, 
+		order->o_algo_strategy, order->o_good_after_time, order->o_good_till_date, order->o_fagroup,
+		order->o_famethod, order->o_fapercentage, order->o_faprofile, order->o_action,
+		order->o_order_type, order->o_tif, order->o_oca_group, order->o_account,
+		order->o_open_close, order->o_orderref, order->o_designated_location, order->o_rule80a,
+		order->o_settling_firm, order->o_delta_neutral_order_type, order->o_clearing_account, order->o_clearing_intent,
+		order->o_hedge_type, order->o_hedge_param, order->o_delta_neutral_settling_firm, order->o_delta_neutral_clearing_account,
 		order->o_delta_neutral_clearing_intent);
 
 	tws_cb_printf(opaque, 2, "algo_params:\n");
@@ -128,7 +132,7 @@ void tws_cb_print_order(void *opaque, const tr_order_t *order)
 void tws_cb_print_order_status(void *opaque, const tr_order_status_t *ostatus)
 {
     tws_cb_printf(opaque, 1, "ORDER_STATUS: ost_commission=%g, ost_min_commission=%g, ost_max_commission=%g, ost_status=[%s], ost_init_margin=[%s], ost_maint_margin=[%s], ost_equity_with_loan=[%s], ost_commission_currency=[%s], ost_warning_text=[%s]\n",
-		ostatus->ost_commission, ostatus->ost_min_commission, ostatus->ost_max_commission, ostatus->ost_status, 
+		ostatus->ost_commission, ostatus->ost_min_commission, ostatus->ost_max_commission, ostatus->ost_status,
 		ostatus->ost_init_margin, ostatus->ost_maint_margin, ostatus->ost_equity_with_loan, ostatus->ost_commission_currency, ostatus->ost_warning_text);
 }
 
@@ -141,7 +145,7 @@ void tws_cb_print_execution(void *opaque, const tr_execution_t *exec)
 void tws_cb_print_commission_report(void *opaque, tr_commission_report_t *report)
 {
 	tws_cb_printf(opaque, 1, "COMMISSION_REPORT: cr_exec_id=[%s], cr_currency=[%s], cr_commission=%g, cr_realized_pnl=%g, cr_yield=%g, cr_yield_redemption_date=%d (%08X) (YYYYMMDD format)\n",
-		report->cr_exec_id, report->cr_currency, report->cr_commission, report->cr_realized_pnl, report->cr_yield, 
+		report->cr_exec_id, report->cr_currency, report->cr_commission, report->cr_realized_pnl, report->cr_yield,
 		report->cr_yield_redemption_date, report->cr_yield_redemption_date);
 }
 
@@ -183,7 +187,7 @@ void event_tick_string(void *opaque, int ticker_id, tr_tick_type_t type, const c
 
 void event_tick_efp(void *opaque, int ticker_id, tr_tick_type_t tick_type, double basis_points, const char formatted_basis_points[], double implied_futures_price, int hold_days, const char future_expiry[], double dividend_impact, double dividends_to_expiry)
 {
-    tws_cb_printf(opaque, 0, "tick_efp: opaque=%p, ticker_id=%d, type=%d (%s), basis_points=%g, formatted_basis_points=[%s], implied_futures_price=%g, hold_days=%d, future_expiry=[%s], dividend_impact=%g, dividends_to_expiry=%g\n", 
+    tws_cb_printf(opaque, 0, "tick_efp: opaque=%p, ticker_id=%d, type=%d (%s), basis_points=%g, formatted_basis_points=[%s], implied_futures_price=%g, hold_days=%d, future_expiry=[%s], dividend_impact=%g, dividends_to_expiry=%g\n",
 		opaque, ticker_id, tick_type, tick_type_name(tick_type), basis_points, formatted_basis_points, implied_futures_price, hold_days, future_expiry, dividend_impact, dividends_to_expiry);
 }
 
@@ -191,7 +195,7 @@ void event_order_status(void *opaque, int order_id, const char status[],
                         int filled, int remaining, double avg_fill_price, int perm_id,
                         int parent_id, double last_fill_price, int client_id, const char why_held[])
 {
-    tws_cb_printf(opaque, 0, "order_status: opaque=%p, order_id=%d, status=[%s], filled=%d, remaining %d, avg_fill_price=%g, last_fill_price=%g, perm_id=%d, parent_id=%d, client_id=%d, why_held=[%s]\n", 
+    tws_cb_printf(opaque, 0, "order_status: opaque=%p, order_id=%d, status=[%s], filled=%d, remaining %d, avg_fill_price=%g, last_fill_price=%g, perm_id=%d, parent_id=%d, client_id=%d, why_held=[%s]\n",
 		opaque, order_id, status, filled, remaining, avg_fill_price, last_fill_price, perm_id, parent_id, client_id, why_held);
 }
 
@@ -268,25 +272,25 @@ void event_error(void *opaque, int ticker_id, int error_code, const char error_s
 
 void event_update_mkt_depth(void *opaque, int ticker_id, int position, int operation, int side, double price, int size)
 {
-    tws_cb_printf(opaque, 0, "update_mkt_depth: opaque=%p, ticker_id=%d, posaition=%d, operation=%d, size=%d, price=%g, size=%d\n", 
+    tws_cb_printf(opaque, 0, "update_mkt_depth: opaque=%p, ticker_id=%d, posaition=%d, operation=%d, size=%d, price=%g, size=%d\n",
 		opaque, ticker_id, position, operation, side, price, size);
 }
 
 void event_update_mkt_depth_l2(void *opaque, int ticker_id, int position, char *market_maker, int operation, int side, double price, int size)
 {
-    tws_cb_printf(opaque, 0, "update_mkt_depth_l2: opaque=%p, ticker_id=%d, position=%d, market_maker=[%s], operation=%d, side=%d, price=%g, size=%d\n", 
+    tws_cb_printf(opaque, 0, "update_mkt_depth_l2: opaque=%p, ticker_id=%d, position=%d, market_maker=[%s], operation=%d, side=%d, price=%g, size=%d\n",
 		opaque, ticker_id, position, market_maker, operation, side, price, size);
 }
 
 void event_update_news_bulletin(void *opaque, int msgid, int msg_type, const char news_msg[], const char origin_exch[])
 {
-    tws_cb_printf(opaque, 0, "update_news_bulletin: opaque=%p, msg_id=%d, msg_type=%d, msg=[%s], origin_exchange=[%d]\n", 
+    tws_cb_printf(opaque, 0, "update_news_bulletin: opaque=%p, msg_id=%d, msg_type=%d, msg=[%s], origin_exchange=[%d]\n",
 		opaque, msgid, msg_type, news_msg, origin_exch);
 }
 
 void event_managed_accounts(void *opaque, const char accounts_list[])
 {
-    tws_cb_printf(opaque, 0, "managed_accounts: opaque=%p, accounts_list=[%s]\n", 
+    tws_cb_printf(opaque, 0, "managed_accounts: opaque=%p, accounts_list=[%s]\n",
 		opaque, accounts_list);
 }
 
@@ -297,7 +301,7 @@ void event_receive_fa(void *opaque, tr_fa_msg_type_t fa_data_type, const char cx
 
 void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, long int volume, int bar_count, double wap, int has_gaps)
 {
-    tws_cb_printf(opaque, 0, "historical: opaque=%p, reqid=%d, date=%s, ohlc=%.4g/%.4g/%.4g/%.4g, volume=%ld, bar_count=%d, wap=%.4g, has_gaps=%d\n", 
+    tws_cb_printf(opaque, 0, "historical: opaque=%p, reqid=%d, date=%s, ohlc=%.4g/%.4g/%.4g/%.4g, volume=%ld, bar_count=%d, wap=%.4g, has_gaps=%d\n",
 		opaque, reqid, date, open, high, low, close, volume, bar_count, wap, has_gaps);
 }
 
