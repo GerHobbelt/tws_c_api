@@ -1409,9 +1409,9 @@ int    tws_req_all_open_orders(tws_instance_t *tws);
 /* sends message REQ_MANAGED_ACCTS to IB/TWS */
 int    tws_req_managed_accts(tws_instance_t *tws);
 /* sends message REQ_FA to IB/TWS */
-int    tws_request_fa(tws_instance_t *tws, int fa_data_type);
+int    tws_request_fa(tws_instance_t *tws, tr_fa_msg_type_t fa_data_type);
 /* sends message REPLACE_FA to IB/TWS */
-int    tws_replace_fa(tws_instance_t *tws, int fa_data_type, const char cxml[]);
+int    tws_replace_fa(tws_instance_t *tws, tr_fa_msg_type_t fa_data_type, const char cxml[]);
 /* sends message REQ_CURRENT_TIME to IB/TWS */
 int    tws_req_current_time(tws_instance_t *tws);
 /* sends message REQ_FUNDAMENTAL_DATA to IB/TWS */
@@ -1512,7 +1512,7 @@ void event_fundamental_data(void *opaque, int reqid, const char data[]);
 void event_delta_neutral_validation(void *opaque, int reqid, under_comp_t *und);
 /* fired by: ACCT_DOWNLOAD_END */
 void event_acct_download_end(void *opaque, char acct_name[]);
-/* fired by: TICK_SNAPSHOT_END */
+/* fired by: TICK_SNAPSHOT_END - called to notify customers when a snapshot market data subscription has been fully handled and there is nothing more to wait for. This also covers the timeout case. */
 void event_tick_snapshot_end(void *opaque, int reqid);
 /* fired by: MARKET_DATA_TYPE */
 void event_market_data_type(void *opaque, int reqid, market_data_type_t data_type);

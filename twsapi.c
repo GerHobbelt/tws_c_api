@@ -2474,8 +2474,12 @@ ID Value													Tick Value
  
 104		Historical Volatility (currently for stocks)		23
  
+105     ?                                                   ?
+
 106		Option Implied Volatility (currently for stocks)	24
  
+107     ?                                                   ?
+
 162		Index Future Premium								31
  
 165		Miscellaneous Stats									15, 16, 17, 18, 19, 20, 21
@@ -2484,6 +2488,8 @@ ID Value													Tick Value
  
 225		Auction values (volume, price and imbalance)		34, 35, 36
  
+232     ?                                                   ?
+
 233		RTVolume											48
  
 236		Shortable											46
@@ -2492,8 +2498,20 @@ ID Value													Tick Value
  
 258		Fundamental Ratios									47
  
+293     ?                                                   ?
+
+294     ?                                                   ?
+
+295     ?                                                   ?
+
+318     ?                                                   ?
+
 411		Real-time Historical Volatility						58
 
+mdoff   mdoff blocks regular market data so that only       -
+        specified generic ticks are received. In response 
+		to a '233,mdoff' request, pure RTVolume data will 
+		be returned without any additional records.
 */
 int tws_req_mkt_data(tws_instance_t *ti, int ticker_id, const tr_contract_t *contract, const char generic_tick_list[], int snapshot)
 {
@@ -3426,7 +3444,7 @@ similar to IB/TWS Java method:
 
     public synchronized void requestFA( int faDataType ) {
 */
-int tws_request_fa(tws_instance_t *ti, int fa_data_type)
+int tws_request_fa(tws_instance_t *ti, tr_fa_msg_type_t fa_data_type)
 {
     /* This feature is only available for versions of TWS >= 13 */
     if(ti->server_version < 13)
@@ -3446,7 +3464,7 @@ similar to IB/TWS Java method:
 
     public synchronized void replaceFA( int faDataType, String xml ) {
 */
-int tws_replace_fa(tws_instance_t *ti, int fa_data_type, const char xml[])
+int tws_replace_fa(tws_instance_t *ti, tr_fa_msg_type_t fa_data_type, const char xml[])
 {
     /* This feature is only available for versions of TWS >= 13 */
     if(ti->server_version < 13)
