@@ -387,7 +387,7 @@ usage:
 		return EXIT_FAILURE;
 	}
 
-	ti = tws_create(&cd, tws_transmit_func, tws_receive_func, tws_flush_func, tws_open_func, tws_close_func);
+	ti = tws_create(&cd, tws_transmit_func, tws_receive_func, tws_flush_func, tws_open_func, tws_close_func, 0, 0);
     if (!ti) 
 	{
         fprintf(stderr, "ERROR: failed to initialize the TWS API lib.\n"); 

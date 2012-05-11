@@ -175,6 +175,7 @@ typedef enum tr_tick_type {
 
 /* outgoing message IDs */
 typedef enum tws_outgoing_ids {
+	TWS_NO_TX_MESSAGE = 0,
     REQ_MKT_DATA = 1,
     CANCEL_MKT_DATA = 2,
     PLACE_ORDER = 3,
@@ -215,6 +216,7 @@ typedef enum tws_outgoing_ids {
 
 
 typedef enum tws_incoming_ids {
+	TWS_NO_RX_MESSAGE = 0,
     TICK_PRICE = 1,
     TICK_SIZE = 2,
     ORDER_STATUS = 3,
@@ -1282,6 +1284,17 @@ typedef int tws_open_func_t(void *arg);
 /* close callback is invoked on error or when tws_disconnect is invoked */
 typedef int tws_close_func_t(void *arg);
 
+/*
+ * user MAY specify the 'element level' send / recv callbacks to observe the message traffic across the network connection to TWS
+ *
+ * At the Start Of Message boundary, for the transmission case, start_of_message equals the non-zero message ID. For the
+ * reception case, elem==NULL, elem_size==0 and start_of_message is non-zero.
+ *
+ * Also note that elem/elem_size are undefined when 'return_value' is non-zero, i.e. when an error occurred during reception/decoding of the element.
+ */
+typedef int tws_transmit_element_func_t(void *arg, const char *elem, unsigned int elem_size, tws_outgoing_id_t start_of_message);
+typedef int tws_receive_element_func_t(void *arg, const char *elem, unsigned int elem_size, int return_value);
+
 
 typedef struct twsclient_errmsg {
     twsclient_error_code_t err_code;
@@ -1309,10 +1322,12 @@ namespace tws {
 #endif
 
 
-/* creates new tws client instance and
- * and records opaque user defined pointer to be supplied in all callbacks
+/*
+ * creates new tws client instance and
+ * records opaque user defined pointer to be supplied in all callbacks
  */
-tws_instance_t *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_open_func_t *open, tws_close_func_t *close);
+tws_instance_t *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_open_func_t *open, tws_close_func_t *close, tws_transmit_element_func_t *tx_listener, tws_receive_element_func_t *rx_listener);
+
 /* tws_destroy() implicitly calls tws_disconnect() but for reasons of symmetry it is advised to explicitly invoke tws_disconnect() (<-> tws_connect()) before invoking tws_destroy() (<->tws_create()) */
 void   tws_destroy(tws_instance_t *tws_instance);
 int    tws_connected(tws_instance_t *tws_instance); /* true=1 or false=0 */
@@ -1483,7 +1498,7 @@ void event_error(void *opaque, int id, int error_code, const char error_string[]
 /* fired by: MARKET_DEPTH */
 void event_update_mkt_depth(void *opaque, int ticker_id, int position, int operation, int side, double price, int size);
 /* fired by: MARKET_DEPTH_L2 */
-void event_update_mkt_depth_l2(void *opaque, int ticker_id, int position, char *market_maker, int operation, int side, double price, int size);
+void event_update_mkt_depth_l2(void *opaque, int ticker_id, int position, const char *market_maker, int operation, int side, double price, int size);
 /* fired by: NEWS_BULLETINS */
 void event_update_news_bulletin(void *opaque, int msgid, int msg_type, const char news_msg[], const char origin_exch[]);
 /* fired by: MANAGED_ACCTS */
@@ -1509,9 +1524,9 @@ void event_realtime_bar(void *opaque, int reqid, long time, double open, double 
 /* fired by: FUNDAMENTAL_DATA */
 void event_fundamental_data(void *opaque, int reqid, const char data[]);
 /* fired by: DELTA_NEUTRAL_VALIDATION */
-void event_delta_neutral_validation(void *opaque, int reqid, under_comp_t *und);
+void event_delta_neutral_validation(void *opaque, int reqid, const under_comp_t *und);
 /* fired by: ACCT_DOWNLOAD_END */
-void event_acct_download_end(void *opaque, char acct_name[]);
+void event_acct_download_end(void *opaque, const char acct_name[]);
 /* fired by: TICK_SNAPSHOT_END - called to notify customers when a snapshot market data subscription has been fully handled and there is nothing more to wait for. This also covers the timeout case. */
 void event_tick_snapshot_end(void *opaque, int reqid);
 /* fired by: MARKET_DATA_TYPE */
@@ -1841,6 +1856,46 @@ const char *tws_incoming_msg_names[] = {
     "delta_neutral_validation", "tick_snapshot_end", "market_data_type", "commission_report"
 };
 
+const char *tws_outgoing_msg_names[] = {
+	"(unknown)",
+    "req_mkt_data",
+    "cancel_mkt_data",
+    "place_order",
+    "cancel_order",
+    "req_open_orders",
+    "req_account_data",
+    "req_executions",
+    "req_ids",
+    "req_contract_data",
+    "req_mkt_depth",
+    "cancel_mkt_depth",
+    "req_news_bulletins",
+    "cancel_news_bulletins",
+    "set_server_loglevel",
+    "req_auto_open_orders",
+    "req_all_open_orders",
+    "req_managed_accts",
+    "req_fa",
+    "replace_fa",
+    "req_historical_data",
+    "exercise_options",
+    "req_scanner_subscription",
+    "cancel_scanner_subscription",
+    "req_scanner_parameters",
+    "cancel_historical_data",
+    "req_current_time",
+    "req_real_time_bars",
+    "cancel_real_time_bars",
+    "req_fundamental_data",
+    "cancel_fundamental_data",
+    "req_calc_implied_volat",
+    "req_calc_option_price",
+    "cancel_calc_implied_volat",
+    "cancel_calc_option_price",
+    "req_global_cancel",
+	"req_market_data_type",
+};
+
 /* map tr_tick_type_t to 'descriptive' string */
 const char *tws_tick_type_names[] = {
     "bidSize",
@@ -1920,6 +1975,7 @@ double get_NAN(void);
 getter functions: produce the descriptive name for the given enum type/value 
 */
 const char *tws_incoming_msg_name(tws_incoming_id_t x);
+const char *tws_outgoing_msg_name(tws_outgoing_id_t x);
 const char *fa_msg_type_name(tr_fa_msg_type_t x);
 const char *tick_type_name(tr_tick_type_t x);
 const char *market_data_type_name(market_data_type_t x);

@@ -13,13 +13,13 @@
 helper functions:
 */
 
-void tws_cb_print_under_comp(void *opaque, int indent_level, under_comp_t *und)
+void tws_cb_print_under_comp(void *opaque, int indent_level, const under_comp_t *und)
 {
     tws_cb_printf(opaque, indent_level, "UNDER_COMP: price=%g, delta=%g, conid=%d\n",
 		und->u_price, und->u_delta, und->u_conid);
 }
 
-void tws_cb_print_tag_value_set(void *opaque, int indent_level, int count, tr_tag_value_t *set)
+void tws_cb_print_tag_value_set(void *opaque, int indent_level, int count, const tr_tag_value_t *set)
 {
 	int i;
 
@@ -27,14 +27,14 @@ void tws_cb_print_tag_value_set(void *opaque, int indent_level, int count, tr_ta
 
 	for (i = 0; i < count; i++)
 	{
-		tr_tag_value_t *t = &set[i];
+		const tr_tag_value_t *t = &set[i];
 
 	    tws_cb_printf(opaque, indent_level + 1, "TAG/VALUE [%d]: tag=[%s], val=[%s]\n",
 			i, t->t_tag, t->t_val);
 	}
 }
 
-void tws_cb_print_order_combolegs(void *opaque, int indent_level, int count, tr_order_combo_leg_t *legs)
+void tws_cb_print_order_combolegs(void *opaque, int indent_level, int count, const tr_order_combo_leg_t *legs)
 {
 	int i;
 
@@ -42,14 +42,14 @@ void tws_cb_print_order_combolegs(void *opaque, int indent_level, int count, tr_
 
 	for (i = 0; i < count; i++)
 	{
-		tr_order_combo_leg_t *leg = &legs[i];
+		const tr_order_combo_leg_t *leg = &legs[i];
 
 	    tws_cb_printf(opaque, indent_level + 1, "ORDER COMBOLEG[%d]: price=%g\n",
 			i, leg->cl_price);
 	}
 }
 
-void tws_cb_print_combolegs(void *opaque, int indent_level, int count, tr_comboleg_t *legs)
+void tws_cb_print_combolegs(void *opaque, int indent_level, int count, const tr_comboleg_t *legs)
 {
 	int i;
 
@@ -57,7 +57,7 @@ void tws_cb_print_combolegs(void *opaque, int indent_level, int count, tr_combol
 
 	for (i = 0; i < count; i++)
 	{
-		tr_comboleg_t *leg = &legs[i];
+		const tr_comboleg_t *leg = &legs[i];
 
 	    tws_cb_printf(opaque, indent_level + 1, "COMBOLEG[%d]: action=[%s], exchange=[%s], designated_location=[%s], conid=%d, ratio=%d, open_close=%d (%s), short_sale_slot=%d, exempt_code=%d\n",
 			i, leg->co_action, leg->co_exchange, leg->co_designated_location, leg->co_conid, leg->co_ratio, leg->co_open_close, tr_comboleg_type_name(leg->co_open_close), leg->co_short_sale_slot, leg->co_exempt_code);
@@ -276,7 +276,7 @@ void event_update_mkt_depth(void *opaque, int ticker_id, int position, int opera
 		opaque, ticker_id, position, operation, side, price, size);
 }
 
-void event_update_mkt_depth_l2(void *opaque, int ticker_id, int position, char *market_maker, int operation, int side, double price, int size)
+void event_update_mkt_depth_l2(void *opaque, int ticker_id, int position, const char *market_maker, int operation, int side, double price, int size)
 {
     tws_cb_printf(opaque, 0, "update_mkt_depth_l2: opaque=%p, ticker_id=%d, position=%d, market_maker=[%s], operation=%d, side=%d, price=%g, size=%d\n",
 		opaque, ticker_id, position, market_maker, operation, side, price, size);
@@ -364,13 +364,13 @@ void event_open_order_end(void *opaque)
     tws_cb_printf(opaque, 0, "open_order_end: opaque=%p\n", opaque);
 }
 
-void event_delta_neutral_validation(void *opaque, int reqid, under_comp_t *und)
+void event_delta_neutral_validation(void *opaque, int reqid, const under_comp_t *und)
 {
     tws_cb_printf(opaque, 0, "delta_neutral_validation: opaque=%p, reqid=%d, ...\n", opaque, reqid);
     tws_cb_print_under_comp(opaque, 1, und);
 }
 
-void event_acct_download_end(void *opaque, char acct_name[])
+void event_acct_download_end(void *opaque, const char acct_name[])
 {
     tws_cb_printf(opaque, 0, "acct_download_end: opaque=%p, account name=[%s]\n", opaque, acct_name);
 }

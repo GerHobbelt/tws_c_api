@@ -56,6 +56,9 @@ struct tws_instance {
     tws_open_func_t *open;
     tws_close_func_t *close;
 
+	tws_transmit_element_func_t *tx_observe;
+	tws_receive_element_func_t *rx_observe;
+
     char connect_time[60]; /* server reported time */
     unsigned char tx_buf[512]; /* buffer up to 512 chars at a time for transmission */
     unsigned int tx_buf_next; /* index of next empty char slot in tx_buf */
@@ -1811,6 +1814,10 @@ int tws_event_process(tws_instance_t *ti)
     int valid = 1;
     tws_incoming_id_t msgcode;
 
+	if (ti->rx_observe) {
+		ti->rx_observe(ti, NULL, 0, 0);
+	}
+
     read_int(ti, &ival);
     msgcode = (tws_incoming_id_t)ival;
 
@@ -1860,7 +1867,7 @@ int tws_event_process(tws_instance_t *ti)
 }
 
 /* caller supplies start_thread method */
-tws_instance_t *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_open_func_t *open, tws_close_func_t *close)
+tws_instance_t *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_receive_func_t *receive, tws_flush_func_t *flush, tws_open_func_t *open, tws_close_func_t *close, tws_transmit_element_func_t *tx_listener, tws_receive_element_func_t *rx_listener)
 {
     tws_instance_t *ti = (tws_instance_t *) calloc(1, sizeof *ti);
     if (ti)
@@ -1871,6 +1878,9 @@ tws_instance_t *tws_create(void *opaque, tws_transmit_func_t *transmit, tws_rece
         ti->flush = flush;
         ti->open = open;
         ti->close = close;
+
+		ti->tx_observe = tx_listener;
+		ti->rx_observe = rx_listener;
 
         reset_io_buffers(ti);
     }
@@ -1892,6 +1902,10 @@ static int send_blob(tws_instance_t *ti, const char *src, size_t srclen)
     int err = 0;
 
     if (ti->connected) {
+		if (ti->tx_observe) {
+			ti->tx_observe(ti, src, srclen, 0);
+		}
+
         while (len < srclen) {
             err = ((int)ti->tx_buf_next != ti->transmit(ti->opaque, ti->tx_buf, ti->tx_buf_next));
             if(err) {
@@ -1914,6 +1928,9 @@ static int send_blob(tws_instance_t *ti, const char *src, size_t srclen)
             ti->tx_buf_next += srclen;
         }
     }
+	else {
+		err = -1;
+	}
 
     return err;
 }
@@ -2031,7 +2048,7 @@ out:
 /* return -1 on error, 0 if successful, updates *len on success */
 static int read_line(tws_instance_t *ti, char *line, size_t *len_ref)
 {
-    size_t j;
+    size_t j = 0;
 	size_t len = *len_ref;
     int nread = -1, err = -1;
 
@@ -2070,6 +2087,10 @@ out:
         tws_disconnect(ti);
     }
 
+	if (ti->rx_observe) {
+		ti->rx_observe(ti, line, j, err);
+	}
+
     return err;
 }
 
@@ -2083,7 +2104,7 @@ allowing arbitrary string length for this parameter type only.
 */
 static int read_line_of_arbitrary_length(tws_instance_t *ti, char **val, size_t alloc_size)
 {
-    size_t j;
+    size_t j = 0;
     char *line;
     int nread = -1, err = -1;
     int malloced = 0;
@@ -2152,6 +2173,10 @@ out:
         }
         //assert(*val == NULL);
     }
+
+	if (ti->rx_observe) {
+		ti->rx_observe(ti, line, j, err);
+	}
 
     return err;
 }
@@ -2315,6 +2340,10 @@ int tws_req_scanner_parameters(tws_instance_t *ti)
 {
     if(ti->server_version < 24) return UPDATE_TWS;
 
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_SCANNER_PARAMETERS);
+	}
+
     send_int(ti, REQ_SCANNER_PARAMETERS);
     send_int(ti, 1 /*VERSION*/);
 
@@ -2332,6 +2361,10 @@ similar to IB/TWS Java method:
 int tws_req_scanner_subscription(tws_instance_t *ti, int ticker_id, const tr_scanner_subscription_t *s)
 {
     if(ti->server_version < 24) return UPDATE_TWS;
+
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_SCANNER_SUBSCRIPTION);
+	}
 
     send_int(ti, REQ_SCANNER_SUBSCRIPTION);
     send_int(ti, 3 /*VERSION*/);
@@ -2377,7 +2410,11 @@ int tws_cancel_scanner_subscription(tws_instance_t *ti, int ticker_id)
 {
     if(ti->server_version < 24) return UPDATE_TWS;
 
-    send_int(ti, CANCEL_SCANNER_SUBSCRIPTION);
+    if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, CANCEL_SCANNER_SUBSCRIPTION);
+	}
+
+	send_int(ti, CANCEL_SCANNER_SUBSCRIPTION);
     send_int(ti, 1 /*VERSION*/);
     send_int(ti, ticker_id);
 
@@ -2534,6 +2571,10 @@ int tws_req_mkt_data(tws_instance_t *ti, int ticker_id, const tr_contract_t *con
         }
     }
 
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_MKT_DATA);
+	}
+
     send_int(ti, REQ_MKT_DATA);
     send_int(ti, 9 /* version */);
     send_int(ti, ticker_id);
@@ -2605,6 +2646,10 @@ int tws_req_historical_data(tws_instance_t *ti, int ticker_id, const tr_contract
 {
     if(ti->server_version < 16)
         return UPDATE_TWS;
+
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_HISTORICAL_DATA);
+	}
 
     send_int(ti, REQ_HISTORICAL_DATA);
     send_int(ti, 4 /*version*/);
@@ -2678,6 +2723,10 @@ int tws_req_contract_details(tws_instance_t *ti, int reqid, const tr_contract_t 
         }
     }
 
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_CONTRACT_DATA);
+	}
+
     /* send req mkt data msg */
     send_int(ti, REQ_CONTRACT_DATA);
     send_int(ti, 6 /*VERSION*/);
@@ -2723,6 +2772,10 @@ int tws_req_mkt_depth(tws_instance_t *ti, int ticker_id, const tr_contract_t *co
     /* This feature is only available for versions of TWS >=6 */
     if(ti->server_version < 6)
         return UPDATE_TWS;
+
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_MKT_DEPTH);
+	}
 
     send_int(ti, REQ_MKT_DEPTH);
     send_int(ti, 3 /*VERSION*/);
@@ -3253,7 +3306,11 @@ similar to IB/TWS Java method:
 */
 int tws_req_account_updates(tws_instance_t *ti, int subscribe, const char acct_code[])
 {
-    send_int(ti, REQ_ACCOUNT_DATA );
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_ACCOUNT_DATA);
+	}
+
+    send_int(ti, REQ_ACCOUNT_DATA);
     send_int(ti, 2 /*VERSION*/);
     send_boolean(ti, subscribe);
 
@@ -3273,6 +3330,10 @@ similar to IB/TWS Java method:
 */
 int tws_req_executions(tws_instance_t *ti, int reqid, const tr_exec_filter_t *filter)
 {
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_EXECUTIONS);
+	}
+
     send_int(ti, REQ_EXECUTIONS);
     send_int(ti, 3 /*VERSION*/);
     if(ti->server_version >= MIN_SERVER_VER_EXECUTION_DATA_CHAIN)
@@ -3320,6 +3381,10 @@ similar to IB/TWS Java method:
 */
 int tws_req_open_orders(tws_instance_t *ti)
 {
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_OPEN_ORDERS);
+	}
+
     send_int(ti, REQ_OPEN_ORDERS);
     send_int(ti, 1 /*VERSION*/);
 
@@ -3335,6 +3400,10 @@ similar to IB/TWS Java method:
 */
 int tws_req_ids(tws_instance_t *ti, int numids)
 {
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_IDS);
+	}
+
     send_int(ti, REQ_IDS);
     send_int(ti, 1 /* VERSION */);
     send_int(ti, numids);
@@ -3351,6 +3420,10 @@ similar to IB/TWS Java method:
 */
 int tws_req_news_bulletins(tws_instance_t *ti, int allmsgs)
 {
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_NEWS_BULLETINS);
+	}
+
     send_int(ti, REQ_NEWS_BULLETINS);
     send_int(ti, 1 /*VERSION*/);
     send_boolean(ti, allmsgs);
@@ -3398,6 +3471,10 @@ similar to IB/TWS Java method:
 */
 int tws_req_auto_open_orders(tws_instance_t *ti, int auto_bind)
 {
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_AUTO_OPEN_ORDERS);
+	}
+
     send_int(ti, REQ_AUTO_OPEN_ORDERS);
     send_int(ti, 1 /*VERSION*/);
     send_boolean(ti, auto_bind);
@@ -3414,6 +3491,10 @@ similar to IB/TWS Java method:
 */
 int tws_req_all_open_orders(tws_instance_t *ti)
 {
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_ALL_OPEN_ORDERS);
+	}
+
     /* send req all open orders msg */
     send_int(ti, REQ_ALL_OPEN_ORDERS);
     send_int(ti, 1 /*VERSION*/);
@@ -3430,6 +3511,10 @@ similar to IB/TWS Java method:
 */
 int tws_req_managed_accts(tws_instance_t *ti)
 {
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_MANAGED_ACCTS);
+	}
+
     /* send req FA managed accounts msg */
     send_int(ti, REQ_MANAGED_ACCTS);
     send_int(ti, 1 /*VERSION*/);
@@ -3449,6 +3534,10 @@ int tws_request_fa(tws_instance_t *ti, tr_fa_msg_type_t fa_data_type)
     /* This feature is only available for versions of TWS >= 13 */
     if(ti->server_version < 13)
         return UPDATE_TWS;
+
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_FA);
+	}
 
     send_int(ti, REQ_FA);
     send_int(ti, 1 /*VERSION*/);
@@ -3491,6 +3580,10 @@ int tws_req_current_time(tws_instance_t *ti)
         return UPDATE_TWS;
     }
 
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_CURRENT_TIME);
+	}
+
     send_int(ti, REQ_CURRENT_TIME);
     send_int(ti, 1 /*VERSION*/);
 
@@ -3511,6 +3604,10 @@ int tws_req_fundamental_data(tws_instance_t *ti, int reqid, const tr_contract_t 
         TWS_DEBUG_PRINTF((ti->opaque, "tws_req_fundamental_data does not support fundamental data requests"));
         return UPDATE_TWS;
     }
+
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_FUNDAMENTAL_DATA);
+	}
 
     send_int(ti, REQ_FUNDAMENTAL_DATA);
     send_int(ti, 1 /* version */);
@@ -3561,6 +3658,10 @@ int tws_calculate_implied_volatility(tws_instance_t *ti, int reqid, const tr_con
         TWS_DEBUG_PRINTF((ti->opaque, "tws_calculate_implied_volatility: It does not support calculate implied volatility requests\n"));
         return UPDATE_TWS;
     }
+
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_CALC_IMPLIED_VOLAT);
+	}
 
     // send calculate implied volatility msg
     send_int(ti, REQ_CALC_IMPLIED_VOLAT);
@@ -3623,6 +3724,10 @@ int tws_calculate_option_price(tws_instance_t *ti, int reqid, const tr_contract_
         return UPDATE_TWS;
     }
 
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_CALC_OPTION_PRICE);
+	}
+
     // send calculate option price msg
     send_int(ti, REQ_CALC_OPTION_PRICE);
     send_int(ti, 1 /*version*/);
@@ -3683,6 +3788,10 @@ int tws_req_global_cancel(tws_instance_t *ti)
         return UPDATE_TWS;
     }
 
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_GLOBAL_CANCEL);
+	}
+
     // send request global cancel msg
     send_int(ti, REQ_GLOBAL_CANCEL);
     send_int(ti, 1 /*version*/);
@@ -3704,6 +3813,10 @@ int tws_req_market_data_type(tws_instance_t *ti, const market_data_type_t market
         return UPDATE_TWS;
     }
         
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_MARKET_DATA_TYPE);
+	}
+
     // send the reqMarketDataType message
     send_int(ti, REQ_MARKET_DATA_TYPE);
     send_int(ti, 1 /*version*/);
@@ -3723,6 +3836,10 @@ int tws_request_realtime_bars(tws_instance_t *ti, int ticker_id, const tr_contra
 {
     if(ti->server_version < MIN_SERVER_VER_REAL_TIME_BARS)
         return UPDATE_TWS;
+
+	if (ti->tx_observe) {
+		ti->tx_observe(ti, NULL, 0, REQ_REAL_TIME_BARS);
+	}
 
     send_int(ti, REQ_REAL_TIME_BARS);
     send_int(ti, 1 /*VERSION*/);
@@ -3806,6 +3923,17 @@ const char *tws_incoming_msg_name(tws_incoming_id_t x)
 	if (idx >= 0 && idx < ARRAY_SIZE(tws_incoming_msg_names))
 	{
 		return tws_incoming_msg_names[idx];
+	}
+	return "(unknown)";
+}
+
+const char *tws_outgoing_msg_name(tws_outgoing_id_t x)
+{
+	int idx = (int)x;
+	
+	if (idx >= 0 && idx < ARRAY_SIZE(tws_outgoing_msg_names))
+	{
+		return tws_outgoing_msg_names[idx];
 	}
 	return "(unknown)";
 }
