@@ -1342,7 +1342,7 @@ static void receive_execution_data(tws_instance_t *ti)
     tr_contract_t contract;
     tr_execution_t exec;
     size_t lval;
-    int ival, version, orderid, reqid = -1;
+    int ival, version, orderid, req_id = -1;
 
     tws_init_contract(ti, &contract);
     init_execution(ti, &exec);
@@ -1350,7 +1350,7 @@ static void receive_execution_data(tws_instance_t *ti)
     read_int(ti, &ival), version = ival;
 
     if(version >= 7)
-        read_int(ti, &ival), reqid = ival;
+        read_int(ti, &ival), req_id = ival;
 
     read_int(ti, &ival), orderid = ival;
 
@@ -1402,7 +1402,7 @@ static void receive_execution_data(tws_instance_t *ti)
 	}
 
     if(ti->connected)
-        event_exec_details(ti->opaque, reqid, &contract, &exec);
+        event_exec_details(ti->opaque, req_id, &contract, &exec);
 
     tws_destroy_contract(ti, &contract);
     destroy_execution(ti, &exec);
@@ -1520,12 +1520,12 @@ static void receive_historical_data(tws_instance_t *ti)
     double open, high, low, close, wap;
     int j;
     size_t lval;
-    int ival, version, reqid, item_count, gaps, bar_count;
+    int ival, version, req_id, item_count, gaps, bar_count;
 	long int volume;
     char *date = alloc_string(ti), *has_gaps = alloc_string(ti), *completion_from = alloc_string(ti), *completion_to = alloc_string(ti);
 
     read_int(ti, &ival), version = ival;
-    read_int(ti, &ival), reqid = ival;
+    read_int(ti, &ival), req_id = ival;
 
     if(version >= 2) {
         lval = sizeof(tws_string_t); read_line(ti, completion_from, &lval);
@@ -1550,12 +1550,12 @@ static void receive_historical_data(tws_instance_t *ti)
             bar_count = -1;
 
         if(ti->connected)
-            event_historical_data(ti->opaque, reqid, date, open, high, low, close, volume, bar_count, wap, gaps);
+            event_historical_data(ti->opaque, req_id, date, open, high, low, close, volume, bar_count, wap, gaps);
 
     }
     /* send end of dataset marker */
     if(ti->connected)
-        event_historical_data_end(ti->opaque, reqid, completion_from, completion_to);
+        event_historical_data_end(ti->opaque, req_id, completion_from, completion_to);
 
     free_string(ti, date);
     free_string(ti, has_gaps);
@@ -1661,10 +1661,10 @@ static void receive_realtime_bars(tws_instance_t *ti)
 {
     long time, volume;
     double open, high, low, close, wap;
-    int ival, reqid, count;
+    int ival, req_id, count;
 
     read_int(ti, &ival); /* version unused */
-    read_int(ti, &reqid);
+    read_int(ti, &req_id);
     read_long(ti, &time);
     read_double(ti, &open);
     read_double(ti, &high);
@@ -1675,7 +1675,7 @@ static void receive_realtime_bars(tws_instance_t *ti)
     read_int(ti, &count);
 
     if(ti->connected)
-        event_realtime_bar(ti->opaque, reqid, time, open, high, low, close, volume, wap, count);
+        event_realtime_bar(ti->opaque, req_id, time, open, high, low, close, volume, wap, count);
 }
 
 static void receive_fundamental_data(tws_instance_t *ti)
@@ -1734,53 +1734,53 @@ static void receive_acct_download_end(tws_instance_t *ti)
 
 static void receive_execution_data_end(tws_instance_t *ti)
 {
-    int ival, reqid;
+    int ival, req_id;
 
     read_int(ti, &ival); /* version ignored */
-    read_int(ti, &ival); reqid = ival;
+    read_int(ti, &ival); req_id = ival;
 
     if(ti->connected)
-        event_exec_details_end(ti->opaque, reqid);
+        event_exec_details_end(ti->opaque, req_id);
 }
 
 static void receive_delta_neutral_validation(tws_instance_t *ti)
 {
     under_comp_t und;
-    int ival, reqid;
+    int ival, req_id;
 
     read_int(ti, &ival); /* version ignored */
-    read_int(ti, &ival); reqid = ival;
+    read_int(ti, &ival); req_id = ival;
 
     read_int(ti, &und.u_conid);
     read_double(ti, &und.u_delta);
     read_double(ti, &und.u_price);
 
     if(ti->connected)
-        event_delta_neutral_validation(ti->opaque, reqid, &und);
+        event_delta_neutral_validation(ti->opaque, req_id, &und);
 }
 
 static void receive_tick_snapshot_end(tws_instance_t *ti)
 {
-    int ival, reqid;
+    int ival, req_id;
 
     read_int(ti, &ival); /* version ignored */
-    read_int(ti, &ival); reqid = ival;
+    read_int(ti, &ival); req_id = ival;
 
     if(ti->connected)
-        event_tick_snapshot_end(ti->opaque, reqid);
+        event_tick_snapshot_end(ti->opaque, req_id);
 }
 
 static void receive_market_data_type(tws_instance_t *ti)
 {
-	int ival, reqid;
+	int ival, req_id;
 	market_data_type_t market_type;
 
     read_int(ti, &ival); /* version ignored */
-    read_int(ti, &ival); reqid = ival;
+    read_int(ti, &ival); req_id = ival;
     read_int(ti, &ival); market_type = (market_data_type_t)ival;
 
     if(ti->connected)
-        event_market_data_type(ti->opaque, reqid, market_type);
+        event_market_data_type(ti->opaque, req_id, market_type);
 }
 
 static void receive_commission_report(tws_instance_t *ti)
@@ -2710,7 +2710,7 @@ similar to IB/TWS Java method:
 
     public synchronized void reqContractDetails(int reqId, Contract contract)
 */
-int tws_req_contract_details(tws_instance_t *ti, int reqid, const tr_contract_t *contract)
+int tws_req_contract_details(tws_instance_t *ti, int req_id, const tr_contract_t *contract)
 {
     /* This feature is only available for versions of TWS >=4 */
     if(ti->server_version < 4)
@@ -2732,7 +2732,7 @@ int tws_req_contract_details(tws_instance_t *ti, int reqid, const tr_contract_t 
     send_int(ti, 6 /*VERSION*/);
 
     if(ti->server_version >= MIN_SERVER_VER_CONTRACT_DATA_CHAIN)
-        send_int(ti, reqid);
+        send_int(ti, req_id);
 
     if(ti->server_version >= MIN_SERVER_VER_CONTRACT_CONID)
         send_int(ti, contract->c_conid);
@@ -3328,7 +3328,7 @@ similar to IB/TWS Java method:
 
     public synchronized void reqExecutions(int reqId, ExecutionFilter filter) {
 */
-int tws_req_executions(tws_instance_t *ti, int reqid, const tr_exec_filter_t *filter)
+int tws_req_executions(tws_instance_t *ti, int req_id, const tr_exec_filter_t *filter)
 {
 	if (ti->tx_observe) {
 		ti->tx_observe(ti, NULL, 0, REQ_EXECUTIONS);
@@ -3337,7 +3337,7 @@ int tws_req_executions(tws_instance_t *ti, int reqid, const tr_exec_filter_t *fi
     send_int(ti, REQ_EXECUTIONS);
     send_int(ti, 3 /*VERSION*/);
     if(ti->server_version >= MIN_SERVER_VER_EXECUTION_DATA_CHAIN)
-        send_int(ti, reqid);
+        send_int(ti, req_id);
 
     /* Send the execution rpt filter data */
     if(ti->server_version >= 9) {
@@ -3598,7 +3598,7 @@ similar to IB/TWS Java method:
     public synchronized void reqFundamentalData(int reqId, Contract contract,
             String reportType) {
 */
-int tws_req_fundamental_data(tws_instance_t *ti, int reqid, const tr_contract_t *contract, const char report_type[])
+int tws_req_fundamental_data(tws_instance_t *ti, int req_id, const tr_contract_t *contract, const char report_type[])
 {
     if(ti->server_version < MIN_SERVER_VER_FUNDAMENTAL_DATA) {
         TWS_DEBUG_PRINTF((ti->opaque, "tws_req_fundamental_data does not support fundamental data requests"));
@@ -3611,7 +3611,7 @@ int tws_req_fundamental_data(tws_instance_t *ti, int reqid, const tr_contract_t 
 
     send_int(ti, REQ_FUNDAMENTAL_DATA);
     send_int(ti, 1 /* version */);
-    send_int(ti, reqid);
+    send_int(ti, req_id);
     send_str(ti, contract->c_symbol);
     send_str(ti, contract->c_sectype);
     send_str(ti, contract->c_exchange);
@@ -3630,7 +3630,7 @@ similar to IB/TWS Java method:
 
     public synchronized void cancelFundamentalData(int reqId) {
 */
-int tws_cancel_fundamental_data(tws_instance_t *ti, int reqid)
+int tws_cancel_fundamental_data(tws_instance_t *ti, int req_id)
 {
     if(ti->server_version < MIN_SERVER_VER_FUNDAMENTAL_DATA) {
         TWS_DEBUG_PRINTF((ti->opaque, "tws_cancel_fundamental data does not support fundamental data requests."));
@@ -3639,7 +3639,7 @@ int tws_cancel_fundamental_data(tws_instance_t *ti, int reqid)
 
     send_int(ti, CANCEL_FUNDAMENTAL_DATA);
     send_int(ti, 1 /*version*/);
-    send_int(ti, reqid);
+    send_int(ti, req_id);
 
     flush_message(ti);
 
@@ -3652,7 +3652,7 @@ similar to IB/TWS Java method:
     public synchronized void calculateImpliedVolatility(int reqId, Contract contract,
             double optionPrice, double underPrice) {
 */
-int tws_calculate_implied_volatility(tws_instance_t *ti, int reqid, const tr_contract_t *contract, double option_price, double under_price)
+int tws_calculate_implied_volatility(tws_instance_t *ti, int req_id, const tr_contract_t *contract, double option_price, double under_price)
 {
     if (ti->server_version < MIN_SERVER_VER_REQ_CALC_IMPLIED_VOLAT) {
         TWS_DEBUG_PRINTF((ti->opaque, "tws_calculate_implied_volatility: It does not support calculate implied volatility requests\n"));
@@ -3666,7 +3666,7 @@ int tws_calculate_implied_volatility(tws_instance_t *ti, int reqid, const tr_con
     // send calculate implied volatility msg
     send_int(ti, REQ_CALC_IMPLIED_VOLAT);
     send_int(ti, 1 /*version*/);
-    send_int(ti, reqid);
+    send_int(ti, req_id);
 
     // send contract fields
     send_int(ti, contract->c_conid);
@@ -3694,7 +3694,7 @@ similar to IB/TWS Java method:
 
     public synchronized void cancelCalculateImpliedVolatility(int reqId) {
 */
-int tws_cancel_calculate_implied_volatility(tws_instance_t *ti, int reqid)
+int tws_cancel_calculate_implied_volatility(tws_instance_t *ti, int req_id)
 {
     if (ti->server_version < MIN_SERVER_VER_CANCEL_CALC_IMPLIED_VOLAT) {
         TWS_DEBUG_PRINTF((ti->opaque, "tws_cancel_calculate_implied_volatility: It does not support calculate implied volatility cancellation\n"));
@@ -3704,7 +3704,7 @@ int tws_cancel_calculate_implied_volatility(tws_instance_t *ti, int reqid)
     // send cancel calculate implied volatility msg
     send_int(ti, CANCEL_CALC_IMPLIED_VOLAT);
     send_int(ti, 1 /*version*/);
-    send_int(ti, reqid);
+    send_int(ti, req_id);
 
     flush_message(ti);
 
@@ -3717,7 +3717,7 @@ similar to IB/TWS Java method:
     public synchronized void calculateOptionPrice(int reqId, Contract contract,
             double volatility, double underPrice) {
 */
-int tws_calculate_option_price(tws_instance_t *ti, int reqid, const tr_contract_t *contract, double volatility, double under_price)
+int tws_calculate_option_price(tws_instance_t *ti, int req_id, const tr_contract_t *contract, double volatility, double under_price)
 {
     if (ti->server_version < MIN_SERVER_VER_REQ_CALC_OPTION_PRICE) {
         TWS_DEBUG_PRINTF((ti->opaque, "tws_calculate_option_price: It does not support calculate option price requests\n"));
@@ -3731,7 +3731,7 @@ int tws_calculate_option_price(tws_instance_t *ti, int reqid, const tr_contract_
     // send calculate option price msg
     send_int(ti, REQ_CALC_OPTION_PRICE);
     send_int(ti, 1 /*version*/);
-    send_int(ti, reqid);
+    send_int(ti, req_id);
 
     // send contract fields
     send_int(ti, contract->c_conid);
@@ -3759,7 +3759,7 @@ similar to IB/TWS Java method:
 
     public synchronized void cancelCalculateOptionPrice(int reqId) {
 */
-int tws_cancel_calculate_option_price(tws_instance_t *ti, int reqid)
+int tws_cancel_calculate_option_price(tws_instance_t *ti, int req_id)
 {
     if (ti->server_version < MIN_SERVER_VER_CANCEL_CALC_OPTION_PRICE) {
         TWS_DEBUG_PRINTF((ti->opaque, "tws_cancel_calculate_option_price: It does not support calculate option price cancellation\n"));
@@ -3769,7 +3769,7 @@ int tws_cancel_calculate_option_price(tws_instance_t *ti, int reqid)
     // send cancel calculate option price msg
     send_int(ti, CANCEL_CALC_OPTION_PRICE);
     send_int(ti, 1 /*version*/);
-    send_int(ti, reqid);
+    send_int(ti, req_id);
 
     flush_message(ti);
 

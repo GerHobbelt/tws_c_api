@@ -1402,11 +1402,11 @@ int    tws_req_open_orders(tws_instance_t *tws);
 /* sends message REQ_ACCOUNT_DATA to IB/TWS */
 int    tws_req_account_updates(tws_instance_t *tws, int subscribe, const char acct_code[]);
 /* sends message REQ_EXECUTIONS to IB/TWS */
-int    tws_req_executions(tws_instance_t *tws, int reqid, const tr_exec_filter_t *filter);
+int    tws_req_executions(tws_instance_t *tws, int req_id, const tr_exec_filter_t *filter);
 /* sends message REQ_IDS to IB/TWS */
 int    tws_req_ids(tws_instance_t *tws, int num_ids);
 /* sends message REQ_CONTRACT_DATA to IB/TWS */
-int    tws_req_contract_details(tws_instance_t *tws, int reqid, const tr_contract_t *contract);
+int    tws_req_contract_details(tws_instance_t *tws, int req_id, const tr_contract_t *contract);
 /* sends message REQ_MKT_DEPTH to IB/TWS */
 int    tws_req_mkt_depth(tws_instance_t *tws, int ticker_id, const tr_contract_t *contract, int num_rows);
 /* sends message CANCEL_MKT_DEPTH to IB/TWS */
@@ -1430,17 +1430,17 @@ int    tws_replace_fa(tws_instance_t *tws, tr_fa_msg_type_t fa_data_type, const 
 /* sends message REQ_CURRENT_TIME to IB/TWS */
 int    tws_req_current_time(tws_instance_t *tws);
 /* sends message REQ_FUNDAMENTAL_DATA to IB/TWS */
-int    tws_req_fundamental_data(tws_instance_t *tws, int reqid, const tr_contract_t *contract, const char report_type[]);
+int    tws_req_fundamental_data(tws_instance_t *tws, int req_id, const tr_contract_t *contract, const char report_type[]);
 /* sends message CANCEL_FUNDAMENTAL_DATA to IB/TWS */
-int    tws_cancel_fundamental_data(tws_instance_t *tws, int reqid);
+int    tws_cancel_fundamental_data(tws_instance_t *tws, int req_id);
 /* sends message REQ_CALC_IMPLIED_VOLAT to IB/TWS */
-int    tws_calculate_implied_volatility(tws_instance_t *tws, int reqid, const tr_contract_t *contract, double option_price, double under_price);
+int    tws_calculate_implied_volatility(tws_instance_t *tws, int req_id, const tr_contract_t *contract, double option_price, double under_price);
 /* sends message CANCEL_CALC_IMPLIED_VOLAT to IB/TWS */
-int    tws_cancel_calculate_implied_volatility(tws_instance_t *tws, int reqid);
+int    tws_cancel_calculate_implied_volatility(tws_instance_t *tws, int req_id);
 /* sends message REQ_CALC_OPTION_PRICE to IB/TWS */
-int    tws_calculate_option_price(tws_instance_t *tws, int reqid, const tr_contract_t *contract, double volatility, double under_price);
+int    tws_calculate_option_price(tws_instance_t *tws, int req_id, const tr_contract_t *contract, double volatility, double under_price);
 /* sends message CANCEL_CALC_OPTION_PRICE to IB/TWS */
-int    tws_cancel_calculate_option_price(tws_instance_t *tws, int reqid);
+int    tws_cancel_calculate_option_price(tws_instance_t *tws, int req_id);
 /* sends message REQ_GLOBAL_CANCEL to IB/TWS */
 int    tws_req_global_cancel(tws_instance_t *tws);
 /* sends message REQ_MARKET_DATA_TYPE to IB/TWS */
@@ -1486,13 +1486,13 @@ void event_next_valid_id(void *opaque, int order_id);
 /* fired by: CONTRACT_DATA */
 void event_contract_details(void *opaque, int req_id, const tr_contract_details_t *contract_details);
 /* fired by: CONTRACT_DATA_END */
-void event_contract_details_end(void *opaque, int reqid);
+void event_contract_details_end(void *opaque, int req_id);
 /* fired by: BOND_CONTRACT_DATA */
 void event_bond_contract_details(void *opaque, int req_id, const tr_contract_details_t *contract_details);
 /* fired by: EXECUTION_DATA */
-void event_exec_details(void *opaque, int order_id, const tr_contract_t *contract, const tr_execution_t *execution);
+void event_exec_details(void *opaque, int req_id, const tr_contract_t *contract, const tr_execution_t *execution);
 /* fired by: EXECUTION_DATA_END */
-void event_exec_details_end(void *opaque, int reqid);
+void event_exec_details_end(void *opaque, int req_id);
 /* fired by: ERR_MSG */
 void event_error(void *opaque, int id, int error_code, const char error_string[]);
 /* fired by: MARKET_DEPTH */
@@ -1506,9 +1506,9 @@ void event_managed_accounts(void *opaque, const char accounts_list[]);
 /* fired by: RECEIVE_FA */
 void event_receive_fa(void *opaque, tr_fa_msg_type_t fa_data_type, const char cxml[]);
 /* fired by: HISTORICAL_DATA (possibly multiple times per incoming message) */
-void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, long int volume, int bar_count, double wap, int has_gaps);
+void event_historical_data(void *opaque, int req_id, const char date[], double open, double high, double low, double close, long int volume, int bar_count, double wap, int has_gaps);
 /* fired by: HISTORICAL_DATA  (once, after one or more invocations of event_historical_data()) */
-void event_historical_data_end(void *opaque, int reqid, const char completion_from[], const char completion_to[]);
+void event_historical_data_end(void *opaque, int req_id, const char completion_from[], const char completion_to[]);
 /* fired by: SCANNER_PARAMETERS */
 void event_scanner_parameters(void *opaque, const char xml[]);
 /* fired by: SCANNER_DATA (possibly multiple times per incoming message) */
@@ -1520,17 +1520,17 @@ void event_scanner_data_start(void *opaque, int ticker_id, int num_elements);
 /* fired by: CURRENT_TIME -- in response to REQ_CURRENT_TIME */
 void event_current_time(void *opaque, long time);
 /* fired by: REAL_TIME_BARS */
-void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long int volume, double wap, int count);
+void event_realtime_bar(void *opaque, int req_id, long time, double open, double high, double low, double close, long int volume, double wap, int count);
 /* fired by: FUNDAMENTAL_DATA */
-void event_fundamental_data(void *opaque, int reqid, const char data[]);
+void event_fundamental_data(void *opaque, int req_id, const char data[]);
 /* fired by: DELTA_NEUTRAL_VALIDATION */
-void event_delta_neutral_validation(void *opaque, int reqid, const under_comp_t *und);
+void event_delta_neutral_validation(void *opaque, int req_id, const under_comp_t *und);
 /* fired by: ACCT_DOWNLOAD_END */
 void event_acct_download_end(void *opaque, const char acct_name[]);
 /* fired by: TICK_SNAPSHOT_END - called to notify customers when a snapshot market data subscription has been fully handled and there is nothing more to wait for. This also covers the timeout case. */
-void event_tick_snapshot_end(void *opaque, int reqid);
+void event_tick_snapshot_end(void *opaque, int req_id);
 /* fired by: MARKET_DATA_TYPE */
-void event_market_data_type(void *opaque, int reqid, market_data_type_t data_type);
+void event_market_data_type(void *opaque, int req_id, market_data_type_t data_type);
 /* fired by: COMMISSION_REPORT */
 void event_commission_report(void *opaque, tr_commission_report_t *report);
 

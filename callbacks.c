@@ -258,9 +258,9 @@ void event_bond_contract_details(void *opaque, int req_id, const tr_contract_det
 	tws_cb_print_contract_details(opaque, cd);
 }
 
-void event_exec_details(void *opaque, int order_id, const tr_contract_t *contract, const tr_execution_t *execution)
+void event_exec_details(void *opaque, int req_id, const tr_contract_t *contract, const tr_execution_t *execution)
 {
-    tws_cb_printf(opaque, 0, "exec_details: opaque=%p, order_id=%d, ...\n", opaque, order_id);
+    tws_cb_printf(opaque, 0, "exec_details: opaque=%p, req_id=%d, ...\n", opaque, req_id);
 	tws_cb_print_contract(opaque, 1, contract);
 	tws_cb_print_execution(opaque, execution);
 }
@@ -299,15 +299,15 @@ void event_receive_fa(void *opaque, tr_fa_msg_type_t fa_data_type, const char cx
     tws_cb_printf(opaque, 0, "receive_fa: opaque=%p, fa_data_type=%d (%s), xml='%s'\n", opaque, (int)fa_data_type, fa_msg_type_name(fa_data_type), cxml);
 }
 
-void event_historical_data(void *opaque, int reqid, const char date[], double open, double high, double low, double close, long int volume, int bar_count, double wap, int has_gaps)
+void event_historical_data(void *opaque, int req_id, const char date[], double open, double high, double low, double close, long int volume, int bar_count, double wap, int has_gaps)
 {
-    tws_cb_printf(opaque, 0, "historical: opaque=%p, reqid=%d, date=%s, ohlc=%.4g/%.4g/%.4g/%.4g, volume=%ld, bar_count=%d, wap=%.4g, has_gaps=%d\n",
-		opaque, reqid, date, open, high, low, close, volume, bar_count, wap, has_gaps);
+    tws_cb_printf(opaque, 0, "historical: opaque=%p, req_id=%d, date=%s, ohlc=%.4g/%.4g/%.4g/%.4g, volume=%ld, bar_count=%d, wap=%.4g, has_gaps=%d\n",
+		opaque, req_id, date, open, high, low, close, volume, bar_count, wap, has_gaps);
 }
 
-void event_historical_data_end(void *opaque, int reqid, const char completion_from[], const char completion_to[])
+void event_historical_data_end(void *opaque, int req_id, const char completion_from[], const char completion_to[])
 {
-    tws_cb_printf(opaque, 0, "historical list end: opaque=%p, reqid=%d, from date=[%s], to date=[%s]\n", opaque, reqid, completion_from, completion_to);
+    tws_cb_printf(opaque, 0, "historical list end: opaque=%p, req_id=%d, from date=[%s], to date=[%s]\n", opaque, req_id, completion_from, completion_to);
 }
 
 void event_scanner_parameters(void *opaque, const char xml[])
@@ -344,19 +344,19 @@ void event_current_time(void *opaque, long time)
     tws_cb_printf(opaque, 0, "current_time: opaque=%p, time=%ld ~ '%s'\n", opaque, time, tbuf);
 }
 
-void event_realtime_bar(void *opaque, int reqid, long time, double open, double high, double low, double close, long int volume, double wap, int count)
+void event_realtime_bar(void *opaque, int req_id, long time, double open, double high, double low, double close, long int volume, double wap, int count)
 {
-    tws_cb_printf(opaque, 0, "realtime_bar: opaque=%p, reqid=%d, time=%ld, ohlc=%.4g/%.4g/%.4g/%.4g, vol=%ld, wap=%.4g, count=%d\n", opaque, reqid, time, open, high, low, close, volume, wap, count);
+    tws_cb_printf(opaque, 0, "realtime_bar: opaque=%p, req_id=%d, time=%ld, ohlc=%.4g/%.4g/%.4g/%.4g, vol=%ld, wap=%.4g, count=%d\n", opaque, req_id, time, open, high, low, close, volume, wap, count);
 }
 
-void event_fundamental_data(void *opaque, int reqid, const char data[])
+void event_fundamental_data(void *opaque, int req_id, const char data[])
 {
-    tws_cb_printf(opaque, 0, "fundamental_data: opaque=%p, reqid=%d, data=[%s]\n", opaque, reqid, data);
+    tws_cb_printf(opaque, 0, "fundamental_data: opaque=%p, req_id=%d, data=[%s]\n", opaque, req_id, data);
 }
 
-void event_contract_details_end(void *opaque, int reqid)
+void event_contract_details_end(void *opaque, int req_id)
 {
-    tws_cb_printf(opaque, 0, "contract_details_end: opaque=%p, reqid=%d\n", opaque, reqid);
+    tws_cb_printf(opaque, 0, "contract_details_end: opaque=%p, req_id=%d\n", opaque, req_id);
 }
 
 void event_open_order_end(void *opaque)
@@ -364,9 +364,9 @@ void event_open_order_end(void *opaque)
     tws_cb_printf(opaque, 0, "open_order_end: opaque=%p\n", opaque);
 }
 
-void event_delta_neutral_validation(void *opaque, int reqid, const under_comp_t *und)
+void event_delta_neutral_validation(void *opaque, int req_id, const under_comp_t *und)
 {
-    tws_cb_printf(opaque, 0, "delta_neutral_validation: opaque=%p, reqid=%d, ...\n", opaque, reqid);
+    tws_cb_printf(opaque, 0, "delta_neutral_validation: opaque=%p, req_id=%d, ...\n", opaque, req_id);
     tws_cb_print_under_comp(opaque, 1, und);
 }
 
@@ -375,19 +375,19 @@ void event_acct_download_end(void *opaque, const char acct_name[])
     tws_cb_printf(opaque, 0, "acct_download_end: opaque=%p, account name=[%s]\n", opaque, acct_name);
 }
 
-void event_exec_details_end(void *opaque, int reqid)
+void event_exec_details_end(void *opaque, int req_id)
 {
-    tws_cb_printf(opaque, 0, "exec_details_end: opaque=%p, reqid=%d\n", opaque, reqid);
+    tws_cb_printf(opaque, 0, "exec_details_end: opaque=%p, req_id=%d\n", opaque, req_id);
 }
 
-void event_tick_snapshot_end(void *opaque, int reqid)
+void event_tick_snapshot_end(void *opaque, int req_id)
 {
-    tws_cb_printf(opaque, 0, "tick_snapshot_end: opaque=%p, reqid=%d\n", opaque, reqid);
+    tws_cb_printf(opaque, 0, "tick_snapshot_end: opaque=%p, req_id=%d\n", opaque, req_id);
 }
 
-void event_market_data_type(void *opaque, int reqid, market_data_type_t data_type)
+void event_market_data_type(void *opaque, int req_id, market_data_type_t data_type)
 {
-	tws_cb_printf(opaque, 0, "market_data_type: opaque=%p, reqid=%d, data_type=%d (%s)\n", opaque, reqid, (int)data_type, market_data_type_name(data_type));
+	tws_cb_printf(opaque, 0, "market_data_type: opaque=%p, req_id=%d, data_type=%d (%s)\n", opaque, req_id, (int)data_type, market_data_type_name(data_type));
 }
 
 void event_commission_report(void *opaque, tr_commission_report_t *report)
